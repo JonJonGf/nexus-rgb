@@ -1,0 +1,90 @@
+'use strict';
+const test = require('node:test'); const assert = require('node:assert/strict'); const { EventEmitter } = require('node:events');
+const { Hardware, frame } = require('../server/hardware'); const { defaults } = require('../server/store');
+function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
+class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
+test('detecta marcas e quantidades arbitrárias e escolhe Direct pelo modo real', async () => {
+  const store = { data: { master: { ...defaults }, devices: {} } }; const mock = new Mock([controller('Teclado genérico', 'USB:1'), controller('GPU genérica', 'PCI:2')]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  assert.equal(hardware.snapshot().devices.length, 2); assert.deepEqual(mock.calls.filter(c => c[0] === 'mode').map(c => c[2]), [2, 2]); assert.equal(mock.calls.find(c => c[0] === 'leds')[2].length, 4); hardware.stop();
+});
+test('dispositivo sem Direct não recebe efeitos nem LED writes inválidos', async () => {
+  const store = { data: { master: { ...defaults, effect: 'wave' }, devices: {} } }; const mock = new Mock([controller('Dispositivo restrito', 'USB:1', false)]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  assert.equal(mock.calls.length, 0); assert.match(hardware.snapshot().devices[0].error, /não oferece/); hardware.stop();
+});
+test('reordenação dos índices SDK mantém identidades físicas', async () => {
+  const mock = new Mock([controller('A', 'USB:1'), controller('B', 'USB:2')]); const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect();
+  const ids = Object.fromEntries(hardware.devices.map(d => [d.name, d.id])); mock.devices.reverse(); await hardware.discover(); for (const d of hardware.devices) assert.equal(d.id, ids[d.name]); hardware.stop();
+});
+test('desligar zera todos os LEDs sem depender da cor ou efeito', () => {
+  assert.ok(frame({ ...defaults, effect: 'wave', power: false }, 40, 123).every(c => c.red === 0 && c.green === 0 && c.blue === 0));
+});
+test('timeout de SDK encerra socket e permite recuperar conexão', async () => {
+  const hardware = new Hardware({ data: {} }); let destroyed = false; hardware.client = { socket: { destroy() { destroyed = true; } } }; await assert.rejects(hardware.operation(new Promise(() => {}), 10), /não respondeu/); assert.equal(destroyed, true);
+});
+test('modo Off nativo desliga hardware sem Direct e preserva modo selecionado para religar', async () => {
+  const raw = controller('Nativo', 'USB:3', false); raw.modes.push({ id: 7, name: 'Off', flagList: [] });
+  const store = { data: { master: { ...defaults, power: false }, devices: {} } }; const mock = new Mock([raw]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  assert.deepEqual(mock.calls[0], ['mode', 0, 7]); assert.equal(hardware.snapshot().devices[0].error, null); hardware.stop();
+});
+test('eventos de socket antigo não derrubam uma conexão já substituída', async () => {
+  const old = new Mock([]); const fresh = new Mock([]); let current = old;
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => current }); hardware.stopped = false; await hardware.connect(); current = fresh; await hardware.connect(); old.emit('disconnect'); assert.equal(hardware.connected, true); hardware.stop();
+});
+
+test('paletas de cenas não escapam das cores escolhidas e respeitam desligamento', () => {
+  const settings = { ...defaults, brightness: 100, effect: 'wave', palette: ['#ff0000', '#0000ff'] };
+  const colors = frame(settings, 120, 1.5); assert.ok(colors.some(c => c.red > 0 && c.blue > 0)); assert.ok(colors.every(c => c.green === 0));
+  assert.ok(frame({ ...settings, power: false }, 120, 12).every(c => Object.values(c).every(v => v === 0)));
+});
+
+test('restaura quantidade de LEDs por identidade física após novo controlador', async () => {
+  const { identity } = require('../server/hardware'); const raw = controller('Header ARGB', 'USB:stable'); raw.zones = [{ id: 0, name: 'ARGB', resizable: true, ledsMin: 0, ledsMax: 120, ledsCount: 0 }]; raw.colors = [];
+  const store = { data: { master: defaults, devices: {}, zones: { [identity(raw)]: { 0: 36 } } } };
+  const mock = new Mock([raw]); mock.resizeZone = (id, zone, count) => { raw.zones[zone].ledsCount = count; raw.colors = Array(count).fill({ red: 0, green: 0, blue: 0 }); };
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); assert.equal(hardware.snapshot().devices[0].ledCount, 36); hardware.stop();
+});
+
+function zonedController() {
+  const raw = controller('Controladora de outra marca', 'USB:controller');
+  raw.zones = [
+    { id: 0, name: 'LED interno', ledsCount: 1, ledsMin: 1, ledsMax: 1, resizable: false },
+    { id: 1, name: 'Addressable RGB Header 1', ledsCount: 2, ledsMin: 0, ledsMax: 120, resizable: true },
+    { id: 2, name: 'Addressable RGB Header 2', ledsCount: 1, ledsMin: 0, ledsMax: 120, resizable: true }
+  ]; return raw;
+}
+test('separa zonas de qualquer fabricante e compõe cores sem sobrescrever outra porta', async () => {
+  const store = { data: { master: { ...defaults, color: '#ff0000', brightness: 100 }, devices: {} } };
+  const mock = new Mock([zonedController()]); const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect();
+  const before = hardware.snapshot(); assert.equal(before.controllerCount, 1); assert.equal(before.devices.length, 3);
+  const [board, port1, port2] = before.devices; assert.equal(port1.name, 'ARGB 1'); assert.equal(port2.name, 'ARGB 2'); assert.deepEqual(port1.modes, []);
+  store.data.devices[port1.id] = { color: '#00ff00', brightness: 50 };
+  store.data.devices[port2.id] = { power: false };
+  await hardware.tick();
+  const writes = mock.calls.filter(c => c[0] === 'leds'); assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0][2], [{ red: 255, green: 0, blue: 0 }, { red: 0, green: 128, blue: 0 }, { red: 0, green: 128, blue: 0 }, { red: 0, green: 0, blue: 0 }]);
+  assert.equal(hardware.snapshot().devices.find(d => d.id === board.id).settings.color, '#ff0000');
+  hardware.stop();
+});
+test('portas mantêm identidade ao redimensionar e salvar usa a controladora física', async () => {
+  const raw = zonedController(); const store = { data: { master: defaults, devices: {}, zones: {} }, zone(id, zone, count) { this.data.zones[id] ??= {}; this.data.zones[id][zone] = count; } };
+  const mock = new Mock([raw]); mock.resizeZone = (id, zone, count) => { raw.zones[zone].ledsCount = count; raw.colors = Array(raw.zones.reduce((sum, z) => sum + z.ledsCount, 0)).fill({ red: 0, green: 0, blue: 0 }); };
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect();
+  const port = hardware.snapshot().devices.find(d => d.name === 'ARGB 1'); const physicalId = hardware.devices[0].id;
+  await assert.rejects(hardware.resize(port.id, 2, 10), /inválido/);
+  await hardware.resize(port.id, 1, 5);
+  assert.equal(hardware.snapshot().devices.find(d => d.id === port.id).ledCount, 5); assert.equal(store.data.zones[physicalId][1], 5);
+  assert.equal(store.data.zones[port.id], undefined); hardware.stop();
+});
+test('não adivinha offsets quando as zonas não cobrem todos os LEDs', async () => {
+  const raw = zonedController(); raw.zones[1].ledsCount = 1;
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => new Mock([raw]) }); hardware.stopped = false; await hardware.connect();
+  assert.equal(hardware.snapshot().devices.length, 1); assert.equal(hardware.snapshot().devices[0].ledCount, 4); hardware.stop();
+});
+test('lista atualizada pelo OpenRGB detecta nova controladora sem reiniciar o Nexus', async () => {
+  const mock = new Mock([controller('Inicial', 'USB:1')]); const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  mock.devices.push(zonedController()); mock.emit('deviceListUpdated'); await hardware.tick();
+  assert.equal(hardware.snapshot().controllerCount, 2); assert.equal(hardware.snapshot().devices.length, 4); hardware.stop();
+});

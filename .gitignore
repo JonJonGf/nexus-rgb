@@ -1,0 +1,15 @@
+node_modules/
+data/
+runtime/
+vendor/
+tools/
+dist/
+test-results/
+playwright-report/
+native/*.exe
+native/*.pdb
+*.log
+*.pfx
+*.key
+*.pem
+.env*

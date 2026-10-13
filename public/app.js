@@ -1,0 +1,190 @@
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id);
+  const labels = { static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso' };
+  const descriptions = { static: 'Uma cor contínua', rainbow: 'Cores em movimento', wave: 'Cor percorre os LEDs', breathe: 'Brilho sobe e desce', pulse: 'Pulsos de luz' };
+  let state = null, admin = false, currentPage = 'control', events = null, networkInfo = null, mobileLink = '', loading = false, toastTimer;
+  const controls = ['power', 'color', 'hex', 'brightness', 'speed'];
+  const el = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
+  function icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('aria-hidden', 'true');
+    const paths = { static: ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 10a6 6 0 1 0 0 12 6 6 0 1 0 0-12'], wave: ['M2 11c5-9 9-9 14 0s9 9 14 0', 'M2 21c5-9 9-9 14 0s9 9 14 0'], rainbow: ['M3 25a13 13 0 0 1 26 0', 'M8 25a8 8 0 0 1 16 0', 'M13 25a3 3 0 0 1 6 0'], breathe: ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 9a7 7 0 1 0 0 14 7 7 0 1 0 0-14', 'M16 14a2 2 0 1 0 0 4 2 2 0 1 0 0-4'], pulse: ['M2 16h6l4-11 7 22 5-11h6'], native: ['M4 5h24v18H4Z', 'M11 28h10m-5-5v5'], ram: ['M2 8h28v15H2Z', 'M6 12h4v6H6Zm8 0h4v6h-4Zm8 0h4v6h-4Z', 'M5 23v4m4-4v4m4-4v4m6-4v4m4-4v4m4-4v4'], board: ['M3 3h26v26H3Z', 'M8 7h10v10H8Z', 'M22 6v12m3-12v12M8 22h17M8 26h13'], rgb: ['M16 4a12 12 0 1 0 0 24 12 12 0 1 0 0-24', 'M16 11a5 5 0 1 0 0 10 5 5 0 1 0 0-10', 'M16 4v7m12 5h-7m-5 12v-7M4 16h7'] };
+    for (const d of paths[name] || paths.rgb) { const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', d); svg.append(path); } return svg;
+  }
+  function channels(hex) { return [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16)); }
+  function theme(hex) {
+    const original = channels(hex); let accent = original;
+    const luminance = values => values.map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((n, v, i) => n + v * [.2126, .7152, .0722][i], 0);
+    for (let amount = .08; luminance(accent) < .2 && amount <= 1; amount += .08) accent = original.map(v => Math.round(v + (255 - v) * amount));
+    document.documentElement.style.setProperty('--color', hex); document.documentElement.style.setProperty('--accent', `rgb(${accent.join(',')})`);
+    $('preview-hex').textContent = hex.toUpperCase();
+    document.querySelectorAll('.swatch').forEach(button => button.classList.toggle('selected', button.dataset.color === hex.toLowerCase()));
+    const hsv = hexToHsv(hex); $('wheel-cursor').style.left = `${50 + Math.cos(hsv.h * Math.PI * 2) * hsv.s * 48}%`; $('wheel-cursor').style.top = `${50 + Math.sin(hsv.h * Math.PI * 2) * hsv.s * 48}%`;
+    $('color-wheel').setAttribute('aria-valuenow', String(Math.round(hsv.h * 359))); $('color-wheel').setAttribute('aria-valuetext', hex.toUpperCase());
+  }
+  function hexToHsv(hex) {
+    const [r, g, b] = channels(hex).map(v => v / 255); const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+    const hue = !delta ? 0 : max === r ? ((g - b) / delta + 6) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+    return { h: hue / 6, s: max ? delta / max : 0 };
+  }
+  function wheelRgb(h, s) {
+    const x = ((h % 1 + 1) % 1) * 6, f = x % 1, p = 1 - s, q = 1 - f * s, t = 1 - (1 - f) * s;
+    return [[1, t, p], [q, 1, p], [p, 1, t], [p, q, 1], [t, p, 1], [1, p, q]][Math.floor(x)].map(v => Math.round(v * 255));
+  }
+  const wheel = $('color-wheel'), context = wheel.getContext('2d'), spectrum = context.createImageData(320, 320);
+  for (let y = 0; y < 320; y++) for (let x = 0; x < 320; x++) { const dx = x - 160, dy = y - 160, saturation = Math.hypot(dx, dy) / 154, offset = (y * 320 + x) * 4; if (saturation > 1) continue; spectrum.data.set([...wheelRgb(Math.atan2(dy, dx) / (2 * Math.PI), saturation), 255], offset); }
+  context.putImageData(spectrum, 0, 0); let dragging = false, wheelColor = '#00f0ff';
+  new ResizeObserver(([entry]) => { const size = Math.max(65, Math.min(entry.contentRect.width - 20, entry.contentRect.height - 20, 320)); $('orb').style.width = `${size}px`; $('orb').style.height = `${size}px`; }).observe(document.querySelector('.wheel-zone'));
+  function previewColor(hex) { wheelColor = hex; $('color').value = hex; $('hex').value = hex.toUpperCase(); theme(hex); }
+  function pickColor(event) { const rect = wheel.getBoundingClientRect(); const x = (event.clientX - rect.left) / rect.width - .5, y = (event.clientY - rect.top) / rect.height - .5; const value = wheelRgb(Math.atan2(y, x) / (2 * Math.PI), Math.min(1, Math.hypot(x, y) / .48)); previewColor('#' + value.map(v => v.toString(16).padStart(2, '0')).join('')); }
+  wheel.addEventListener('pointerdown', event => { if (wheel.getAttribute('aria-disabled') === 'true') return; dragging = true; wheel.setPointerCapture(event.pointerId); pickColor(event); });
+  wheel.addEventListener('pointermove', event => { if (dragging) pickColor(event); });
+  wheel.addEventListener('pointerup', () => { if (!dragging) return; dragging = false; action('/api/control', { color: wheelColor, effect: 'static' }); });
+  wheel.addEventListener('pointercancel', () => { dragging = false; if (state) previewColor(state.master.color); });
+  wheel.addEventListener('keydown', event => { if (!event.key.startsWith('Arrow') || wheel.getAttribute('aria-disabled') === 'true') return; event.preventDefault(); const hsv = hexToHsv($('color').value); if (event.key === 'ArrowRight') hsv.h += 1 / 72; if (event.key === 'ArrowLeft') hsv.h -= 1 / 72; if (event.key === 'ArrowUp') hsv.s = Math.min(1, hsv.s + .05); if (event.key === 'ArrowDown') hsv.s = Math.max(0, hsv.s - .05); previewColor('#' + wheelRgb(hsv.h, hsv.s).map(v => v.toString(16).padStart(2, '0')).join('')); action('/api/control', { color: wheelColor, effect: 'static' }); });
+  function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 6000); }
+  async function api(route, body, method = body === undefined ? 'GET' : 'POST') {
+    const response = await fetch(route, { method, credentials: 'same-origin', headers: { 'X-Nexus-Client': 'web', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+    const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Não foi possível concluir.'); return data;
+  }
+  async function action(route, body, method) { try { const data = await api(route, body, method); if (data.master) render(data); return data; } catch (error) { toast(error.message); return null; } }
+  function enable(value) { controls.forEach(id => { $(id).disabled = !value; }); wheel.setAttribute('aria-disabled', String(!value)); document.querySelectorAll('.effect,.swatch,.quick-preset').forEach(b => { b.disabled = !value; }); }
+  function page(name) {
+    currentPage = name;
+    document.querySelectorAll('[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === name));
+    document.querySelectorAll('.nav').forEach(button => button.classList.toggle('active', button.dataset.page === name));
+    $('page-title').textContent = { control: 'Iluminação', devices: 'Dispositivos', profiles: 'Perfis', connect: 'Conexões' }[name];
+    if (name === 'connect' && admin) loadNetwork();
+  }
+  document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => page(button.dataset.page)));
+  $('open-connect').addEventListener('click', () => page('connect'));
+  for (const [effect, name] of Object.entries(labels)) {
+    const button = el('button', 'effect'); button.dataset.effect = effect; button.setAttribute('aria-pressed', 'false'); const symbol = el('span', 'symbol'); symbol.append(icon(effect)); button.append(symbol, el('span', 'effect-name', name), el('small', '', descriptions[effect]));
+    button.addEventListener('click', () => action('/api/control', { effect })); $('effects').append(button);
+  }
+  const native = el('button', 'mode-shortcut'); native.append(icon('native'), el('span', '', 'Modo nativo'), el('small', '', 'Por componente ↗')); native.addEventListener('click', () => page('devices')); $('effects').append(native);
+  for (const color of ['#00f0ff', '#0094ff', '#7954ff', '#bd00ff', '#ff0055', '#ff8000', '#ffdf00', '#00ff88', '#ffffff']) {
+    const button = el('button', 'swatch'); button.dataset.color = color; button.style.setProperty('--swatch', color); button.setAttribute('aria-label', `Usar cor ${color}`);
+    button.addEventListener('click', () => action('/api/control', { color, effect: 'static' })); $('swatches').append(button);
+  }
+  $('power').addEventListener('change', event => action('/api/control', { power: event.target.checked }));
+  $('color').addEventListener('input', event => previewColor(event.target.value));
+  $('color').addEventListener('change', event => action('/api/control', { color: event.target.value, effect: 'static' }));
+  $('hex').addEventListener('change', event => {
+    const color = event.target.value;
+    if (!/^#[a-f0-9]{6}$/i.test(color)) { toast('Use uma cor no formato #RRGGBB.'); return; }
+    action('/api/control', { color, effect: 'static' });
+  });
+  for (const field of ['brightness', 'speed']) {
+    $(field).addEventListener('input', event => { $(`${field}-label`).textContent = `${event.target.value}%`; });
+    $(field).addEventListener('change', event => action('/api/control', { [field]: Number(event.target.value) }));
+  }
+  function empty(container, text) { const message = el('div', 'empty', text); container.append(message); }
+  function render(next) {
+    state = next; enable(true); $('version').textContent = `Nexus RGB v${state.version}`;
+    const master = state.master; const devices = state.hardware.devices;
+    for (const field of controls) if (document.activeElement !== $(field)) { if (field === 'power') $(field).checked = master.power; else $(field).value = field === 'hex' ? master.color.toUpperCase() : master[field]; }
+    if (!dragging) theme(master.color);
+    $('preview-hex').textContent = master.color.toUpperCase(); $('preview-effect').textContent = master.power ? labels[master.effect] : 'Luzes apagadas';
+    $('orb').classList.toggle('off', !master.power); $('orb').classList.toggle('animated', master.power && master.effect !== 'static'); $('orb').dataset.effect = master.effect;
+    $('summary-power').textContent = master.power ? 'Ligada' : 'Desligada'; $('summary-brightness').textContent = `${master.brightness}%`; $('summary-devices').textContent = devices.filter(d => d.status === 'online').length;
+    $('brightness-label').textContent = `${master.brightness}%`; $('speed-label').textContent = `${master.speed}%`;
+    document.querySelectorAll('.effect').forEach(b => { b.classList.toggle('active', b.dataset.effect === master.effect); b.setAttribute('aria-pressed', String(b.dataset.effect === master.effect)); });
+    const online = state.hardware.connected; $('connection').textContent = online ? '● Controlador conectado' : '● Aguardando hardware'; $('connection').className = `badge ${online ? 'online' : 'offline'}`;
+    $('device-count').textContent = devices.length; $('hardware-summary').textContent = online ? `${devices.length} componentes · ${state.hardware.controllerCount ?? devices.length} controladoras` : 'Controlador RGB desconectado';
+    const failures = devices.filter(d => d.error);
+    const notice = !online ? 'O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ' + (state.hardware.error || '') : !devices.length ? 'Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.' : failures.length ? `${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
+    $('notice').textContent = notice; $('notice').hidden = !notice;
+    renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
+    $('save-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
+    $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';
+    $('alexa-enabled').checked = state.alexa.enabled; $('alexa-status').textContent = state.alexa.status;
+  }
+  function renderMini(devices) {
+    const container = $('hardware-mini'); container.replaceChildren();
+    container.style.setProperty('--component-count', Math.min(devices.length || 1, 6));
+    if (!devices.length) return empty(container, 'Aguardando o controlador. Seus componentes aparecerão aqui.');
+    for (const d of devices.slice(0, 6)) { const card = el('button', 'mini'); card.title = d.controllerName && d.controllerName !== d.name ? `${d.name} · ${d.controllerName}` : d.name; card.addEventListener('click', () => page('devices')); const text = el('div'); text.append(el('h3', '', d.name), el('p', '', `${d.ledCount} LEDs / ${d.kind === 'argb' ? 'ARGB' : d.kind === 'port' ? 'PORTA RGB' : d.type === 1 ? 'RAM' : d.type === 0 ? 'PLACA-MÃE' : 'RGB'}`), el('span', `device-status ${d.status === 'online' && !d.error ? 'online' : ''}`, d.error ? 'VERIFICAR AJUSTE' : d.status === 'online' ? '● CONECTADO' : '● DESCONECTADO')); const artwork = el('span', 'device-icon'); artwork.append(icon(d.kind === 'argb' || d.kind === 'port' ? 'rgb' : d.type === 1 ? 'ram' : d.type === 0 ? 'board' : 'rgb')); card.append(artwork, text); container.append(card); }
+  }
+  function renderDevices(devices) {
+    if ($('devices').contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
+    const container = $('devices'); container.replaceChildren();
+    if (!devices.length) return empty(container, 'Nenhum dispositivo detectado. Não mostramos componentes simulados.');
+    for (const d of devices) {
+      const card = el('article', 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div'); title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, `${d.ledCount} LEDs`, d.status === 'online' ? 'Conectado' : 'Desconectado'].filter(Boolean).join(' · ')), el('span', `sync-label ${d.customized ? 'customized' : ''}`, d.customized ? 'Ajuste individual' : 'Segue o controle geral'));
+      const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', `Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);
+      if (d.error) card.append(el('p', 'error', d.error));
+      const group = el('div', 'device-controls'); const colorLabel = el('label', '', 'Cor'); const color = el('input'); color.type = 'color'; color.value = d.settings.color; color.setAttribute('aria-label', `Cor de ${d.name}`); color.addEventListener('change', () => action(`/api/devices/${d.id}`, { color: color.value, effect: 'static' })); color.disabled = !d.effects.includes('static'); colorLabel.append(color);
+      const brightnessLabel = el('label', '', `Brilho · ${d.settings.brightness}%`); const brightness = el('input'); brightness.type = 'range'; brightness.min = 0; brightness.max = 100; brightness.value = d.settings.brightness; brightness.setAttribute('aria-label', `Brilho de ${d.name}`); brightness.addEventListener('change', () => action(`/api/devices/${d.id}`, { brightness: Number(brightness.value) })); brightnessLabel.append(brightness);
+      const modeLabel = el('label', '', d.splitZone ? 'Efeito deste componente' : 'Efeito / modo do dispositivo'); const mode = el('select'); mode.setAttribute('aria-label', `Modo de ${d.name}`);
+      for (const effect of d.effects) { const option = el('option', '', labels[effect]); option.value = effect; mode.append(option); }
+      for (const native of d.modes) { const option = el('option', '', `Hardware: ${native.name}`); option.value = `native:${native.id}`; mode.append(option); }
+      mode.value = d.settings.nativeMode !== undefined ? `native:${d.settings.nativeMode}` : d.settings.effect;
+      mode.addEventListener('change', () => action(`/api/devices/${d.id}`, mode.value.startsWith('native:') ? { nativeMode: Number(mode.value.slice(7)) } : { effect: mode.value })); modeLabel.append(mode); group.append(colorLabel, brightnessLabel, modeLabel); card.append(group);
+      if (d.zones.length) { const details = el('details'); details.append(el('summary', '', 'Zonas e quantidade de LEDs')); for (const z of d.zones) { const row = el('div', 'zone-row'); row.append(el('span', '', `${z.name} · ${z.leds} LEDs`)); if (z.resizable && admin) { const count = el('input'); count.type = 'number'; count.min = z.min; count.max = z.max; count.value = z.leds; count.setAttribute('aria-label', `LEDs em ${z.name}`); const save = el('button', 'button subtle', 'Aplicar quantidade'); save.addEventListener('click', () => action(`/api/devices/${d.id}/resize`, { zone: z.id, count: Number(count.value) })); row.append(count, save); } details.append(row); } card.append(details); }
+      container.append(card);
+    }
+  }
+  function renderProfiles() {
+    const container = $('profiles'); container.replaceChildren();
+    if (!state.profiles.length) return empty(container, admin ? 'Salve sua primeira configuração usando o botão acima.' : 'Os perfis salvos no PC aparecem aqui.');
+    for (const p of state.profiles) {
+      const card = el('article', 'profile-card'); if (/^#[a-f0-9]{6}$/i.test(p.color)) card.style.setProperty('--profile-color', p.color);
+      card.append(el('h2', '', p.name), el('p', '', 'Cores e ajustes salvos para o seu setup'));
+      const apply = el('button', 'button primary', 'Ativar perfil'); apply.addEventListener('click', () => action(`/api/profiles/${p.id}`, {})); card.append(apply);
+      if (admin) { const remove = el('button', 'button subtle', 'Excluir'); remove.addEventListener('click', () => action(`/api/profiles/${p.id}`, {}, 'DELETE')); card.append(remove); }
+      container.append(card);
+    }
+  }
+  function renderPresets() {
+    const quick = $('quick-presets'), gallery = $('preset-gallery');
+    if (quick.childElementCount === (state.presets || []).length && gallery.childElementCount) return;
+    quick.replaceChildren(); gallery.replaceChildren();
+    for (const preset of state.presets || []) {
+      const gradient = `linear-gradient(125deg,${preset.colors.filter(color => /^#[a-f0-9]{6}$/i.test(color)).join(',')})`;
+      const apply = () => action(`/api/presets/${preset.id}`, {});
+      const shortcut = el('button', 'quick-preset', preset.name); shortcut.title = preset.description; shortcut.style.setProperty('--scene-palette', gradient); shortcut.addEventListener('click', apply); quick.append(shortcut);
+      const card = el('article', 'profile-card'); card.style.setProperty('--scene-palette', gradient); card.append(el('div', 'scene-art'), el('span', 'scene-tag', preset.tag), el('h2', '', preset.name), el('p', '', preset.description)); const meta = el('div', 'scene-meta'); meta.append(el('span', '', labels[preset.settings.effect]), el('span', '', `${preset.settings.brightness}% brilho`)); card.append(meta); const button = el('button', 'button primary', 'Ativar cena'); button.setAttribute('aria-label', `Ativar ${preset.name}`); button.addEventListener('click', apply); card.append(button); gallery.append(card);
+    }
+  }
+  $('save-profile').addEventListener('click', () => { $('profile-form').hidden = false; $('profile-name').focus(); });
+  $('cancel-profile').addEventListener('click', () => { $('profile-form').hidden = true; });
+  $('profile-form').addEventListener('submit', async event => { event.preventDefault(); if (await action('/api/profiles', { name: $('profile-name').value })) { $('profile-form').hidden = true; $('profile-name').value = ''; } });
+  function peerRow(text, subtitle, buttonText, callback) { const row = el('div', 'peer-row'); const title = el('div', '', text); if (subtitle) title.append(el('small', '', subtitle)); const button = el('button', 'button subtle', buttonText); button.addEventListener('click', callback); row.append(title, button); return row; }
+  async function loadNetwork() {
+    if (!admin || loading) return; loading = true;
+    try {
+      networkInfo = await api('/api/network'); const select = $('network-select'); const old = select.value; select.replaceChildren();
+      for (const item of networkInfo.urls) { const option = el('option', '', `${item.name} — ${item.url}`); option.value = item.address; select.append(option); } if ([...select.options].some(o => o.value === old)) select.value = old;
+      $('uptime').textContent = `${Math.floor(networkInfo.uptime / 3600)}h ${Math.floor(networkInfo.uptime % 3600 / 60)}min`;
+      $('memory').textContent = `${networkInfo.memoryMB} MB`; $('data-directory').textContent = networkInfo.dataDirectory;
+      $('alexa-status').textContent = networkInfo.alexa.status; $('alexa-enabled').checked = networkInfo.alexa.enabled;
+      $('discover-alexa').disabled = !networkInfo.alexa.enabled;
+      const candidates = $('alexa-candidates'); candidates.replaceChildren();
+      for (const ip of networkInfo.alexa.candidates.filter(ip => !networkInfo.alexa.peers.includes(ip))) candidates.append(peerRow(ip, 'Confira se este IP pertence ao seu Echo.', 'Autorizar Echo', async () => { await action('/api/alexa/approve', { ip }); loadNetwork(); }));
+      const peers = $('alexa-peers'); peers.replaceChildren(); for (const ip of networkInfo.alexa.peers) peers.append(peerRow(ip, 'Echo autorizado na rede local', 'Remover', async () => { await action('/api/alexa/revoke', { ip }); loadNetwork(); }));
+    } catch (error) { toast(error.message); } finally { loading = false; }
+  }
+  $('generate-qr').addEventListener('click', async () => {
+    const data = await action('/api/link', { address: $('network-select').value }); if (!data) return;
+    mobileLink = data.link; $('qr-image').src = data.qr; $('pair-link').href = data.link; $('pair-link').textContent = data.link; $('qr-box').hidden = false;
+  });
+  $('copy-link').addEventListener('click', async () => {
+    try { if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(mobileLink); else { const input = el('textarea'); input.value = mobileLink; document.body.append(input); input.select(); if (!document.execCommand('copy')) throw new Error(); input.remove(); } toast('Link copiado.'); } catch { toast('Selecione e copie o link exibido acima.'); }
+  });
+  $('alexa-enabled').addEventListener('change', async event => { await action('/api/alexa', { enabled: event.target.checked }); loadNetwork(); });
+  $('discover-alexa').addEventListener('click', async () => { if (await action('/api/alexa/discover', {})) toast('Agora peça à Alexa para descobrir dispositivos.'); loadNetwork(); });
+  async function initialize() {
+    try {
+      if (['127.0.0.1', 'localhost'].includes(location.hostname)) await api('/api/session/local', {});
+      const session = await api('/api/session'); admin = session.admin; render(await api('/api/state'));
+      events?.close(); events = new EventSource('/api/events');
+      events.onmessage = event => { try { render(JSON.parse(event.data)); } catch { toast('Não foi possível atualizar o estado.'); } };
+      events.onerror = () => { $('connection').textContent = '● Reconectando ao PC…'; $('connection').className = 'badge offline'; enable(false); };
+    } catch (error) { $('connection').textContent = '● PC indisponível'; enable(false); toast(error.message); }
+  }
+  enable(false); initialize();
+  setInterval(() => { if (currentPage === 'connect' && admin && !document.hidden) loadNetwork(); }, 5000);
+  window.addEventListener('online', initialize); window.addEventListener('pageshow', event => { if (event.persisted) initialize(); });
+  if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
+})();

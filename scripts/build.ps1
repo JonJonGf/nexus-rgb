@@ -1,0 +1,47 @@
+﻿$ErrorActionPreference='Stop'
+$env:PSModulePath=Join-Path $PSHOME 'Modules'
+$projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+Set-Location -LiteralPath $projectRoot
+$buildRoot=Join-Path $projectRoot 'dist\app'
+if(Test-Path -LiteralPath $buildRoot){
+  $resolvedBuild=[IO.Path]::GetFullPath($buildRoot)
+  if($resolvedBuild -ne [IO.Path]::GetFullPath((Join-Path $projectRoot 'dist\app')) -or -not $resolvedBuild.StartsWith($projectRoot+'\dist\',[StringComparison]::OrdinalIgnoreCase)){throw 'Pasta de build fora do projeto.'}
+  Remove-Item -LiteralPath $resolvedBuild -Recurse -Force
+}
+New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
+foreach($folder in @('server','public')) { Copy-Item -LiteralPath (Join-Path $projectRoot $folder) -Destination $buildRoot -Recurse -Force }
+New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $buildRoot 'runtime'),(Join-Path $buildRoot 'licenses'),(Join-Path $buildRoot 'sources') -Force | Out-Null
+Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
+Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
+Copy-Item -LiteralPath 'native\app.ico' -Destination (Join-Path $buildRoot 'app.ico') -Force
+Copy-Item -LiteralPath 'runtime\node.exe' -Destination (Join-Path $buildRoot 'runtime\node.exe') -Force
+foreach($dependency in @('vendor\PawnIO_setup.exe','vendor\vc_redist.x64.exe','runtime\node.exe')) {
+  $signature=Get-AuthenticodeSignature -LiteralPath $dependency
+  if($signature.Status -ne 'Valid'){throw "Assinatura digital inválida: $dependency"}
+}
+$expected=(Get-Content -LiteralPath 'vendor-manifest.json' -Raw | ConvertFrom-Json)
+foreach($item in $expected.files){if((Get-FileHash -LiteralPath $item.path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256){throw "Integridade inválida: $($item.path)"}}
+Expand-Archive -LiteralPath 'vendor\openrgb-1.0.zip' -DestinationPath (Join-Path $buildRoot 'openrgb') -Force
+$unpackedRoot=[IO.Path]::GetFullPath((Join-Path $buildRoot 'openrgb\OpenRGB Windows 64-bit'))
+if(-not $unpackedRoot.StartsWith([IO.Path]::GetFullPath($buildRoot)+'\openrgb\',[StringComparison]::OrdinalIgnoreCase)){throw 'Diretório OpenRGB fora do pacote.'}
+Get-ChildItem -LiteralPath $unpackedRoot -Force | Move-Item -Destination (Join-Path $buildRoot 'openrgb') -Force
+Remove-Item -LiteralPath $unpackedRoot
+if(Test-Path -LiteralPath (Join-Path $buildRoot 'openrgb\WinRing0x64.sys')){throw 'Driver WinRing0 não é permitido.'}
+Copy-Item -LiteralPath 'vendor\openrgb-source-1.0.zip' -Destination (Join-Path $buildRoot 'sources') -Force
+Copy-Item -LiteralPath 'vendor\openrgb-source\openrgb\LICENSE' -Destination (Join-Path $buildRoot 'licenses\OpenRGB-GPL-2.0.txt') -Force
+Copy-Item -LiteralPath 'tools\inno\License.txt' -Destination (Join-Path $buildRoot 'licenses\Inno-Setup.txt') -Force
+Copy-Item -LiteralPath 'vendor\Node-LICENSE.txt' -Destination (Join-Path $buildRoot 'licenses\Node.txt') -Force
+Copy-Item -LiteralPath 'vendor-manifest.json' -Destination $buildRoot -Force
+Push-Location -LiteralPath $buildRoot
+try { & npm.cmd ci --omit=dev --ignore-scripts; if($LASTEXITCODE -ne 0){throw 'Falha ao preparar dependências de produção.'}; & npm.cmd audit --omit=dev --audit-level=moderate; if($LASTEXITCODE -ne 0){throw 'Auditoria de dependências falhou.'} }
+finally { Pop-Location }
+& 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /target:winexe /platform:x64 /optimize+ ('/out:'+(Join-Path $buildRoot 'NexusRGB.exe')) ('/win32icon:'+(Join-Path $projectRoot 'native\app.ico')) /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.ServiceProcess.dll (Join-Path $projectRoot 'native\NexusRGB.cs')
+if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o executável nativo.'}
+$testProcess=Start-Process -FilePath (Join-Path $buildRoot 'NexusRGB.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
+if($testProcess.ExitCode -ne 0){throw 'Instalação de teste incompleta.'}
+# Include each third-party license shipped in node_modules, without developer dependencies.
+& node scripts/licenses.js $buildRoot
+if($LASTEXITCODE -ne 0){throw 'Falha ao coletar licenças.'}
+& (Join-Path $projectRoot 'tools\inno\ISCC.exe') /Qp installer/NexusRGB.iss
+if($LASTEXITCODE -ne 0){throw 'Falha ao gerar instalador.'}
+Get-FileHash -LiteralPath 'dist\NexusRGB-Setup-0.1.0.exe' -Algorithm SHA256 | Format-List

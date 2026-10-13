@@ -1,0 +1,40 @@
+{
+  "checkedAt": "2026-10-13",
+  "files": [
+    {
+      "path": "vendor/openrgb-1.0.zip",
+      "sha256": "182a52a3c97c4c4ae52c80286b4260c9666c51c3447dbc416ee8945f66192e90",
+      "url": "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.0/OpenRGB_1.0_Windows_64_81bbe18.zip"
+    },
+    {
+      "path": "vendor/openrgb-source-1.0.zip",
+      "sha256": "9e2cc3a15f4eb19f309c9e040a6bc6f7f1dbc9d91871ce95c0de0c050b218e20",
+      "url": "https://codeberg.org/OpenRGB/OpenRGB/archive/release_1.0.zip"
+    },
+    {
+      "path": "vendor/PawnIO_setup.exe",
+      "sha256": "1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032",
+      "url": "https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe"
+    },
+    {
+      "path": "vendor/vc_redist.x64.exe",
+      "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+      "url": "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+    },
+    {
+      "path": "runtime/node.exe",
+      "sha256": "5c976096e04e5c2c1f091938926234cc9fbebfe9787ddd149351b3b0ecc707b5",
+      "url": "https://nodejs.org/dist/v24.20.0/win-x64/node.exe"
+    },
+    {
+      "path": "tools/inno-installer.exe",
+      "sha256": "f3c42116542c4cc57263c5ba6c4feabfc49fe771f2f98a79d2f7628b8762723b",
+      "url": "https://github.com/jrsoftware/issrc/releases/download/is-6_4_3/innosetup-6.4.3.exe"
+    },
+    {
+      "path": "vendor/Node-LICENSE.txt",
+      "sha256": "5888dbb9a1d2b18f2c3e6c5f6af1b39de658372b402a0577b002777f14c62ace",
+      "url": "https://raw.githubusercontent.com/nodejs/node/v24.20.0/LICENSE"
+    }
+  ]
+}
