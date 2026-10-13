@@ -5,7 +5,6 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const net = require('./network');
 const { readJson, writeJson } = require('./store');
-const { hue } = require('./hardware');
 const { RateLimiter } = require('./security');
 const xmlEscape = value => String(value).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]);
 const LIGHT_NAME = 'Iluminação Nexus';
@@ -25,36 +24,10 @@ function searchTargets(message, uuid) {
   const supported = ['upnp:rootdevice', HUE_DEVICE_TYPE, `uuid:${uuid}`];
   return target === 'ssdp:all' ? supported : supported.filter(value => value.toLowerCase() === target);
 }
-function colorState(hex) {
-  const values = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
-  const [r, g, b] = values; const max = Math.max(...values); const min = Math.min(...values); const delta = max - min;
-  let h = delta === 0 ? 0 : max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
-  h = ((h / 6) % 1 + 1) % 1;
-  const [R, G, B] = values.map(v => v > 0.04045 ? ((v + 0.055) / 1.055) ** 2.4 : v / 12.92);
-  const X = R * 0.664511 + G * 0.154324 + B * 0.162028; const Y = R * 0.283881 + G * 0.668433 + B * 0.047685; const Z = R * 0.000088 + G * 0.07231 + B * 0.986039;
-  const sum = X + Y + Z;
-  return { hue: Math.round(h * 65535), sat: max ? Math.round(delta / max * 254) : 0, xy: sum ? [X / sum, Y / sum] : [0.3, 0.3] };
-}
 function huePatch(body) {
-  const patch = {};
-  if ('on' in body) { if (typeof body.on !== 'boolean') throw new Error('on inválido'); patch.power = body.on; }
-  if ('bri' in body) { if (!Number.isInteger(body.bri) || body.bri < 0 || body.bri > 254) throw new Error('bri inválido'); patch.brightness = Math.round(body.bri / 254 * 100); }
-  let color;
-  if ('hue' in body || 'sat' in body) {
-    const h = body.hue ?? 0; const s = body.sat ?? 254;
-    if (!Number.isInteger(h) || h < 0 || h > 65535 || !Number.isInteger(s) || s < 0 || s > 254) throw new Error('Cor Hue inválida');
-    const c = hue(h / 65535); color = Object.values(c).map(v => Math.round(255 * (1 - s / 254) + v * s / 254));
-  }
-  if ('xy' in body) {
-    if (!Array.isArray(body.xy) || body.xy.length !== 2 || body.xy.some(n => typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1) || body.xy[1] <= 0 || body.xy[0] + body.xy[1] > 1.001) throw new Error('xy inválido');
-    const [x, y] = body.xy; const X = x / y; const Z = (1 - x - y) / y;
-    let c = [X * 1.656492 - 0.354851 - Z * 0.255038, -X * 0.707196 + 1.655397 + Z * 0.036152, X * 0.051713 - 0.121364 + Z * 1.01153].map(n => Math.max(0, n));
-    const max = Math.max(...c, 1); c = c.map(n => n / max);
-    color = c.map(n => Math.round(255 * (n <= 0.0031308 ? 12.92 * n : 1.055 * n ** (1 / 2.4) - 0.055)));
-  }
-  if (color) { patch.color = '#' + color.map(n => n.toString(16).padStart(2, '0')).join(''); patch.effect = 'static'; }
-  if (body.effect === 'colorloop') patch.effect = 'rainbow';
-  return patch;
+  if (!body || Array.isArray(body) || typeof body !== 'object' || !Object.keys(body).length) throw new Error('Estado inválido');
+  if ('on' in body && typeof body.on !== 'boolean') throw new Error('on inválido');
+  return Object.hasOwn(body, 'on') ? { power: body.on } : {};
 }
 class Alexa {
   constructor(store, hardware, directory, onChange, options = {}) {
@@ -72,12 +45,7 @@ class Alexa {
   snapshot() { return { enabled: this.store.data.alexaEnabled, status: this.status, lightName: LIGHT_NAME, discoveryUntil: this.discoveryUntil, candidates: [...this.candidates.keys()].filter(ip => !this.ownAddress(ip)), peers: [...this.data.peers], diagnostics: structuredClone(this.diagnostics) }; }
   lights() {
     const state = this.store.data.master;
-    const common = { type: 'Extended color light', modelid: 'LCT015', manufacturername: 'Philips', swversion: '1.46.13', state: { on: state.power, bri: Math.round(state.brightness * 2.54), ...colorState(state.color), ct: 370, alert: 'none', effect: state.effect === 'rainbow' ? 'colorloop' : 'none', colormode: 'xy', reachable: this.hardware.connected } };
-    const lights = { '1': { ...common, name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1) } };
-    for (const [i, effect] of ['rainbow', 'wave', 'breathe', 'static', 'pulse'].entries()) {
-      lights[String(i + 2)] = { type: 'Dimmable light', modelid: 'LWB010', manufacturername: 'Philips', swversion: '1.0', name: { rainbow: 'Nexus Arco Iris', wave: 'Nexus Onda', breathe: 'Nexus Respiracao', static: 'Nexus Estatico', pulse: 'Nexus Pulso' }[effect], uniqueid: lightIdentity(this.data.uuid, i + 2), state: { on: state.power && state.effect === effect, bri: 254, reachable: this.hardware.connected } };
-    }
-    return lights;
+    return { '1': { type: 'On/off light', modelid: 'HASS321', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, alert: 'none', reachable: this.hardware.connected } } };
   }
   description(ip) {
     return `<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>http://${xmlEscape(ip)}:${this.port}/</URLBase><device><deviceType>${HUE_DEVICE_TYPE}</deviceType><friendlyName>Nexus RGB (${xmlEscape(ip)})</friendlyName><manufacturer>Royal Philips Electronics</manufacturer><modelDescription>Philips hue Personal Wireless Lighting</modelDescription><modelName>Philips hue bridge 2012</modelName><modelNumber>929000226503</modelNumber><serialNumber>${this.identity.serial}</serialNumber><UDN>uuid:${this.data.uuid}</UDN><presentationURL>http://${xmlEscape(ip)}:${this.port}/</presentationURL></device></root>`;
@@ -132,13 +100,12 @@ class Alexa {
         let size = 0; const chunks = [];
         for await (const chunk of req) { size += chunk.length; if (size > 2048) return send(413, {}); chunks.push(chunk); }
         const body = JSON.parse(Buffer.concat(chunks).toString());
-        if (!body || Array.isArray(body) || typeof body !== 'object') throw new Error('Estado inválido');
         const patch = huePatch(body);
-        if (Number(light) > 1) { if (body.on === true) { patch.power = true; patch.effect = ['rainbow', 'wave', 'breathe', 'static', 'pulse'][Number(light) - 2]; } else if (body.on === false) patch.power = false; }
-        this.store.master(patch); this.hardware.changed();
-        this.diagnostics.lastCommand = { at: Date.now(), ip, name: this.lights()[light].name, power: this.store.data.master.power };
-        this.onChange();
-        return send(200, Object.keys(body).map(k => ({ success: { [`/lights/${light}/state/${k}`]: body[k] } })));
+        if ('power' in patch) {
+          if (this.store.power(patch.power)) { this.hardware.changed(); this.onChange(); }
+          this.diagnostics.lastCommand = { at: Date.now(), ip, name: LIGHT_NAME, power: this.store.data.master.power };
+        }
+        return send(200, Object.keys(body).map(k => k === 'on' ? { success: { [`/lights/${light}/state/on`]: body.on } } : { error: { type: 6, address: `/lights/${light}/state/${k}`, description: 'Only on/off is supported.' } }));
       } catch { return send(400, [{ error: { type: 7, description: 'Invalid state' } }]); }
     }
     return send(405, {});

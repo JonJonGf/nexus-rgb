@@ -118,3 +118,26 @@ test('cache de modo mantém alterações necessárias de brilho nos modos nativo
   const id = hardware.snapshot().devices[0].id; store.data.devices[id]={brightness:20}; hardware.changed(); await hardware.tick();
   assert.equal(configs.length,2); assert.equal(configs[1].brightness,20); assert.deepEqual(configs[1].colors,[{red:0,green:240,blue:255}]); hardware.stop();
 });
+
+test('energia geral apaga zonas e modos nativos sem perder ajustes ou religar componentes desativados', async t => {
+  const native = controller('Nativo', 'USB:native', false); native.modes.push({ id: 7, name: 'Off', flagList: [] });
+  const store = { data: { master: { ...defaults, color: '#ff0000', brightness: 100 }, devices: {} } };
+  const mock = new Mock([zonedController(), native]); const hardware = new Hardware(store, { makeClient: () => mock });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect();
+  const [board, port1, port2, lamp] = hardware.snapshot().devices;
+  store.data.devices[port1.id] = { power: true, color: '#00ff00', brightness: 50 };
+  store.data.devices[port2.id] = { power: false };
+  store.data.devices[lamp.id] = { power: true, nativeMode: 0 };
+  const overrides = structuredClone(store.data.devices);
+  await hardware.tick(); mock.calls = [];
+  store.data.master.power = false; hardware.changed(); await hardware.tick();
+  assert.ok(mock.calls.find(call => call[0] === 'leds')[2].every(color => Object.values(color).every(value => value === 0)));
+  assert.deepEqual(mock.calls.find(call => call[0] === 'mode'), ['mode', 1, 7]);
+  assert.ok(hardware.snapshot().devices.every(device => device.settings.power === false));
+  assert.deepEqual(store.data.devices, overrides); mock.calls = [];
+  store.data.master.power = true; hardware.changed(); await hardware.tick();
+  assert.deepEqual(mock.calls.find(call => call[0] === 'leds')[2], [{ red: 255, green: 0, blue: 0 }, { red: 0, green: 128, blue: 0 }, { red: 0, green: 128, blue: 0 }, { red: 0, green: 0, blue: 0 }]);
+  assert.deepEqual(mock.calls.find(call => call[0] === 'mode'), ['mode', 1, 0]);
+  assert.equal(hardware.snapshot().devices.find(device => device.id === board.id).settings.power, true);
+  assert.deepEqual(store.data.devices, overrides);
+});

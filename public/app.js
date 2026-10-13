@@ -161,7 +161,7 @@
       $('alexa-status').textContent = networkInfo.alexa.status; $('alexa-enabled').checked = networkInfo.alexa.enabled;
       const diagnostic = networkInfo.alexa.diagnostics || {};
       const time = item => new Date(item.at).toLocaleTimeString('pt-BR');
-      $('alexa-light-name').textContent = `A luz aparece como ${networkInfo.alexa.lightName || 'Iluminação Nexus'}. Use “Alexa, apague a ${networkInfo.alexa.lightName || 'Iluminação Nexus'}”. O Nexus controla somente a iluminação.`;
+      $('alexa-light-name').textContent = `A única luz aparece como ${networkInfo.alexa.lightName || 'Iluminação Nexus'}. Use “Alexa, acenda a Iluminação Nexus” ou “Alexa, apague a Iluminação Nexus”. Cor, brilho e efeitos ficam no app e são preservados ao religar.`;
       $('alexa-search-diagnostic').textContent = diagnostic.lastSearch ? `Busca pela ponte recebida de ${diagnostic.lastSearch.ip} às ${time(diagnostic.lastSearch)}.` : 'Aguardando uma busca pela ponte na rede local.';
       $('alexa-http-diagnostic').textContent = diagnostic.lastHttp ? `${diagnostic.lastHttp.resource}: ${diagnostic.lastHttp.ip} · ${diagnostic.lastHttp.status === 403 ? 'aguardando autorização no painel' : diagnostic.lastHttp.status < 400 ? 'recebida' : 'recusada'} · ${time(diagnostic.lastHttp)}.` : 'O Echo ainda não consultou as luzes desta ponte.';
       $('alexa-command-diagnostic').textContent = diagnostic.lastCommand ? `Último comando recebido: ${diagnostic.lastCommand.name} · luzes ${diagnostic.lastCommand.power ? 'ligadas' : 'apagadas'} · ${time(diagnostic.lastCommand)}.` : 'Nenhum comando de iluminação recebido nesta sessão.';

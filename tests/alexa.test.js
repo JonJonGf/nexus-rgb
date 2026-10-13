@@ -1,9 +1,11 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict'); const { huePatch } = require('../server/alexa');
-test('Hue preserva desligar/brilho zero e converte cores válidas', () => {
-  assert.deepEqual(huePatch({ on: false, bri: 0 }), { power: false, brightness: 0 }); assert.equal(huePatch({ hue: 0, sat: 254 }).color, '#ff0000'); assert.match(huePatch({ xy: [0.3, 0.3] }).color, /^#[a-f0-9]{6}$/);
+test('Hue aceita somente ligar/desligar e não transforma cor, brilho ou efeito em ajustes', () => {
+  assert.deepEqual(huePatch({ on: false, bri: 0, hue: 0, sat: 254, effect: 'colorloop' }), { power: false });
+  assert.deepEqual(huePatch({ on: true }), { power: true });
+  assert.deepEqual(huePatch({ bri: 127, xy: [0.3, 0.3] }), {});
 });
-test('Hue recusa valores inválidos sem produzir NaN ou estados ambíguos', () => { for (const body of [{ on: 'true' }, { bri: 256 }, { hue: -1 }, { sat: 300 }, { xy: [0.4, 0] }, { xy: [0.8, 0.8] }, { xy: [NaN, 0.3] }]) assert.throws(() => huePatch(body)); });
+test('Hue recusa estados e comandos de energia ambíguos', () => { for (const body of [{ on: 'true' }, { on: 1 }, { on: null }, {}, [], null]) assert.throws(() => huePatch(body)); });
 
 test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o próprio PC', async t => {
   const { Alexa } = require('../server/alexa'); const { Store } = require('../server/store');
@@ -27,20 +29,40 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   assert.equal((await request('192.168.20.8', '/api/nexus/lights')).status, 403); assert.deepEqual(alexa.snapshot().candidates, ['192.168.20.8']);
   assert.throws(() => alexa.approve('192.168.20.5')); alexa.approve('192.168.20.8');
   assert.equal((await request('192.168.20.8', '/api', 'POST', {})).status, 200);
-  assert.equal(Object.keys(JSON.parse((await request('192.168.20.8', '/api/nexus/lights')).body)).length, 6);
+  assert.equal(Object.keys(JSON.parse((await request('192.168.20.8', '/api/nexus/lights')).body)).length, 1);
   const root = JSON.parse((await request('192.168.20.8', '/api/nexus')).body);
   const config = JSON.parse((await request('192.168.20.8', '/api/nexus/config')).body);
   assert.deepEqual(root.config, config);
   assert.equal(root.lights[1].name, 'Iluminação Nexus');
+  assert.equal(root.lights[1].type, 'On/off light');
+  assert.deepEqual(Object.keys(root.lights[1].state).sort(), ['alert', 'on', 'reachable']);
   assert.ok(Object.values(root.lights).every(light => !/\bPC\b|computador/i.test(light.name)));
   assert.ok(Object.values(root.lights).every(light => /^(?:[a-f0-9]{2}:){7}[a-f0-9]{2}-[a-f0-9]{2}$/.test(light.uniqueid)));
-  assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: true, bri: 127, hue: 0, sat: 254 })).status, 200);
-  assert.equal(store.data.master.color, '#ff0000'); assert.equal(store.data.master.brightness, 50); assert.equal(writes, 1); assert.equal(broadcasts, 1);
+  store.master({ color: '#ff0055', brightness: 37, speed: 63, effect: 'wave', palette: ['#ff0055', '#6600ff'] });
+  store.device('ram', { power: true, color: '#00ff00', nativeMode: 7 });
+  store.device('argb', { power: false, brightness: 12, effect: 'breathe' });
+  store.profile('Meu setup');
+  const before = structuredClone(store.data);
+  const off = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false, bri: 0, effect: 'colorloop', hue: 0, sat: 254 });
+  assert.equal(off.status, 200); assert.equal(store.data.master.power, false);
+  assert.equal(JSON.parse(off.body).filter(item => item.success).length, 1);
+  assert.ok(JSON.parse(off.body).filter(item => item.error).every(item => item.error.type === 6));
+  assert.equal(writes, 1); assert.equal(broadcasts, 1);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.name, 'Iluminação Nexus');
-  assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false })).status, 200); assert.equal(store.data.master.power, false);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.power, false);
+  assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false })).status, 200);
+  assert.equal(writes, 1); assert.equal(broadcasts, 1);
   assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: 'true' })).status, 400); assert.equal(store.data.master.power, false);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.power, false);
+  const unsupported = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { effect: 'colorloop', bri: 254 });
+  assert.ok(JSON.parse(unsupported.body).every(item => item.error.type === 6)); assert.equal(writes, 1);
+  for (let id = 2; id <= 6; id++) {
+    assert.equal((await request('192.168.20.8', `/api/nexus/lights/${id}`)).status, 404);
+    assert.equal((await request('192.168.20.8', `/api/nexus/lights/${id}/state`, 'PUT', { on: true })).status, 404);
+  }
+  assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: true, xy: [0.3, 0.3] })).status, 200);
+  assert.deepEqual(store.data, before); assert.deepEqual(new Store(directory).data, before);
+  assert.equal(writes, 2); assert.equal(broadcasts, 2);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('/api/nexus'));
 });
 

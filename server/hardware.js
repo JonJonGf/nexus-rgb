@@ -120,6 +120,7 @@ class Hardware extends EventEmitter {
   }
   settings(id, splitZone = false) {
     const settings = { ...this.store.data.master, ...(this.store.data.devices[id] || {}) };
+    settings.power = this.store.data.master.power && settings.power;
     if (splitZone) delete settings.nativeMode;
     return settings;
   }
@@ -166,7 +167,7 @@ class Hardware extends EventEmitter {
           if (oldError !== d.error) changedErrors = true;
           continue;
         }
-        const settings = { ...this.store.data.master, ...this.store.data.devices[d.id] };
+        const settings = this.settings(d.id);
         const oldError = d.error;
         const mode = !settings.power ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
         if (!mode) { d.error = 'Este dispositivo não oferece controle de cor compatível.'; }

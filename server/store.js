@@ -40,6 +40,11 @@ class Store {
     this.data.zones ??= {};
   }
   save() { writeJson(this.file, this.data); }
+  power(value) {
+    validatePatch({ power: value });
+    if (this.data.master.power === value) return false;
+    this.data.master.power = value; this.save(); return true;
+  }
   master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; this.data.devices = {}; this.save(); }
   device(id, patch) { this.data.devices[id] = { ...(this.data.devices[id] || {}), ...validatePatch(patch, true) }; this.save(); }
   zone(id, zoneId, count) { this.data.zones[id] ??= {}; this.data.zones[id][zoneId] = count; this.save(); }
