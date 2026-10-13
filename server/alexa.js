@@ -42,13 +42,15 @@ function huePatch(body) {
 class Alexa {
   constructor(store, hardware, directory, onChange, options = {}) {
     this.store = store; this.hardware = hardware; this.onChange = onChange; this.port = options.port || 80;
+    this.getInterfaces = options.getInterfaces || net.adapters;
     this.file = path.join(directory, 'alexa.json'); this.data = readJson(this.file, { uuid: crypto.randomUUID(), peers: [] });
     this.candidates = new Map(); this.discoveryUntil = 0; this.status = 'Desativada'; this.rate = new RateLimiter(60);
   }
   save() { writeJson(this.file, this.data); }
   openDiscovery() { this.discoveryUntil = Date.now() + 120000; this.candidates.clear(); }
-  approve(ip) { if (!this.candidates.has(ip) || !net.sameSubnet(ip)) throw new Error('Dispositivo não encontrado na descoberta.'); if (!this.data.peers.includes(ip)) { this.data.peers.push(ip); this.save(); } }
-  snapshot() { return { enabled: this.store.data.alexaEnabled, status: this.status, discoveryUntil: this.discoveryUntil, candidates: [...this.candidates.keys()], peers: [...this.data.peers] }; }
+  ownAddress(ip) { return this.getInterfaces().some(adapter => adapter.address === ip); }
+  approve(ip) { if (this.ownAddress(ip) || !this.candidates.has(ip) || !net.sameSubnet(ip, this.getInterfaces())) throw new Error('Dispositivo não encontrado na descoberta.'); if (!this.data.peers.includes(ip)) { this.data.peers.push(ip); this.save(); } }
+  snapshot() { return { enabled: this.store.data.alexaEnabled, status: this.status, discoveryUntil: this.discoveryUntil, candidates: [...this.candidates.keys()].filter(ip => !this.ownAddress(ip)), peers: [...this.data.peers] }; }
   lights() {
     const state = this.store.data.master;
     const common = { type: 'Extended color light', modelid: 'LCT015', manufacturername: 'Philips', swversion: '1.46.13', state: { on: state.power, bri: Math.round(state.brightness * 2.54), ...colorState(state.color), ct: 370, alert: 'none', effect: state.effect === 'rainbow' ? 'colorloop' : 'none', colormode: 'xy', reachable: this.hardware.connected } };
@@ -64,13 +66,13 @@ class Alexa {
   async request(req, res) {
     const send = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Connection': 'close', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(value)); };
     const ip = net.normalize(req.socket.remoteAddress);
-    if (!net.sameSubnet(ip) || req.headers.origin || !this.rate.take(ip)) return send(403, { error: 'Acesso negado.' });
+    if (!net.sameSubnet(ip, this.getInterfaces()) || req.headers.origin || !this.rate.take(ip)) return send(403, { error: 'Acesso negado.' });
     const localIp = net.normalize(req.socket.localAddress);
     if (req.headers.host !== localIp && req.headers.host !== `${localIp}:${this.port}`) return send(403, {});
     const url = new URL(req.url, 'http://nexus.invalid');
     if (url.pathname === '/description.xml' && req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'text/xml' }); return res.end(this.description(localIp)); }
     if (!this.data.peers.includes(ip)) {
-      if (Date.now() < this.discoveryUntil) this.candidates.set(ip, Date.now());
+      if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now());
       return send(403, [{ error: { type: 101, description: 'Approve this Echo in the Nexus RGB PC panel.' } }]);
     }
     if (url.pathname === '/api' && req.method === 'POST') return send(200, [{ success: { username: 'nexus_local' } }]);
@@ -110,15 +112,15 @@ class Alexa {
       this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
       this.socket.on('error', error => { this.status = `Descoberta indisponível: ${error.code}`; this.onChange(); });
       this.socket.on('message', (message, remote) => {
-        if (message.length > 4096 || !net.sameSubnet(remote.address) || !this.rate.take(remote.address + ':udp')) return;
+        if (message.length > 4096 || this.ownAddress(remote.address) || !net.sameSubnet(remote.address, this.getInterfaces()) || !this.rate.take(remote.address + ':udp')) return;
         if (!/M-SEARCH \* HTTP\/1\.1/i.test(message.toString()) || !/ssdp:discover/i.test(message.toString())) return;
-        const adapter = net.adapters().find(a => net.sameSubnet(remote.address, [a])); if (!adapter) return;
+        const adapter = this.getInterfaces().find(a => net.sameSubnet(remote.address, [a])); if (!adapter) return;
         if (Date.now() < this.discoveryUntil) this.candidates.set(remote.address, Date.now());
         if (Date.now() >= this.discoveryUntil && !this.data.peers.includes(remote.address)) return;
         const response = `HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=60\r\nEXT:\r\nLOCATION: http://${adapter.address}:${this.port}/description.xml\r\nSERVER: FreeRTOS/7.4.2 UPnP/1.0 IpBridge/1.24.0\r\nST: urn:schemas-upnp-org:device:basic:1\r\nUSN: uuid:${this.data.uuid}::urn:schemas-upnp-org:device:basic:1\r\nhue-bridgeid: ${this.data.uuid.replace(/-/g, '').slice(0, 16).toUpperCase()}\r\n\r\n`;
         this.socket.send(response, remote.port, remote.address);
       });
-      this.socket.bind(1900, '0.0.0.0', () => { for (const a of net.adapters()) { try { this.socket.addMembership('239.255.255.250', a.address); } catch { /* Adapter may disappear during startup. */ } } });
+      this.socket.bind(1900, '0.0.0.0', () => { for (const a of this.getInterfaces()) { try { this.socket.addMembership('239.255.255.250', a.address); } catch { /* Adapter may disappear during startup. */ } } });
     });
   }
   stop(reset = true) { this.server?.closeAllConnections(); this.server?.close(); this.server = null; try { this.socket?.close(); } catch {} this.socket = null; if (reset) this.status = 'Desativada'; }

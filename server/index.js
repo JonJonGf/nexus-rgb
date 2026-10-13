@@ -49,7 +49,7 @@ async function createApp(options = {}) {
       client.res.write(message);
     }
   };
-  const alexa = new Alexa(store, hardware, directory, broadcast, { port: options.alexaPort || 80 });
+  const alexa = new Alexa(store, hardware, directory, broadcast, { port: options.alexaPort || 80, getInterfaces });
   hardware.on('change', broadcast);
   function headers(res) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
