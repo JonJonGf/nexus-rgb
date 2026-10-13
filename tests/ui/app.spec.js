@@ -56,3 +56,28 @@ test('cinco componentes com portas ARGB cabem no console desktop e móvel', asyn
     const presets = await page.locator('#quick-presets').boundingBox(); expect(presets.y + presets.height).toBeLessThanOrEqual(height - (width <= 800 ? 59 : 0));
   }
 });
+
+test('arrastar a bolinha move a cor sem selecionar a página, inclusive fora da roda', async ({ page }) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  await page.getByRole('button', { name: 'Usar cor #00ff88', exact: true }).click();
+  await expect(page.locator('#hex')).toHaveValue('#00FF88');
+  const writes = []; page.on('request', request => { if (request.url().endsWith('/api/control')) writes.push(request.postDataJSON()); });
+  await page.evaluate(() => {
+    const selection = getSelection(), range = document.createRange(); range.selectNodeContents(document.querySelector('#page-title')); selection.removeAllRanges(); selection.addRange(range);
+    window.nativeDrags = 0; document.addEventListener('dragstart', () => window.nativeDrags++);
+  });
+  const canvas = await page.locator('#color-wheel').boundingBox(), cursor = await page.locator('#wheel-cursor').boundingBox();
+  await page.mouse.move(cursor.x + cursor.width / 2, cursor.y + cursor.height / 2); await page.mouse.down();
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height * .92, { steps: 8 });
+  const preview = await page.locator('#hex').inputValue(); expect(preview).not.toBe('#00FF88');
+  expect(await page.evaluate(() => getSelection().toString())).toBe(''); expect(writes).toEqual([]);
+  await page.mouse.move(canvas.x + canvas.width + 40, canvas.y + canvas.height / 2, { steps: 8 });
+  await expect(page.locator('#hex')).toHaveValue('#FF0000'); await page.mouse.up();
+  await expect.poll(() => writes.length).toBe(1); expect(writes[0]).toEqual({ color: '#ff0000', effect: 'static' });
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.color).toBe('#ff0000');
+  expect(await page.evaluate(() => ({ selection: getSelection().toString(), drags: window.nativeDrags }))).toEqual({ selection: '', drags: 0 });
+  await page.screenshot({ path: 'test-results/roda-arraste-desktop.png' });
+  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height * .1); await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' }); await page.keyboard.press('Escape');
+  expect(writes.length).toBe(1); await expect(page.locator('#hex')).toHaveValue('#FF0000'); expect(errors).toEqual([]);
+});

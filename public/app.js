@@ -33,14 +33,23 @@
   }
   const wheel = $('color-wheel'), context = wheel.getContext('2d'), spectrum = context.createImageData(320, 320);
   for (let y = 0; y < 320; y++) for (let x = 0; x < 320; x++) { const dx = x - 160, dy = y - 160, saturation = Math.hypot(dx, dy) / 154, offset = (y * 320 + x) * 4; if (saturation > 1) continue; spectrum.data.set([...wheelRgb(Math.atan2(dy, dx) / (2 * Math.PI), saturation), 255], offset); }
-  context.putImageData(spectrum, 0, 0); let dragging = false, wheelColor = '#00f0ff';
+  context.putImageData(spectrum, 0, 0); let dragging = false, activePointer = null, wheelColor = '#00f0ff';
   new ResizeObserver(([entry]) => { const size = Math.max(65, Math.min(entry.contentRect.width - 20, entry.contentRect.height - 20, 320)); $('orb').style.width = `${size}px`; $('orb').style.height = `${size}px`; }).observe(document.querySelector('.wheel-zone'));
   function previewColor(hex) { wheelColor = hex; $('color').value = hex; $('hex').value = hex.toUpperCase(); theme(hex); }
   function pickColor(event) { const rect = wheel.getBoundingClientRect(); const x = (event.clientX - rect.left) / rect.width - .5, y = (event.clientY - rect.top) / rect.height - .5; const value = wheelRgb(Math.atan2(y, x) / (2 * Math.PI), Math.min(1, Math.hypot(x, y) / .48)); previewColor('#' + value.map(v => v.toString(16).padStart(2, '0')).join('')); }
-  wheel.addEventListener('pointerdown', event => { if (wheel.getAttribute('aria-disabled') === 'true') return; dragging = true; wheel.setPointerCapture(event.pointerId); pickColor(event); });
-  wheel.addEventListener('pointermove', event => { if (dragging) pickColor(event); });
-  wheel.addEventListener('pointerup', () => { if (!dragging) return; dragging = false; action('/api/control', { color: wheelColor, effect: 'static' }); });
-  wheel.addEventListener('pointercancel', () => { dragging = false; if (state) previewColor(state.master.color); });
+  function endWheelDrag() { const pointer = activePointer; dragging = false; activePointer = null; if (pointer !== null && wheel.hasPointerCapture(pointer)) wheel.releasePointerCapture(pointer); }
+  function cancelWheelDrag(event) { if (event.pointerId !== activePointer) return; endWheelDrag(); if (state) previewColor(state.master.color); }
+  wheel.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || !event.isPrimary || dragging || wheel.getAttribute('aria-disabled') === 'true') return;
+    // Own the gesture so the browser cannot select or drag the surrounding page.
+    event.preventDefault(); window.getSelection()?.removeAllRanges();
+    activePointer = event.pointerId; dragging = true; wheel.setPointerCapture(activePointer); wheel.focus({ preventScroll: true }); pickColor(event);
+  });
+  wheel.addEventListener('pointermove', event => { if (event.pointerId === activePointer) { event.preventDefault(); pickColor(event); } });
+  wheel.addEventListener('pointerup', event => { if (event.pointerId !== activePointer) return; event.preventDefault(); pickColor(event); endWheelDrag(); action('/api/control', { color: wheelColor, effect: 'static' }); });
+  wheel.addEventListener('pointercancel', cancelWheelDrag);
+  wheel.addEventListener('lostpointercapture', cancelWheelDrag);
+  $('orb').addEventListener('dragstart', event => event.preventDefault());
   wheel.addEventListener('keydown', event => { if (!event.key.startsWith('Arrow') || wheel.getAttribute('aria-disabled') === 'true') return; event.preventDefault(); const hsv = hexToHsv($('color').value); if (event.key === 'ArrowRight') hsv.h += 1 / 72; if (event.key === 'ArrowLeft') hsv.h -= 1 / 72; if (event.key === 'ArrowUp') hsv.s = Math.min(1, hsv.s + .05); if (event.key === 'ArrowDown') hsv.s = Math.max(0, hsv.s - .05); previewColor('#' + wheelRgb(hsv.h, hsv.s).map(v => v.toString(16).padStart(2, '0')).join('')); action('/api/control', { color: wheelColor, effect: 'static' }); });
   function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 6000); }
   async function api(route, body, method = body === undefined ? 'GET' : 'POST') {
@@ -83,9 +92,9 @@
   function render(next) {
     state = next; enable(true); $('version').textContent = `Nexus RGB v${state.version}`;
     const master = state.master; const devices = state.hardware.devices;
-    for (const field of controls) if (document.activeElement !== $(field)) { if (field === 'power') $(field).checked = master.power; else $(field).value = field === 'hex' ? master.color.toUpperCase() : master[field]; }
+    for (const field of controls) if (document.activeElement !== $(field) && !(dragging && ['color', 'hex'].includes(field))) { if (field === 'power') $(field).checked = master.power; else $(field).value = field === 'hex' ? master.color.toUpperCase() : master[field]; }
     if (!dragging) theme(master.color);
-    $('preview-hex').textContent = master.color.toUpperCase(); $('preview-effect').textContent = master.power ? labels[master.effect] : 'Luzes apagadas';
+    $('preview-effect').textContent = master.power ? labels[master.effect] : 'Luzes apagadas';
     $('orb').classList.toggle('off', !master.power); $('orb').classList.toggle('animated', master.power && master.effect !== 'static'); $('orb').dataset.effect = master.effect;
     $('summary-power').textContent = master.power ? 'Ligada' : 'Desligada'; $('summary-brightness').textContent = `${master.brightness}%`; $('summary-devices').textContent = devices.filter(d => d.status === 'online').length;
     $('brightness-label').textContent = `${master.brightness}%`; $('speed-label').textContent = `${master.speed}%`;
