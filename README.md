@@ -35,7 +35,7 @@ Não é possível garantir suporte a todo componente RGB existente. Confira a [l
 
 ## Alexa
 
-No PC, abra Conexões e ative a ponte. Inicie a busca por dois minutos, peça à Alexa para descobrir dispositivos, autorize o IP do seu Echo e repita a descoberta. Se necessário, no aplicativo Alexa, procure Philips Hue Bridge V1. Reserve os IPs do PC e Echo no roteador.
+No PC, abra Conexões e ative a ponte. Inicie a busca por dois minutos. No aplicativo Alexa, adicione **Philips Hue Bridge V1 (redonda)**, autorize o IP do seu Echo no Nexus e repita a descoberta se necessário. A luz principal se chama **Iluminação Nexus**; use “Alexa, apague a Iluminação Nexus” para distingui-la de dispositivos de desligamento do computador, como SimpleWOL. Os cinco efeitos também usam o prefixo Nexus. Reserve os IPs do PC e Echo no roteador. Conexões mostra a última busca, consulta da ponte e comando efetivamente recebido, sem gravar credenciais Hue. O Nexus não oferece comandos de desligar o Windows.
 
 O serviço usa TCP 80 e UDP 1900. Conflito na porta 80 é exibido no diagnóstico e não prejudica o painel RGB. A ponte só aceita controles vindos dos IPs autorizados. A descoberta Hue depende do modelo e firmware do Echo; não é integração certificada Amazon. Controle à distância no aplicativo Alexa precisa ser validado no aparelho. Não há acesso externo ao painel Nexus. Consulte a [documentação da emulação Hue](https://www.home-assistant.io/integrations/emulated_hue/) para limitações do protocolo.
 

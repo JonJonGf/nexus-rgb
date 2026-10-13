@@ -88,3 +88,33 @@ test('lista atualizada pelo OpenRGB detecta nova controladora sem reiniciar o Ne
   mock.devices.push(zonedController()); mock.emit('deviceListUpdated'); await hardware.tick();
   assert.equal(hardware.snapshot().controllerCount, 2); assert.equal(hardware.snapshot().devices.length, 4); hardware.stop();
 });
+
+test('mudar uma cor atualiza somente a controladora alvo e preserva o modo Direct', async () => {
+  const store = { data: { master: { ...defaults }, devices: {} } }; const mock = new Mock([controller('RAM A', 'USB:1'), controller('RAM B', 'USB:2')]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  mock.calls = []; const target = hardware.snapshot().devices[0]; store.data.devices[target.id] = { color: '#ff0000' }; hardware.changed(); await hardware.tick();
+  assert.equal(mock.calls.filter(call => call[0] === 'mode').length, 0);
+  assert.deepEqual(mock.calls.filter(call => call[0] === 'leds').map(call => call[1]), [0]); hardware.stop();
+});
+test('descoberta periódica e troca da lista não reprogramam controladoras existentes', async () => {
+  const mock = new Mock([controller('RAM A', 'USB:1'), zonedController()]); const hardware = new Hardware({ data: { master: { ...defaults }, devices: {} } }, { makeClient: () => mock });
+  hardware.stopped = false; await hardware.connect(); await hardware.tick(); mock.calls = [];
+  hardware.nextDiscovery = 0; await hardware.tick(); assert.equal(mock.calls.length, 0);
+  mock.devices.push(controller('Novo dispositivo', 'USB:new')); mock.emit('deviceListUpdated'); await hardware.tick();
+  assert.ok(mock.calls.length); assert.ok(mock.calls.every(call => call[1] === 2)); hardware.stop();
+});
+test('alterar só uma porta compõe suas cores sem trocar modo ou tocar outra controladora', async () => {
+  const store = { data: { master: { ...defaults }, devices: {} } }; const mock = new Mock([zonedController(), controller('RAM', 'USB:ram')]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick(); mock.calls = [];
+  const port = hardware.snapshot().devices.find(device => device.name === 'ARGB 1'); store.data.devices[port.id] = { power: false }; hardware.changed(); await hardware.tick();
+  assert.equal(mock.calls.length, 1); assert.equal(mock.calls[0][0], 'leds'); assert.equal(mock.calls[0][1], 0);
+  assert.deepEqual(mock.calls[0][2].slice(1,3), [{red:0,green:0,blue:0},{red:0,green:0,blue:0}]);
+  assert.ok(mock.calls[0][2][0].green > 0); assert.ok(mock.calls[0][2][3].green > 0); hardware.stop();
+});
+test('cache de modo mantém alterações necessárias de brilho nos modos nativos', async () => {
+  const raw = controller('Luz nativa', 'USB:native', false); raw.modes.push({id:3,name:'Static',flagList:['modeSpecificColor','brightness'],brightnessMin:0,brightnessMax:100,colorMin:1,colors:[]});
+  const store = {data:{master:{...defaults},devices:{}}}; const mock = new Mock([raw]); const configs = []; mock.updateMode = async (id, mode) => {configs.push(mode);};
+  const hardware = new Hardware(store,{makeClient:()=>mock}); hardware.stopped=false; await hardware.connect(); await hardware.tick();
+  const id = hardware.snapshot().devices[0].id; store.data.devices[id]={brightness:20}; hardware.changed(); await hardware.tick();
+  assert.equal(configs.length,2); assert.equal(configs[1].brightness,20); assert.deepEqual(configs[1].colors,[{red:0,green:240,blue:255}]); hardware.stop();
+});

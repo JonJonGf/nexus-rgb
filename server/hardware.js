@@ -50,7 +50,7 @@ class Hardware extends EventEmitter {
     // native modes, brightness, matrices and segments without that broken parser.
     this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
     this.devices = []; this.client = null; this.connected = false; this.busy = false; this.stopped = true;
-    this.modes = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.retry = 1000; this.dirty = true;
+    this.modes = new Map(); this.applied = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.retry = 1000; this.dirty = true;
   }
   async operation(promise, timeout = 4000) {
     let timer;
@@ -62,11 +62,11 @@ class Hardware extends EventEmitter {
     this.busy = true;
     const client = this.makeClient(); this.client = client;
     client.on('error', error => { if (this.client === client) this.lost(error); }); client.on('disconnect', () => { if (this.client === client) this.lost(new Error('Controlador desconectado.')); });
-    client.on('deviceListUpdated', () => { if (this.client === client) { this.nextDiscovery = 0; this.dirty = true; this.modes.clear(); } });
+    client.on('deviceListUpdated', () => { if (this.client === client) { this.nextDiscovery = 0; this.dirty = true; } });
     try {
       await this.operation(client.connect(2500));
       if (this.stopped) { client.socket?.destroy(); return; }
-      this.connected = true; this.modes.clear(); await this.discover();
+      this.connected = true; this.modes.clear(); this.applied.clear(); await this.discover();
       this.retry = 1000; this.error = null; this.dirty = true;
     } catch (error) { this.connected = false; this.error = error.message; client.socket?.destroy(); }
     finally {
@@ -108,6 +108,8 @@ class Hardware extends EventEmitter {
         zones: raw.zones.map(z => ({ id: z.id, name: z.name, leds: z.ledsCount, min: z.ledsMin, max: Math.min(4096, z.ledsMax), resizable: z.resizable })) };
       device.components = components(device); devices.push(device);
     }
+    const present = new Set(devices.map(device => device.id));
+    for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
     this.devices = devices; this.nextDiscovery = Date.now() + 30000; this.dirty = true; this.emit('change');
   }
   snapshot() {
@@ -122,6 +124,16 @@ class Hardware extends EventEmitter {
     return settings;
   }
   changed() { this.dirty = true; }
+  async applyMode(device, mode, settings, perLedColors = false) {
+    const config = { ...mode };
+    if (mode.flagList.includes('brightness')) config.brightness = perLedColors ? mode.brightnessMax : Math.round(mode.brightnessMin + (mode.brightnessMax - mode.brightnessMin) * (settings.power ? settings.brightness / 100 : 0));
+    if (mode.flagList.includes('speed')) config.speed = perLedColors ? mode.speedMin : Math.round(mode.speedMin + (mode.speedMax - mode.speedMin) * settings.speed / 100);
+    if (!perLedColors && mode.flagList.includes('modeSpecificColor')) config.colors = Array.from({ length: Math.max(mode.colors.length, mode.colorMin, 1) }, () => frame({ ...settings, brightness: mode.flagList.includes('brightness') ? 100 : settings.brightness, effect: 'static' }, 1, 0)[0]);
+    const signature = JSON.stringify({ id: config.id, brightness: mode.flagList.includes('brightness') ? config.brightness : undefined, speed: mode.flagList.includes('speed') ? config.speed : undefined, direction: config.direction, colorMode: config.colorMode, colors: !perLedColors && mode.flagList.includes('modeSpecificColor') ? config.colors : undefined });
+    if (this.modes.get(device.id) !== signature) {
+      await this.operation(this.client.updateMode(device.sdkId, config)); this.modes.set(device.id, signature);
+    }
+  }
   async tick() {
     if (this.stopped || this.busy || !this.connected) return;
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
@@ -133,44 +145,36 @@ class Hardware extends EventEmitter {
     try {
       if ((this.client.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
       if (Date.now() >= this.nextDiscovery) await this.discover();
-      const force = this.dirty; this.dirty = false;
+      this.dirty = false;
       for (const d of this.devices) {
+        const channels = d.components || [d];
+        const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components) })));
+        const changed = this.applied.get(d.id) !== signature;
+        const animation = channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && s.nativeMode === undefined && s.effect !== 'static' && d.direct; });
+        if (!changed && !animation) continue;
         if (d.components) {
           const oldError = d.error;
-          if (force || d.components.some(component => { const s = this.settings(component.id, true); return s.power && s.effect !== 'static'; })) {
-            if (this.modes.get(d.id) !== d.direct.id || force) {
-              const mode = { ...d.direct };
-              // Brightness is applied per component in the LED colors.
-              if (mode.flagList.includes('brightness')) mode.brightness = mode.brightnessMax;
-              await this.operation(this.client.updateMode(d.sdkId, mode)); this.modes.set(d.id, mode.id);
-            }
-            const colors = Array(d.ledCount);
-            const seconds = performance.now() / 1000;
-            for (const component of d.components) {
-              const zoneColors = frame(this.settings(component.id, true), component.ledCount, seconds);
-              for (let index = 0; index < zoneColors.length; index++) colors[component.offset + index] = zoneColors[index];
-            }
-            this.client.updateLeds(d.sdkId, colors); d.error = null;
+          // One Direct mode; independent brightness stays in each zone's colors.
+          await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
+          const colors = Array(d.ledCount);
+          const seconds = performance.now() / 1000;
+          for (const component of d.components) {
+            const zoneColors = frame(this.settings(component.id, true), component.ledCount, seconds);
+            for (let index = 0; index < zoneColors.length; index++) colors[component.offset + index] = zoneColors[index];
           }
+          this.client.updateLeds(d.sdkId, colors); d.error = null; this.applied.set(d.id, signature);
           if (oldError !== d.error) changedErrors = true;
           continue;
         }
         const settings = { ...this.store.data.master, ...this.store.data.devices[d.id] };
-        if (!force && (!settings.power || settings.nativeMode !== undefined || settings.effect === 'static')) continue;
         const oldError = d.error;
         const mode = !settings.power ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
         if (!mode) { d.error = 'Este dispositivo não oferece controle de cor compatível.'; }
         else if (settings.power && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
         else {
-          if (this.modes.get(d.id) !== mode.id || force) {
-            let config = { ...mode };
-            if (mode.flagList.includes('brightness')) config.brightness = Math.round(mode.brightnessMin + (mode.brightnessMax - mode.brightnessMin) * (settings.power ? settings.brightness / 100 : 0));
-            if (mode.flagList.includes('speed')) config.speed = Math.round(mode.speedMin + (mode.speedMax - mode.speedMin) * settings.speed / 100);
-            if (mode.flagList.includes('modeSpecificColor')) config.colors = Array.from({ length: Math.max(mode.colors.length, mode.colorMin, 1) }, () => frame({ ...settings, effect: 'static' }, 1, 0)[0]);
-            await this.operation(this.client.updateMode(d.sdkId, config)); this.modes.set(d.id, mode.id);
-          }
+          await this.applyMode(d, mode, settings, mode.flagList.includes('perLedColor') && (!settings.power || settings.nativeMode === undefined));
           if ((!settings.power || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) this.client.updateLeds(d.sdkId, frame(settings, d.ledCount, performance.now() / 1000));
-          d.error = null;
+          d.error = null; this.applied.set(d.id, signature);
         }
         if (oldError !== d.error) changedErrors = true;
       }
