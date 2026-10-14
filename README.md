@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.2/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.2">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.3/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.3">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -65,7 +65,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.2/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.2) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.3/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.3) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
 
 **Acesso à prévia:** o repositório é privado nesta fase; baixar os arquivos pelo GitHub exige uma conta com acesso autorizado. O responsável pelo projeto também pode distribuir o executável diretamente. O uso do painel na LAN continua sem conta ou login.
 
@@ -205,7 +205,7 @@ Reserve os IPs do PC e do Echo no roteador. A descoberta pode variar com o model
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.2/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.3/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -231,6 +231,8 @@ Efeitos animados geram cores em até 20 atualizações por segundo. Na cor está
 
 Esses resultados foram coletados durante a revisão, antes das últimas correções de recuperação de conexão e instalação. São uma referência desse PC, não uma garantia para todas as máquinas. O navegador acrescenta seu próprio consumo quando o painel está aberto. GPU, energia em watts, inicialização e comportamento durante horas de uso não foram medidos. Consulte o [relatório completo e o método](docs/DESEMPENHO.md).
 
+Em **14/10/2026**, a revisão adicional passou em **48 testes de lógica/integração, 9 de interface e 45 verificações do instalador completo numa VM Windows Server 2025**. Uma amostra de **15 minutos da API isolada** completou 2.066 requisições e dez recuperações após encerramento forçado. Esse ensaio mede apenas o Node, sem hardware/Alexa, e não substitui os números do aplicativo completo acima. Veja os [resultados e limitações da validação](docs/VALIDACAO.md).
+
 <a id="ajuda"></a>
 
 ## 🛠️ Algo não funcionou?
@@ -243,6 +245,7 @@ Esses resultados foram coletados durante a revisão, antes das últimas correç�
 | **O link parou depois de reiniciar** | Confira se o IP do PC mudou. Abra o novo endereço mostrado no Nexus e faça uma reserva DHCP no roteador para manter o link. |
 | **O instalador informa porta ocupada** | Feche o Nexus antigo ou outro OpenRGB. O instalador verifica as portas `5050` e `6743` e não encerra programas de terceiros. |
 | **O instalador pede para fechar o Nexus** | Clique com o botão direito no ícone ao lado do relógio e escolha **Fechar ícone (manter as luzes)**. Depois execute novamente o instalador. |
+| **Aparece “O Windows protegeu o computador” ou “Editor desconhecido”** | Os executáveis Nexus desta prévia ainda não têm assinatura digital própria. Confira a origem na página oficial da versão e o hash em `SHA256SUMS.txt`. Não desative o SmartScreen ou o antivírus. A assinatura e a reputação de distribuição continuam pendentes. |
 | **A ponte Alexa diz “Porta 80 ocupada”** | Outro programa está usando a porta da ponte Hue. Identifique o conflito; o painel RGB na porta `5050` continua independente da ponte. |
 | **A Alexa não encontrou a luz** | Use a busca **Philips Hue Bridge V1 (redonda)**, abra a janela de descoberta no Nexus e confira a autorização do IP do Echo. Em **Conexões**, veja a última busca e consulta recebidas. |
 | **A Alexa oferece desligar o computador** | Confira se **Iluminação Nexus** existe no app Alexa e use esse nome nos comandos, para evitar confusão com Simple WOL ou outro dispositivo. |
@@ -266,6 +269,7 @@ O suporte depende do dispositivo, e não apenas da marca. Fans ligados à mesma 
 
 - [Ambiente de desenvolvimento, testes e geração do instalador](docs/DESENVOLVIMENTO.md)
 - [Relatório de consumo e metodologia](docs/DESEMPENHO.md)
+- [Validação de segurança, estabilidade e instalação em VM](docs/VALIDACAO.md)
 - [Condições para liberar a versão comercial](docs/COMERCIAL.md)
 - [Componentes e licenças de terceiros](THIRD-PARTY-NOTICES.md)
 

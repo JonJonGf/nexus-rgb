@@ -1,0 +1,150 @@
+{
+  "CollectedAt": "2026-10-14T15:57:50.7499399-03:00",
+  "Scope": "Read-only snapshot of this installed PC; no malware scan or independent audit",
+  "BootAt": "2026-10-14T15:25:21.5000000-03:00",
+  "Defender": {
+    "AntivirusEnabled": true,
+    "RealTimeProtectionEnabled": true,
+    "BehaviorMonitorEnabled": true,
+    "RebootRequired": false
+  },
+  "ActiveThreatCount": 0,
+  "WinRingHistoricalAlertActive": false,
+  "RGBDrivers": [
+    {
+      "Name": "PawnIO",
+      "State": "Running"
+    }
+  ],
+  "Services": [
+    {
+      "Name": "NexusRGB",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "NT AUTHORITY\\LocalService"
+    },
+    {
+      "Name": "NexusRGBHardware",
+      "State": "Running",
+      "StartMode": "Auto",
+      "StartName": "LocalSystem"
+    }
+  ],
+  "FirewallProfiles": [
+    {
+      "Name": "Domain",
+      "Enabled": 1
+    },
+    {
+      "Name": "Private",
+      "Enabled": 1
+    },
+    {
+      "Name": "Public",
+      "Enabled": 1
+    }
+  ],
+  "NexusFirewallRules": [
+    {
+      "Name": "Nexus RGB — Painel LAN",
+      "Enabled": "True",
+      "Direction": "Inbound",
+      "Action": "Allow",
+      "RemoteAddresses": [
+        "LocalSubnet"
+      ],
+      "LocalPorts": [
+        "5050"
+      ]
+    },
+    {
+      "Name": "Nexus RGB — Alexa LAN",
+      "Enabled": "True",
+      "Direction": "Inbound",
+      "Action": "Allow",
+      "RemoteAddresses": [
+        "LocalSubnet"
+      ],
+      "LocalPorts": [
+        "80"
+      ]
+    },
+    {
+      "Name": "Nexus RGB — Descoberta Alexa",
+      "Enabled": "True",
+      "Direction": "Inbound",
+      "Action": "Allow",
+      "RemoteAddresses": [
+        "LocalSubnet"
+      ],
+      "LocalPorts": [
+        "1900"
+      ]
+    },
+    {
+      "Name": "Nexus RGB — Sem saída à internet",
+      "Enabled": "True",
+      "Direction": "Outbound",
+      "Action": "Block",
+      "RemoteAddresses": [
+        "0.0.0.0-9.255.255.255",
+        "11.0.0.0-126.255.255.255",
+        "128.0.0.0-172.15.255.255",
+        "172.32.0.0-192.167.255.255",
+        "192.169.0.0-223.255.255.255",
+        "240.0.0.0-255.255.255.255",
+        "::/1",
+        "8000::/1"
+      ],
+      "LocalPorts": [
+        "Any"
+      ]
+    },
+    {
+      "Name": "Nexus RGB — Hardware somente neste PC",
+      "Enabled": "True",
+      "Direction": "Outbound",
+      "Action": "Block",
+      "RemoteAddresses": [
+        "0.0.0.0-126.255.255.255",
+        "128.0.0.0-255.255.255.255",
+        "::/1",
+        "8000::/1"
+      ],
+      "LocalPorts": [
+        "Any"
+      ]
+    }
+  ],
+  "Permissions": [
+    {
+      "File": "installation-root",
+      "OwnerSID": "S-1-5-32-544",
+      "OrdinaryUsersCanWrite": false
+    },
+    {
+      "File": "runtime\\node.exe",
+      "OwnerSID": "S-1-5-32-544",
+      "OrdinaryUsersCanWrite": false
+    },
+    {
+      "File": "server\\index.js",
+      "OwnerSID": "S-1-5-32-544",
+      "OrdinaryUsersCanWrite": false
+    },
+    {
+      "File": "scripts\\install-services.ps1",
+      "OwnerSID": "S-1-5-32-544",
+      "OrdinaryUsersCanWrite": false
+    }
+  ],
+  "SDKLoopbackOnly": true,
+  "Hardware": {
+    "Controllers": 3,
+    "Connected": true,
+    "Components": 5,
+    "LEDs": 92
+  },
+  "DeliberateLANPolicy": "HTTP without authentication for RGB controls; administration restricted to local PC",
+  "Remaining": "Code signing; external security audit; physical hardware/phone/Echo matrix; clean Windows 10/11 tests"
+}

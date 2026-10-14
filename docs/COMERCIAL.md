@@ -2,9 +2,12 @@
 
 Esta é uma versão de validação. Os testes automatizados validam comportamentos do software; não certificam todo hardware, instalador, driver, firmware Echo ou rede.
 
+A [revisão de 14/10/2026](VALIDACAO.md) inclui testes adicionais de segurança, recuperação do supervisor e instalação/atualização/desinstalação/reinstalação reais numa VM descartável Windows Server 2025. O ciclo da VM passou em 45 verificações. Ainda é necessário completar a matriz Windows 10/11 e hardware físico descrita abaixo.
+
 Antes de vender:
 
 1. Assinar `NexusRGB.exe` e o instalador com um certificado de assinatura de código do titular do produto; testar SmartScreen e as políticas do Windows. Não há certificado próprio nesta entrega.
+   Assinar também o assistente e o desinstalador gerado. A assinatura identifica o editor; um binário novo ainda pode receber aviso até acumular reputação. Certificado autoassinado não resolve esse aviso para os clientes. Consulte a [documentação da Microsoft sobre reputação SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation).
 2. Instalar e desinstalar em VMs/PCs limpos Windows 10/11 x64, com usuários não administradores e contas diferentes. Confirmar ACLs, contas LocalService/SYSTEM, firewall, atualização e rollback de instalação.
 3. Reiniciar, iniciar sem usuário conectado, suspender/retomar, trocar IP e interromper processos. Verificar restauração real das luzes e recuperação dos dois serviços.
 4. Validar placa-mãe, RAM, USB, headers e periféricos de uma matriz de fabricantes/modelos; documentar incompatibilidades e interações com outros programas RGB. O OpenRGB usa protocolos de hardware e também exige esse cuidado.

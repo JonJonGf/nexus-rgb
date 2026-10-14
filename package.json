@@ -14,7 +14,8 @@
     "test:ui": "playwright test",
     "test:installer": "node scripts/test-installer-smoke.js",
     "test:supervisor": "node scripts/test-supervisor.js",
-    "test:stability": "node scripts/test-stability.js"
+    "test:stability": "node scripts/test-stability.js",
+    "test:offline": "node scripts/test-offline-firewall.js"
   },
   "dependencies": {
     "openrgb-sdk": "0.6.0",

@@ -1,0 +1,22 @@
+{
+  "collectedAt": "2026-10-14T19:08:17.201Z",
+  "scope": "TCP handshakes only; no application data sent; IPv4 1.1.1.1:443 and loopback 127.0.0.1:5050",
+  "controlRuntime": {
+    "internet": {
+      "connected": true
+    },
+    "loopback": {
+      "connected": true
+    }
+  },
+  "nexusDedicatedRuntime": {
+    "internet": {
+      "connected": false,
+      "reason": "EACCES"
+    },
+    "loopback": {
+      "connected": true
+    }
+  },
+  "internetBlockVerified": true
+}

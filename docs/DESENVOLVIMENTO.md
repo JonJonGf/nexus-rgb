@@ -40,7 +40,11 @@ npm run test:ui
 
 Os testes unitários cobrem estado, segurança, ponte Hue e controle do hardware. Os testes de interface usam Playwright com Microsoft Edge no Windows; o teste do seletor usa arraste real do mouse e verifica que a página não é selecionada ou arrastada.
 
+`npm run test:supervisor` executa o supervisor C# real com dados e um processo filho de teste isolados. `npm run test:stability` exercita a API em um processo dedicado por dez minutos; use `NEXUS_STABILITY_SECONDS` para outra duração entre 60 e 86400 segundos. O resultado fica em `data/validation/stability.json`, separado da saída do Playwright. O [relatório de validação](VALIDACAO.md) explica o escopo e os limites desses testes.
+
 O workflow [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/blob/main/.github/workflows/ci.yml) executa a auditoria de dependências e as duas suítes no Windows. Essas verificações não substituem testes em PCs limpos, reinício real, uma matriz de hardware e diferentes Echos.
+
+O workflow [Validar instalador em VM descartável](https://github.com/JonJonGf/nexus-rgb/blob/main/.github/workflows/installer.yml) pode ser disparado manualmente para compilar o pacote e testar seu ciclo completo num runner hospedado Windows Server 2025. `scripts/test-installed-package.ps1` recusa execução no PC normal ou em uma máquina que já tenha instalação/dados Nexus. Esse script instala e remove o produto e deve permanecer restrito ao runner descartável.
 
 <a id="gerar-instalador"></a>
 
@@ -69,7 +73,7 @@ O instalador inclui os arquivos necessários para a instalação offline: runtim
 
 O assistente de desinstalação é um executável separado e também integra o pacote. Ele consulta o registro oficial do produto e abre o desinstalador Inno existente, que remove os serviços e as regras próprias. O argumento `--check` verifica a instalação sem abrir UAC ou remover nada; retorno `0` indica validação bem-sucedida. Na execução normal, retorno `0` indica que o desinstalador foi aberto, não que a remoção já terminou. O arquivo `SHA256SUMS.txt` permite conferir os dois executáveis distribuídos.
 
-Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.2), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. O acesso aos arquivos depende da permissão no repositório privado.
+Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.3), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. O acesso aos arquivos depende da permissão no repositório privado.
 
 Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e as [condições comerciais](COMERCIAL.md) antes de distribuir. O build não assina os executáveis Nexus com um certificado próprio.
 
