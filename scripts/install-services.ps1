@@ -57,7 +57,9 @@ function Write-NexusDiagnostic([string]$FileName,[string]$Message) {
   try {
     [IO.File]::WriteAllText($temporary,$Message,[Text.UTF8Encoding]::new($true))
     # Replace the directory entry rather than overwriting a preexisting hard link.
-    if([IO.File]::Exists($file)){[IO.File]::Replace($temporary,$file,$null)}else{[IO.File]::Move($temporary,$file)}
+    # Windows PowerShell 5.1 converts $null to an empty string for this .NET
+    # overload. NullString supplies a real null backup path during upgrades.
+    if([IO.File]::Exists($file)){[IO.File]::Replace($temporary,$file,[NullString]::Value)}else{[IO.File]::Move($temporary,$file)}
   } finally { if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)} }
   & "$env:SystemRoot\System32\icacls.exe" $file /grant:r '*S-1-5-32-545:R' /Q | Out-Null
   if($LASTEXITCODE -ne 0){throw 'Falha ao disponibilizar diagnóstico de instalação.'}

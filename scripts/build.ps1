@@ -1,6 +1,16 @@
 ﻿$ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+function Assert-NexusOpenRGBArchive([string]$Archive) {
+  Add-Type -AssemblyName System.IO.Compression,System.IO.Compression.FileSystem
+  $zip=[IO.Compression.ZipFile]::OpenRead($Archive)
+  try {
+    foreach($entry in $zip.Entries) {
+      $name=($entry.FullName -split '[\\/]')[-1]
+      if($name -match '^WinRing.*\.(sys|dll)$'){throw ('WinRing0 não é permitido no pacote: '+$entry.FullName)}
+    }
+  } finally {$zip.Dispose()}
+}
 Set-Location -LiteralPath $projectRoot
 $buildRoot=Join-Path $projectRoot 'dist\app'
 if(Test-Path -LiteralPath $buildRoot){
@@ -21,6 +31,7 @@ foreach($dependency in @('vendor\PawnIO_setup.exe','vendor\vc_redist.x64.exe','r
 }
 $expected=(Get-Content -LiteralPath 'vendor-manifest.json' -Raw | ConvertFrom-Json)
 foreach($item in $expected.files){if((Get-FileHash -LiteralPath $item.path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256){throw "Integridade inválida: $($item.path)"}}
+Assert-NexusOpenRGBArchive (Join-Path $projectRoot 'vendor\openrgb-1.0.zip')
 Expand-Archive -LiteralPath 'vendor\openrgb-1.0.zip' -DestinationPath (Join-Path $buildRoot 'openrgb') -Force
 $unpackedRoot=[IO.Path]::GetFullPath((Join-Path $buildRoot 'openrgb\OpenRGB Windows 64-bit'))
 if(-not $unpackedRoot.StartsWith([IO.Path]::GetFullPath($buildRoot)+'\openrgb\',[StringComparison]::OrdinalIgnoreCase)){throw 'Diretório OpenRGB fora do pacote.'}

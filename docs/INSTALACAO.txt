@@ -10,10 +10,14 @@ Para manter o mesmo endereço, reserve o IP do computador no roteador.
 
 Feche o aplicativo Nexus antigo, outro OpenRGB e os programas RGB do fabricante
 antes de instalar. Não execute dois controladores ao mesmo tempo.
+Para atualizar o Nexus, feche também seu ícone ao lado do relógio usando
+"Fechar ícone (manter as luzes)". Fechar apenas o navegador não encerra o ícone.
 
 Para RGB de RAM e algumas placas-mãe, deixe selecionada a instalação do PawnIO
 e siga a janela do instalador oficial. Use a edição oficial assinada.
 Não é necessário desativar o antivírus ou proteções do Windows.
+Este pacote não inclui WinRing0. Se o Defender detectar esse driver de outro
+aplicativo, mantenha-o bloqueado e conclua a remoção indicada pelo Windows.
 
 A Alexa é opcional e depende de um Echo compatível na mesma rede. A emulação
 Hue pode variar por firmware. Controle remoto pelo app Alexa precisa ser

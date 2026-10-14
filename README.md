@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.1/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.1">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.2/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.2">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -65,7 +65,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.1/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.1) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.2/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.2) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
 
 **Acesso à prévia:** o repositório é privado nesta fase; baixar os arquivos pelo GitHub exige uma conta com acesso autorizado. O responsável pelo projeto também pode distribuir o executável diretamente. O uso do painel na LAN continua sem conta ou login.
 
@@ -198,14 +198,14 @@ Reserve os IPs do PC e do Echo no roteador. A descoberta pode variar com o model
 - **Usar a bandeja:** clique com o botão direito para abrir o painel, copiar o link do celular ou abrir a pasta de diagnósticos.
 - **Fechar a janela:** os serviços continuam funcionando. A opção **Fechar ícone (manter as luzes)** também mantém o controle ativo.
 - **Iniciar com o Windows:** o instalador configura os serviços e a restauração dos ajustes. Não é necessário abrir o painel para ativar os serviços.
-- **Atualizar:** feche o painel e execute o instalador da nova versão. Seus dados locais são mantidos. Se uma página já estava aberta, recarregue-a após atualizar.
+- **Atualizar:** no ícone ao lado do relógio, escolha **Fechar ícone (manter as luzes)** e execute o instalador da nova versão. Fechar apenas a aba do navegador não encerra esse ícone. Seus dados locais são mantidos. Reabra pelo atalho e recarregue páginas que já estavam abertas.
 - **Desinstalar:** use o [assistente de desinstalação](#desinstalar), o atalho **Desinstalar Nexus RGB** no menu Iniciar ou as configurações de aplicativos do Windows.
 
 <a id="desinstalar"></a>
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.1/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.2/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -242,6 +242,7 @@ Esses resultados foram coletados durante a revisão, antes das últimas correç�
 | **O celular não abre o painel** | Use o IP mostrado em **Conexões**, com `http://` e a porta `5050`. Confira se o PC está acordado e se os aparelhos estão na mesma sub-rede, sem isolamento de convidados. |
 | **O link parou depois de reiniciar** | Confira se o IP do PC mudou. Abra o novo endereço mostrado no Nexus e faça uma reserva DHCP no roteador para manter o link. |
 | **O instalador informa porta ocupada** | Feche o Nexus antigo ou outro OpenRGB. O instalador verifica as portas `5050` e `6743` e não encerra programas de terceiros. |
+| **O instalador pede para fechar o Nexus** | Clique com o botão direito no ícone ao lado do relógio e escolha **Fechar ícone (manter as luzes)**. Depois execute novamente o instalador. |
 | **A ponte Alexa diz “Porta 80 ocupada”** | Outro programa está usando a porta da ponte Hue. Identifique o conflito; o painel RGB na porta `5050` continua independente da ponte. |
 | **A Alexa não encontrou a luz** | Use a busca **Philips Hue Bridge V1 (redonda)**, abra a janela de descoberta no Nexus e confira a autorização do IP do Echo. Em **Conexões**, veja a última busca e consulta recebidas. |
 | **A Alexa oferece desligar o computador** | Confira se **Iluminação Nexus** existe no app Alexa e use esse nome nos comandos, para evitar confusão com Simple WOL ou outro dispositivo. |
@@ -254,6 +255,8 @@ Ainda precisa investigar? Pelo ícone da bandeja, abra **Abrir pasta de diagnós
 O painel usa HTTP local e permite que aparelhos da mesma sub-rede privada controlem as luzes **sem autenticação**. Isso torna o link simples de usar; não há criptografia do tráfego local. Ajustes administrativos ficam disponíveis pelo aplicativo do PC, via endereço local.
 
 O instalador cria regras específicas do Nexus para a LAN. Não há telemetria, túnel externo ou atualização automática, e o aplicativo não precisa se conectar ao GitHub para funcionar. **Não abra portas do Nexus no roteador.** A Alexa pode precisar de internet para o próprio funcionamento, mesmo com a ponte Nexus na LAN.
+
+O pacote usa OpenRGB 1.0 e o instalador oficial assinado do **PawnIO**; não inclui WinRing0. A geração do executável recusa drivers ou bibliotecas WinRing encontrados dentro do ZIP do OpenRGB, antes de extrair arquivos. Se o Defender apontar `VulnerableDriver:WinNT/Winring0`, mantenha o arquivo bloqueado e siga a remoção indicada pelo Windows, incluindo reinício quando solicitado. A [Microsoft confirma que essa detecção é válida](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/microsoft-defender-antivirus-alert-vulnerabledriver-winnt-winring0). Não crie exclusões no antivírus para conseguir controlar o RGB.
 
 O suporte depende do dispositivo, e não apenas da marca. Fans ligados à mesma porta ARGB podem aparecer como uma única zona. O Nexus separa componentes quando o controlador fornece as informações necessárias; a instalação automática não garante compatibilidade com todo hardware RGB existente.
 

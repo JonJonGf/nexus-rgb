@@ -55,6 +55,8 @@ npm run build
 
 O primeiro comando precisa de internet para obter os artefatos registrados em `vendor-manifest.json`, verificar hashes e assinaturas e preparar o Inno Setup. O build prepara as dependências npm, audita os pacotes de produção e compila o executável C# usando o compilador do .NET Framework do Windows.
 
+Com o Inno Setup disponível, execute também `npm run test:installer`. Esse teste compila o evento real de pós-instalação com operações de processo e leitura de diagnóstico simuladas. Confere retorno `0` no sucesso, `1` nas falhas, `3010` quando o runtime exige reinício e que mensagens antigas não sejam mostradas como erros atuais. A simulação não instala arquivos, drivers, serviços ou regras; não substitui instalar o pacote completo em uma VM.
+
 O resultado fica em:
 
 ```text
@@ -67,7 +69,7 @@ O instalador inclui os arquivos necessários para a instalação offline: runtim
 
 O assistente de desinstalação é um executável separado e também integra o pacote. Ele consulta o registro oficial do produto e abre o desinstalador Inno existente, que remove os serviços e as regras próprias. O argumento `--check` verifica a instalação sem abrir UAC ou remover nada; retorno `0` indica validação bem-sucedida. Na execução normal, retorno `0` indica que o desinstalador foi aberto, não que a remoção já terminou. O arquivo `SHA256SUMS.txt` permite conferir os dois executáveis distribuídos.
 
-Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.1), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. O acesso aos arquivos depende da permissão no repositório privado.
+Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.2), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. O acesso aos arquivos depende da permissão no repositório privado.
 
 Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e as [condições comerciais](COMERCIAL.md) antes de distribuir. O build não assina os executáveis Nexus com um certificado próprio.
 

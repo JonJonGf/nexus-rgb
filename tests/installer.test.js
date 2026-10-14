@@ -6,6 +6,64 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+test('build rejeita qualquer biblioteca ou driver WinRing no ZIP antes de extrair arquivos', { skip: process.platform !== 'win32' }, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-archive-check-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop'; $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_BUILD_SCRIPT,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Falha ao analisar script.'}
+    $function=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-NexusOpenRGBArchive'},$true)
+    . ([scriptblock]::Create($function.Extent.Text))
+    Add-Type -AssemblyName System.IO.Compression,System.IO.Compression.FileSystem
+    foreach($name in @('OpenRGB/OpenRGB.exe','OpenRGB/nested/WinRing0x64.sys','OpenRGB/WINRING0.DLL','OpenRGB/nested\\WinRing0x64.dll')) {
+      $file=Join-Path $env:NEXUS_TEST_DATA ([Guid]::NewGuid().ToString('N')+'.zip')
+      $zip=[IO.Compression.ZipFile]::Open($file,[IO.Compression.ZipArchiveMode]::Create)
+      try {$zip.CreateEntry($name) | Out-Null} finally {$zip.Dispose()}
+      $rejected=$false
+      try {Assert-NexusOpenRGBArchive $file} catch {$rejected=$true}
+      if($rejected -eq ($name -eq 'OpenRGB/OpenRGB.exe')){throw ('Resultado inesperado: '+$name)}
+      [IO.File]::Delete($file)
+    }
+    'archive-validated'
+  `;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    encoding: 'utf8', env: { ...process.env, NEXUS_TEST_BUILD_SCRIPT: path.resolve(__dirname, '..', 'scripts', 'build.ps1'), NEXUS_TEST_DATA: directory }
+  });
+  assert.equal(result.status, 0, result.stderr); assert.equal(result.stdout.trim(), 'archive-validated');
+});
+
+test('diagnósticos são criados e substituídos em atualizações no Windows PowerShell 5.1 sem modificar hard links', { skip: process.platform !== 'win32' }, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-install-log-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop'; $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_INSTALL_SCRIPT,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Falha ao analisar script.'}
+    $function=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Write-NexusDiagnostic'},$true)
+    . ([scriptblock]::Create($function.Extent.Text))
+    $dataRoot=$env:NEXUS_TEST_DATA
+    if($PSVersionTable.PSVersion.Major -ne 5){throw 'O teste precisa usar Windows PowerShell 5.1.'}
+    Write-NexusDiagnostic 'installation.log' 'primeira instalação'
+    Write-NexusDiagnostic 'installation.log' 'atualização concluída'
+    Write-NexusDiagnostic 'installation-error.log' 'erro antigo'
+    Write-NexusDiagnostic 'installation-error.log' 'erro atual'
+    'diagnostics-updated'
+  `;
+  const inspect = () => spawnSync(path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    encoding: 'utf8', env: { ...process.env, NEXUS_TEST_INSTALL_SCRIPT: path.resolve(__dirname, '..', 'scripts', 'install-services.ps1'), NEXUS_TEST_DATA: directory }
+  });
+  let result = inspect(); assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(path.join(directory, 'installation.log'), 'utf8'), '\ufeffatualização concluída');
+  assert.equal(fs.readFileSync(path.join(directory, 'installation-error.log'), 'utf8'), '\ufefferro atual');
+  const linked = path.join(directory, 'untouched.txt');
+  fs.writeFileSync(path.join(directory, 'installation.log'), 'arquivo externo preservado');
+  fs.linkSync(path.join(directory, 'installation.log'), linked);
+  result = inspect(); assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(linked, 'utf8'), 'arquivo externo preservado');
+  assert.deepEqual(fs.readdirSync(directory).sort(), ['installation-error.log', 'installation.log', 'untouched.txt']);
+});
+
 test('validação do instalador rejeita junções sem enumerar dados fora da pasta do produto', { skip: process.platform !== 'win32' }, t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-install-tree-'));
   t.after(() => {

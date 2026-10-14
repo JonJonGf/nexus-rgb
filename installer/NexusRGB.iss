@@ -49,6 +49,7 @@ var
   PreflightReady: Boolean;
   InstallationStarted: Boolean;
   RuntimeNeedsRestart: Boolean;
+  SetupFailed: Boolean;
 function PowerShellPath: String;
 begin
   Result := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
@@ -93,7 +94,8 @@ begin
 end;
 function GetCustomSetupExitCode: Integer;
 begin
-  if RuntimeNeedsRestart then Result := 3010 else Result := 0;
+  if SetupFailed then Result := 1
+  else if RuntimeNeedsRestart then Result := 3010 else Result := 0;
 end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
@@ -107,10 +109,13 @@ var
   ExitCode: Integer;
   ErrorMessage: String;
   Diagnostic: AnsiString;
+  PreviousDiagnostic: AnsiString;
   DiagnosticPath: String;
 begin
   if CurStep = ssInstall then InstallationStarted := True;
   if CurStep = ssPostInstall then begin
+    { Keep failures nonzero, including runtime installation failures. }
+    SetupFailed := True;
     if not Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível instalar o runtime Microsoft.');
     if (ExitCode <> 0) and (ExitCode <> 3010) and (ExitCode <> 1638) then RaiseException('Runtime Microsoft: código ' + IntToStr(ExitCode));
     if ExitCode = 3010 then RuntimeNeedsRestart := True;
@@ -119,13 +124,17 @@ begin
       if ExitCode <> 0 then Log('O driver PawnIO não foi instalado. Controle USB continua disponível.');
     end;
     try
+      DiagnosticPath := ExpandConstant('{commonappdata}\NexusRGB\installation-error.log');
+      PreviousDiagnostic := '';
+      LoadStringFromFile(DiagnosticPath, PreviousDiagnostic);
       if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Install', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível configurar os serviços.');
       if ExitCode <> 0 then begin
-        DiagnosticPath := ExpandConstant('{commonappdata}\NexusRGB\installation-error.log');
         ErrorMessage := 'A configuração dos serviços falhou. Código: ' + IntToStr(ExitCode);
-        if LoadStringFromFile(DiagnosticPath, Diagnostic) then
+        if LoadStringFromFile(DiagnosticPath, Diagnostic) and (Diagnostic <> PreviousDiagnostic) then begin
           ErrorMessage := ErrorMessage + #13#10#13#10 + Copy(UTF8Decode(Diagnostic), 1, 1200);
-        ErrorMessage := ErrorMessage + #13#10#13#10 + 'Diagnóstico: ' + DiagnosticPath;
+          ErrorMessage := ErrorMessage + #13#10#13#10 + 'Diagnóstico: ' + DiagnosticPath;
+        end else
+          ErrorMessage := ErrorMessage + #13#10#13#10 + 'Não foi possível gravar um diagnóstico novo. Consulte o log do instalador e ProgramData\NexusRGB\app\service.log.';
         RaiseException(ErrorMessage);
       end;
     except
@@ -133,6 +142,7 @@ begin
       Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Uninstall', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
       RaiseException(ErrorMessage);
     end;
+    SetupFailed := False;
   end;
 end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
