@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-Path $projectRoot $folder) -Destination $buildRoot -Recurse -Force }
 New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $buildRoot 'runtime'),(Join-Path $buildRoot 'licenses'),(Join-Path $buildRoot 'sources') -Force | Out-Null
 Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
-Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
+Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','LICENSE.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
 Copy-Item -LiteralPath 'native\app.ico' -Destination (Join-Path $buildRoot 'app.ico') -Force
 Copy-Item -LiteralPath 'runtime\node.exe' -Destination (Join-Path $buildRoot 'runtime\node.exe') -Force
 foreach($dependency in @('vendor\PawnIO_setup.exe','vendor\vc_redist.x64.exe','runtime\node.exe')) {

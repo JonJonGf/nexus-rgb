@@ -85,8 +85,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/audit-installed-conf
 
 Esse último comando apenas consulta a configuração instalada e grava o relatório local. Os comandos de teste não desativam o Defender, não criam exclusões e não instalam WinRing0.
 
-## Trabalho ainda necessário para vender
+## Trabalho ainda necessário para distribuição ampla
 
-Permanecem assinatura pública dos executáveis, revisão externa de segurança, testes limpos de Windows 10/11 com contas comuns, driver com integridade de memória, uma matriz física de fabricantes/modelos, celulares Android/iOS, múltiplos Echos, suspensão/retomada, mudanças reais de rede e sustentação por horas/dias. Consulte os [critérios comerciais](COMERCIAL.md).
+O projeto agora tem como objetivo distribuição gratuita. Permanecem assinatura pública dos executáveis, revisão externa de segurança, testes limpos de Windows 10/11 com contas comuns, driver com integridade de memória, uma matriz física de fabricantes/modelos, celulares Android/iOS, múltiplos Echos, suspensão/retomada, mudanças reais de rede e sustentação por horas/dias. Consulte os [critérios de distribuição](COMERCIAL.md).
 
 O acesso RGB pela LAN continua sendo HTTP sem autenticação, conforme a decisão do proprietário. Os testes confirmam esse comportamento e a separação dos ajustes administrativos; não acrescentam senha ou criptografia à rede.

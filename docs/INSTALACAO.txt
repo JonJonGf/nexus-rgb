@@ -1,4 +1,4 @@
-﻿NEXUS RGB — VERSÃO 0.1.0 PARA VALIDAÇÃO
+﻿NEXUS RGB — PRÉVIA GRATUITA 0.1.0 PARA VALIDAÇÃO
 
 Instala o aplicativo, o runtime Node.js e o OpenRGB 1.0 no próprio computador.
 O serviço de rede roda com permissões limitadas; somente o controlador de
@@ -25,4 +25,4 @@ validado no aparelho e depende da infraestrutura da Amazon.
 
 Compatibilidade RGB depende dos modelos suportados pelo OpenRGB.
 Esta versão ainda requer testes de instalação, reinício e hardware antes
-de distribuição comercial. Os executáveis Nexus ainda não são assinados.
+de distribuição ampla. Os executáveis Nexus ainda não são assinados.

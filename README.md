@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **Versão 0.1.0 · Prévia para validação.** O Nexus está em desenvolvimento para uso comercial. Os executáveis ainda não têm assinatura digital própria, e a compatibilidade depende do hardware suportado pelo OpenRGB.
+> **Versão 0.1.0 · Prévia gratuita para validação.** O objetivo do Nexus é oferecer controle RGB local gratuitamente. Os executáveis ainda não têm assinatura digital própria, e a compatibilidade depende do hardware suportado pelo OpenRGB.
 
 ---
 
@@ -270,7 +270,7 @@ O suporte depende do dispositivo, e não apenas da marca. Fans ligados à mesma 
 - [Ambiente de desenvolvimento, testes e geração do instalador](docs/DESENVOLVIMENTO.md)
 - [Relatório de consumo e metodologia](docs/DESEMPENHO.md)
 - [Validação de segurança, estabilidade e instalação em VM](docs/VALIDACAO.md)
-- [Condições para liberar a versão comercial](docs/COMERCIAL.md)
+- [Critérios para distribuição pública](docs/COMERCIAL.md)
 - [Componentes e licenças de terceiros](THIRD-PARTY-NOTICES.md)
 
 <p align="center">
