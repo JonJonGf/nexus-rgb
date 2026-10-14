@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.3/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.3">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.4/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.4">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -65,9 +65,9 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.3/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.3) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.4/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.4) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
 
-**Acesso à prévia:** o repositório é privado nesta fase; baixar os arquivos pelo GitHub exige uma conta com acesso autorizado. O responsável pelo projeto também pode distribuir o executável diretamente. O uso do painel na LAN continua sem conta ou login.
+**Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
 Se você prefere instalar a partir do código, clone o repositório e siga [como gerar o instalador](docs/DESENVOLVIMENTO.md#gerar-instalador). O executável gerado fica na pasta `dist`.
 
@@ -205,7 +205,7 @@ Reserve os IPs do PC e do Echo no roteador. A descoberta pode variar com o model
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.3/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.4/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -264,6 +264,12 @@ O pacote usa OpenRGB 1.0 e o instalador oficial assinado do **PawnIO**; não inc
 O suporte depende do dispositivo, e não apenas da marca. Fans ligados à mesma porta ARGB podem aparecer como uma única zona. O Nexus separa componentes quando o controlador fornece as informações necessárias; a instalação automática não garante compatibilidade com todo hardware RGB existente.
 
 ---
+
+## 📄 Código aberto e licença
+
+O código original do Nexus RGB e sua documentação são públicos sob a [licença MIT](LICENSE.md), com autoria de **JonJonGf**. Você pode usar, estudar, modificar e redistribuir, inclusive comercialmente, mantendo o aviso de autoria e a licença. OpenRGB, PawnIO e os demais componentes preservam suas próprias licenças; consulte os [avisos de terceiros](THIRD-PARTY-NOTICES.md).
+
+O instalador inclui a MIT do Nexus e os avisos de terceiros. **MIT não é assinatura digital:** os executáveis próprios desta prévia continuam sem assinatura. Consulte a [Code signing policy — assinatura digital](docs/ASSINATURA.md) para o status e o caminho gratuito em avaliação.
 
 ## 📚 Para quem desenvolve ou distribui
 

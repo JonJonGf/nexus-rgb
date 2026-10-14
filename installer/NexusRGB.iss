@@ -4,7 +4,14 @@
 AppId={{BEFFBF04-40A0-4E59-87C0-223B51E92B84}
 AppName=Nexus RGB
 AppVersion={#AppVersion}
-AppPublisher=Nexus RGB
+AppPublisher=JonJonGf
+AppPublisherURL=https://github.com/JonJonGf/nexus-rgb
+AppSupportURL=https://github.com/JonJonGf/nexus-rgb/issues
+AppUpdatesURL=https://github.com/JonJonGf/nexus-rgb/releases
+AppCopyright=Copyright (c) 2026 JonJonGf
+VersionInfoVersion=0.1.0.0
+VersionInfoProductName=Nexus RGB
+VersionInfoProductVersion=0.1.0.0
 DefaultDirName={autopf}\Nexus RGB
 DefaultGroupName=Nexus RGB
 DisableDirPage=yes

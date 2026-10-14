@@ -26,3 +26,6 @@ validado no aparelho e depende da infraestrutura da Amazon.
 Compatibilidade RGB depende dos modelos suportados pelo OpenRGB.
 Esta versão ainda requer testes de instalação, reinício e hardware antes
 de distribuição ampla. Os executáveis Nexus ainda não são assinados.
+O código original do Nexus é público sob MIT, por JonJonGf. A licença está
+em LICENSE.md; componentes de terceiros mantêm suas próprias licenças.
+MIT não é assinatura digital e não remove o aviso de editor desconhecido.

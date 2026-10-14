@@ -12,7 +12,7 @@ cd nexus-rgb
 npm ci --ignore-scripts
 ```
 
-O repositório é privado nesta fase. O clone exige uma conta GitHub com acesso autorizado. Dados, binários, dependências, logs e credenciais são excluídos pelo `.gitignore`.
+O repositório é público e o clone não exige conta GitHub. O código original é licenciado sob [MIT](../LICENSE.md). Dados, binários, dependências, logs e credenciais são excluídos pelo `.gitignore`. O campo `private: true` no `package.json` apenas impede publicação acidental no registro npm; não limita o acesso ao GitHub.
 
 ## Executar sem disputar o hardware da instalação
 
@@ -73,9 +73,9 @@ O instalador inclui os arquivos necessários para a instalação offline: runtim
 
 O assistente de desinstalação é um executável separado e também integra o pacote. Ele consulta o registro oficial do produto e abre o desinstalador Inno existente, que remove os serviços e as regras próprias. O argumento `--check` verifica a instalação sem abrir UAC ou remover nada; retorno `0` indica validação bem-sucedida. Na execução normal, retorno `0` indica que o desinstalador foi aberto, não que a remoção já terminou. O arquivo `SHA256SUMS.txt` permite conferir os dois executáveis distribuídos.
 
-Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.3), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. O acesso aos arquivos depende da permissão no repositório privado.
+Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.4), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. Os arquivos e o código são públicos e podem ser baixados sem login.
 
-Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e as [condições comerciais](COMERCIAL.md) antes de distribuir. O build não assina os executáveis Nexus com um certificado próprio.
+Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e os [critérios de distribuição](COMERCIAL.md) antes de distribuir. O build não assina os executáveis Nexus com um certificado próprio. Veja a [Code signing policy](ASSINATURA.md).
 
 ## Estrutura do repositório
 
