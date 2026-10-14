@@ -7,15 +7,23 @@ const { setTimeout: sleep } = require('node:timers/promises');
 const root = path.resolve(__dirname, '..');
 const seconds = Number(process.env.NEXUS_STABILITY_SECONDS || 600);
 if (!Number.isInteger(seconds) || seconds < 60 || seconds > 86400) throw new Error('Duração permitida: 60 a 86400 segundos.');
-const output = path.resolve(process.env.NEXUS_STABILITY_REPORT || path.join(root, 'test-results', 'stability.json'));
+const output = path.resolve(process.env.NEXUS_STABILITY_REPORT || path.join(root, 'data', 'validation', 'stability.json'));
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-stability-'));
 let child, origin, cookie, streams = [], requests = 0, writes = 0, reconnects = 0;
 const samples = [], latencies = [];
 async function launch() {
   child = fork(path.join(root, 'tests', 'fixtures', 'stability-worker.js'), [], { env: { ...process.env, NEXUS_TEST_DATA: directory }, stdio: ['ignore', 'pipe', 'pipe', 'ipc'], windowsHide: true });
   child.stdout.resume(); child.stderr.on('data', data => process.stderr.write(data));
-  const ready = await Promise.race([once(child, 'message'), once(child, 'exit').then(([code]) => { throw Error('Worker exited: ' + code); }), sleep(15000).then(() => { throw Error('Worker startup timed out.'); })]);
-  assert.equal(ready[0].type, 'ready'); origin = `http://127.0.0.1:${ready[0].port}`;
+  const workerProcess = child;
+  const ready = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { cleanup(); reject(Error('Worker startup timed out.')); }, 15000);
+    const cleanup = () => { clearTimeout(timer); workerProcess.off('message', onReady); workerProcess.off('exit', onExit); workerProcess.off('error', onError); };
+    const onReady = message => { cleanup(); resolve(message); };
+    const onExit = code => { cleanup(); reject(Error('Worker exited: ' + code)); };
+    const onError = error => { cleanup(); reject(error); };
+    workerProcess.once('message', onReady); workerProcess.once('exit', onExit); workerProcess.once('error', onError);
+  });
+  assert.equal(ready.type, 'ready'); origin = `http://127.0.0.1:${ready.port}`;
   const session = await call('/api/session/local', {}); cookie = session.headers.get('set-cookie').split(';')[0];
 }
 async function call(route, body) {

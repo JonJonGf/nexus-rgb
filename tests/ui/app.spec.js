@@ -114,7 +114,7 @@ test('queda do stream e nova sessão do serviço recuperam o painel sem recarreg
 });
 
 test('nomes de perfil com HTML são exibidos como texto sem executar conteúdo', async ({ page }) => {
-  const name = '<img src=x onerror=alert(1)>', errors = [], dialogs = [];
+  const name = 'Perfil <svg onload=alert(2)>', errors = [], dialogs = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('dialog', async dialog => { dialogs.push(dialog.message()); await dialog.dismiss(); });
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
@@ -122,7 +122,7 @@ test('nomes de perfil com HTML são exibidos como texto sem executar conteúdo',
   expect(response.status()).toBe(200);
   await page.locator('.nav[data-page=profiles]').click();
   await expect(page.getByText(name, { exact: true })).toBeVisible();
-  expect(await page.locator('img[onerror]').count()).toBe(0); expect(errors).toEqual([]); expect(dialogs).toEqual([]);
+  expect(await page.locator('[onerror], [onload]').count()).toBe(0); expect(errors).toEqual([]); expect(dialogs).toEqual([]);
   const state = await (await page.request.get('/api/state')).json();
   const profile = state.profiles.find(p => p.name === name);
   expect((await page.request.delete('/api/profiles/' + profile.id, { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: {} })).status()).toBe(200);

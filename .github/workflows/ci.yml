@@ -25,4 +25,4 @@ jobs:
           name: resultados-de-interface
           path: |
             test-results/*.png
-            test-results/stability.json
+            data/validation/stability.json
