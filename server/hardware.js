@@ -202,7 +202,7 @@ class Hardware extends EventEmitter {
       this.store.zone(d.id, zoneId, count);
     }
     catch (error) { if (previous !== undefined) this.store.data.zones[d.id][zoneId] = previous; throw error; }
-    finally { this.busy = false; }
+    finally { this.busy = false; if (!this.connected) this.scheduleReconnect(); }
   }
   start() { this.stopped = false; this.connect(); this.timer = setInterval(() => { this.tick().catch(error => this.lost(error)); }, 50); }
   stop() { this.stopped = true; clearInterval(this.timer); clearTimeout(this.reconnect); this.client?.socket?.destroy(); this.client?.disconnect(); }

@@ -7,10 +7,22 @@ function Invoke-NexusSc([string[]]$Arguments) {
   & "$env:SystemRoot\System32\sc.exe" @Arguments | Out-Null
   if($LASTEXITCODE -ne 0){throw "Falha no gerenciador de serviços: $($Arguments[0]) ($LASTEXITCODE)"}
 }
+function Get-NexusDirectoryTree([string]$Directory) {
+  # Enumerate each directory explicitly; never follow a junction or symbolic link.
+  $root=Get-Item -LiteralPath $Directory -Force
+  if(-not $root.PSIsContainer -or ($root.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw "Pasta normal esperada: $Directory"}
+  $pending=New-Object 'Collections.Generic.Queue[string]'
+  $pending.Enqueue($root.FullName)
+  while($pending.Count -gt 0) {
+    foreach($item in Get-ChildItem -LiteralPath $pending.Dequeue() -Force) {
+      if($item.Attributes -band [IO.FileAttributes]::ReparsePoint){throw "Link de sistema de arquivos não permitido: $($item.FullName)"}
+      $item
+      if($item.PSIsContainer){$pending.Enqueue($item.FullName)}
+    }
+  }
+}
 function Set-NexusDirectoryPermissions([string]$Directory,[hashtable]$Grants,[bool]$ResetChildren=$false) {
-  $directoryItem=Get-Item -LiteralPath $Directory -Force
-  $descendants=@(Get-ChildItem -LiteralPath $Directory -Recurse -Force)
-  if(($directoryItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or ($descendants | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint })){throw "Link de sistema de arquivos não permitido: $Directory"}
+  $descendants=@(Get-NexusDirectoryTree $Directory)
   $acl=New-Object Security.AccessControl.DirectorySecurity
   $acl.SetAccessRuleProtection($true,$false)
   $acl.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))
@@ -21,20 +33,51 @@ function Set-NexusDirectoryPermissions([string]$Directory,[hashtable]$Grants,[bo
   }
   Set-Acl -LiteralPath $Directory -AclObject $acl
   if($ResetChildren) {
-    foreach($child in Get-ChildItem -LiteralPath $Directory -Force) {
-      & "$env:SystemRoot\System32\icacls.exe" $child.FullName /reset /T /Q | Out-Null
-      if($LASTEXITCODE -ne 0){throw "Falha ao proteger arquivos: $($child.FullName)"}
+    # Protect parents before their children, with no recursive command crossing links.
+    # /L keeps the operation on the link itself if a path changes after validation.
+    foreach($child in $descendants) {
+      $current=Get-Item -LiteralPath $child.FullName -Force
+      if($current.Attributes -band [IO.FileAttributes]::ReparsePoint){throw "Link de sistema de arquivos não permitido: $($current.FullName)"}
+      & "$env:SystemRoot\System32\icacls.exe" $current.FullName /setowner '*S-1-5-32-544' /L /Q | Out-Null
+      if($LASTEXITCODE -ne 0){throw "Falha ao definir proprietário: $($current.FullName)"}
+      & "$env:SystemRoot\System32\icacls.exe" $current.FullName /reset /L /Q | Out-Null
+      if($LASTEXITCODE -ne 0){throw "Falha ao proteger arquivos: $($current.FullName)"}
     }
-    & "$env:SystemRoot\System32\icacls.exe" $Directory /setowner '*S-1-5-32-544' /T /Q | Out-Null
-    if($LASTEXITCODE -ne 0){throw "Falha ao definir proprietário: $Directory"}
   }
 }
 function Write-NexusDiagnostic([string]$FileName,[string]$Message) {
+  if(Test-Path -LiteralPath $dataRoot) {
+    $root=Get-Item -LiteralPath $dataRoot -Force
+    if(-not $root.PSIsContainer -or ($root.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Pasta de diagnóstico inválida.'}
+  }
   New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
   $file=Join-Path $dataRoot $FileName
-  [IO.File]::WriteAllText($file,$Message,[Text.UTF8Encoding]::new($true))
+  if((Test-Path -LiteralPath $file) -and ((Get-Item -LiteralPath $file -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Arquivo de diagnóstico inválido.'}
+  $temporary=Join-Path $dataRoot ($FileName+'.'+[Guid]::NewGuid().ToString('N')+'.tmp')
+  try {
+    [IO.File]::WriteAllText($temporary,$Message,[Text.UTF8Encoding]::new($true))
+    # Replace the directory entry rather than overwriting a preexisting hard link.
+    if([IO.File]::Exists($file)){[IO.File]::Replace($temporary,$file,$null)}else{[IO.File]::Move($temporary,$file)}
+  } finally { if([IO.File]::Exists($temporary)){[IO.File]::Delete($temporary)} }
   & "$env:SystemRoot\System32\icacls.exe" $file /grant:r '*S-1-5-32-545:R' /Q | Out-Null
   if($LASTEXITCODE -ne 0){throw 'Falha ao disponibilizar diagnóstico de instalação.'}
+}
+function Wait-NexusPanel([string]$Url='http://127.0.0.1:5050/api/health',[int]$TimeoutSeconds=30) {
+  $deadline=[DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+  while([DateTime]::UtcNow -lt $deadline) {
+    $response=$null; $reader=$null
+    try {
+      $request=[Net.HttpWebRequest]::Create($Url)
+      $request.Proxy=$null; $request.Timeout=1500; $request.ReadWriteTimeout=1500
+      $response=$request.GetResponse()
+      $reader=[IO.StreamReader]::new($response.GetResponseStream())
+      $health=$reader.ReadToEnd() | ConvertFrom-Json
+      if($health.ready -is [bool] -and $health.ready){return}
+    } catch { # The worker may be starting Node; retry within the deadline.
+    } finally {if($reader){$reader.Dispose()}; if($response){$response.Dispose()}}
+    Start-Sleep -Milliseconds 250
+  }
+  throw 'O serviço foi iniciado, mas o painel não respondeu em 30 segundos. Consulte ProgramData\NexusRGB\app\service.log.'
 }
 try {
 $installRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -60,13 +103,24 @@ Set-NexusDirectoryPermissions $installRoot @{
 } $true
 $stage='Proteger dados'
 New-Item -ItemType Directory -Path $dataRoot,(Join-Path $dataRoot 'app'),(Join-Path $dataRoot 'hardware') -Force | Out-Null
-# Locale-independent Windows SIDs. No executable content is loaded from writable data.
-& icacls.exe $dataRoot /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-19:(RX)' '*S-1-5-32-545:(RX)' | Out-Null
-if($LASTEXITCODE -ne 0){throw 'Falha ao proteger a pasta de dados.'}
-& icacls.exe (Join-Path $dataRoot 'app') /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-19:(OI)(CI)M' '*S-1-5-32-545:(OI)(CI)RX' | Out-Null
-if($LASTEXITCODE -ne 0){throw 'Falha ao proteger dados do serviço.'}
-& icacls.exe (Join-Path $dataRoot 'hardware') /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
-if($LASTEXITCODE -ne 0){throw 'Falha ao proteger configuração do hardware.'}
+# Replace DACLs and owners, including data created before installation. /grant:r
+# alone would retain another user's explicit permissions and ownership.
+Set-NexusDirectoryPermissions $dataRoot @{
+  'S-1-5-18'=@{Rights='FullControl';Inherit=$true}
+  'S-1-5-32-544'=@{Rights='FullControl';Inherit=$true}
+  'S-1-5-19'=@{Rights='ReadAndExecute';Inherit=$false}
+  'S-1-5-32-545'=@{Rights='ReadAndExecute';Inherit=$false}
+} $true
+Set-NexusDirectoryPermissions (Join-Path $dataRoot 'app') @{
+  'S-1-5-18'=@{Rights='FullControl';Inherit=$true}
+  'S-1-5-32-544'=@{Rights='FullControl';Inherit=$true}
+  'S-1-5-19'=@{Rights='Modify';Inherit=$true}
+  'S-1-5-32-545'=@{Rights='ReadAndExecute';Inherit=$true}
+} $true
+Set-NexusDirectoryPermissions (Join-Path $dataRoot 'hardware') @{
+  'S-1-5-18'=@{Rights='FullControl';Inherit=$true}
+  'S-1-5-32-544'=@{Rights='FullControl';Inherit=$true}
+} $true
 foreach($definition in @(@{Name='NexusRGBHardware';Argument='--hardware-service';Account='LocalSystem';Display='Nexus RGB — Hardware'},@{Name='NexusRGB';Argument='--service';Account='NT AUTHORITY\LocalService';Display='Nexus RGB — Rede local'})) {
   $stage='Registrar '+$definition.Name
   $binary='"'+(Join-Path $installRoot 'NexusRGB.exe')+'" '+$definition.Argument
@@ -93,6 +147,8 @@ $stage='Iniciar controlador RGB'
 Start-Service -Name NexusRGBHardware
 $stage='Iniciar painel local'
 Start-Service -Name NexusRGB
+$stage='Verificar painel local'
+Wait-NexusPanel
 Write-NexusDiagnostic 'installation.log' ((Get-Date -Format o)+"`r`nServiços instalados e iniciados.")
 } catch {
   $failure=(Get-Date -Format o)+"`r`nEtapa: $stage`r`n"+$_.ToString()+"`r`n"+$_.InvocationInfo.PositionMessage

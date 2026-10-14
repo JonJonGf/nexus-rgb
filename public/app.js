@@ -4,6 +4,8 @@
   const labels = { static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso' };
   const descriptions = { static: 'Uma cor contínua', rainbow: 'Cores em movimento', wave: 'Cor percorre os LEDs', breathe: 'Brilho sobe e desce', pulse: 'Pulsos de luz' };
   let state = null, admin = false, currentPage = 'control', events = null, networkInfo = null, mobileLink = '', loading = false, toastTimer;
+  let sessionRefresh = null, initializing = false, reconnectTimer = null, reconnectDelay = 3000;
+  const onThisPC = ['127.0.0.1', 'localhost'].includes(location.hostname);
   const controls = ['power', 'color', 'hex', 'brightness', 'speed'];
   const el = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
   function icon(name) {
@@ -52,8 +54,15 @@
   $('orb').addEventListener('dragstart', event => event.preventDefault());
   wheel.addEventListener('keydown', event => { if (!event.key.startsWith('Arrow') || wheel.getAttribute('aria-disabled') === 'true') return; event.preventDefault(); const hsv = hexToHsv($('color').value); if (event.key === 'ArrowRight') hsv.h += 1 / 72; if (event.key === 'ArrowLeft') hsv.h -= 1 / 72; if (event.key === 'ArrowUp') hsv.s = Math.min(1, hsv.s + .05); if (event.key === 'ArrowDown') hsv.s = Math.max(0, hsv.s - .05); previewColor('#' + wheelRgb(hsv.h, hsv.s).map(v => v.toString(16).padStart(2, '0')).join('')); action('/api/control', { color: wheelColor, effect: 'static' }); });
   function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 6000); }
-  async function api(route, body, method = body === undefined ? 'GET' : 'POST') {
+  async function api(route, body, method = body === undefined ? 'GET' : 'POST', retrySession = true) {
     const response = await fetch(route, { method, credentials: 'same-origin', headers: { 'X-Nexus-Client': 'web', ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) });
+    if (response.status === 401 && onThisPC && retrySession && route !== '/api/session/local') {
+      // Sessions live only in the service process and expire after eight hours.
+      // A LAN client keeps its existing access and never calls the PC-only route.
+      sessionRefresh ??= api('/api/session/local', {}, 'POST', false).finally(() => { sessionRefresh = null; });
+      await sessionRefresh;
+      return api(route, body, method, false);
+    }
     const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Não foi possível concluir.'); return data;
   }
   async function action(route, body, method) { try { const data = await api(route, body, method); if (data.master) render(data); return data; } catch (error) { toast(error.message); return null; } }
@@ -189,14 +198,23 @@
   });
   $('alexa-enabled').addEventListener('change', async event => { await action('/api/alexa', { enabled: event.target.checked }); loadNetwork(); });
   $('discover-alexa').addEventListener('click', async () => { if (await action('/api/alexa/discover', {})) toast('Agora peça à Alexa para descobrir dispositivos.'); loadNetwork(); });
+  function scheduleReconnect() {
+    if (reconnectTimer !== null) return;
+    reconnectTimer = setTimeout(() => { reconnectTimer = null; initialize(); }, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+  }
   async function initialize() {
+    if (initializing) return;
+    initializing = true; clearTimeout(reconnectTimer); reconnectTimer = null;
+    events?.close(); events = null;
     try {
-      if (['127.0.0.1', 'localhost'].includes(location.hostname)) await api('/api/session/local', {});
+      if (onThisPC) await api('/api/session/local', {});
       const session = await api('/api/session'); admin = session.admin; render(await api('/api/state'));
-      events?.close(); events = new EventSource('/api/events');
+      reconnectDelay = 3000; events = new EventSource('/api/events');
       events.onmessage = event => { try { render(JSON.parse(event.data)); } catch { toast('Não foi possível atualizar o estado.'); } };
-      events.onerror = () => { $('connection').textContent = '● Reconectando ao PC…'; $('connection').className = 'badge offline'; enable(false); };
-    } catch (error) { $('connection').textContent = '● PC indisponível'; enable(false); toast(error.message); }
+      events.onerror = () => { events?.close(); events = null; $('connection').textContent = '● Reconectando ao PC…'; $('connection').className = 'badge offline'; enable(false); scheduleReconnect(); };
+    } catch (error) { $('connection').textContent = '● PC indisponível'; $('connection').className = 'badge offline'; enable(false); if (reconnectDelay === 3000) toast(error.message); scheduleReconnect(); }
+    finally { initializing = false; }
   }
   enable(false); initialize();
   setInterval(() => { if (currentPage === 'connect' && admin && !document.hidden) loadNetwork(); }, 5000);

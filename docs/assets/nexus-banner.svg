@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="460" viewBox="0 0 1400 460" role="img" aria-labelledby="title description">
+  <title id="title">Nexus RGB</title>
+  <desc id="description">Seu RGB. Sua rede. Seu controle. Um console local para Windows com OpenRGB incluído e Alexa para ligar e desligar.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#091315"/><stop offset=".55" stop-color="#0b0e14"/><stop offset="1" stop-color="#171024"/></linearGradient>
+    <linearGradient id="spectrum"><stop stop-color="#00f0ff"/><stop offset=".45" stop-color="#6c5aff"/><stop offset=".75" stop-color="#ef27b5"/><stop offset="1" stop-color="#ff8d36"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#00f0ff" stop-opacity=".16"/><stop offset="1" stop-color="#00f0ff" stop-opacity="0"/></radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#92b4cf" stroke-opacity=".045"/></pattern>
+  </defs>
+  <rect width="1400" height="460" rx="16" fill="url(#background)"/>
+  <rect x="1" y="1" width="1398" height="458" rx="15" fill="url(#grid)" stroke="#2b3444"/>
+  <path d="M56 1h260" stroke="url(#spectrum)" stroke-width="3"/>
+  <circle cx="1130" cy="205" r="230" fill="url(#glow)"/>
+  <g font-family="Segoe UI,Arial,sans-serif">
+    <g transform="translate(65 51)" fill="none" stroke="#00f0ff" stroke-width="2"><path d="M19 0 36 10v20L19 40 2 30V10Z"/><path d="m19 10 9 5v10l-9 5-9-5V15Z"/></g>
+    <text x="122" y="77" fill="#819298" font-size="15" font-weight="600" letter-spacing="4">NEXUS / CONTROLE LOCAL</text>
+    <text x="64" y="186" fill="#eef5f8" font-size="91" font-weight="750" letter-spacing="-4">NEXUS <tspan fill="url(#spectrum)">RGB</tspan></text>
+    <text x="68" y="233" fill="#d0dce3" font-size="27" font-weight="500">Seu RGB. Sua rede. Seu controle.</text>
+    <text x="69" y="273" fill="#829199" font-size="18">Cores, efeitos e perfis para um setup que tem a sua cara.</text>
+    <g font-size="13" font-weight="600" letter-spacing="1.2">
+      <rect x="68" y="315" width="164" height="36" rx="4" fill="#111c21" stroke="#2a3c44"/><text x="88" y="338" fill="#b9d9e3">WINDOWS 10 / 11</text>
+      <rect x="243" y="315" width="190" height="36" rx="4" fill="#111c21" stroke="#2a3c44"/><text x="263" y="338" fill="#b9d9e3">OPENRGB INCLUÍDO</text>
+      <rect x="444" y="315" width="96" height="36" rx="4" fill="#102022" stroke="#235055"/><circle cx="463" cy="333" r="3" fill="#00f0ff"/><text x="477" y="338" fill="#00f0ff">LAN</text>
+      <rect x="551" y="315" width="220" height="36" rx="4" fill="#181422" stroke="#403351"/><text x="571" y="338" fill="#c8b3e9">ALEXA · LIGA / DESLIGA</text>
+    </g>
+    <path d="M68 390H772" stroke="#26303b"/>
+    <text x="69" y="420" fill="#657780" font-size="12" letter-spacing="2">0.1.0 / PRÉVIA DE VALIDAÇÃO</text>
+    <g transform="translate(1110 191)" fill="none">
+      <circle r="130" stroke="#26343e"/><circle r="119" stroke="#537078" stroke-width="8" stroke-dasharray="1 10" opacity=".4"/>
+      <circle r="98" stroke="url(#spectrum)" stroke-width="16" opacity=".9"/><circle r="81" stroke="#3a4758"/>
+      <path d="M0-59 51-30v60L0 59-51 30v-60Z" stroke="#00f0ff" stroke-width="2"/><path d="M0-32 28-16v32L0 32-28 16v-32Z" stroke="#a9faff" stroke-width="2"/>
+      <circle cx="98" r="9" fill="#00f0ff" stroke="#0d131a" stroke-width="4"/><path d="M-159 0h-39m396 0h-39M0-159v-22M0 159v22" stroke="#47646c"/>
+    </g>
+    <text x="1110" y="377" fill="#a1b7c1" font-size="14" text-anchor="middle" letter-spacing="4">MAKE LIGHT YOURS.</text>
+    <g fill="#5f7182" font-size="10" letter-spacing="2"><text x="968" y="424">01 / PC</text><text x="1080" y="424">02 / MOBILE</text><text x="1214" y="424">03 / VOZ</text></g>
+  </g>
+</svg>

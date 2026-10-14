@@ -37,6 +37,7 @@ class Alexa {
     this.identity = bridgeIdentity(this.data.uuid);
     this.diagnostics = { lastSearch: null, lastHttp: null, lastCommand: null };
     this.candidates = new Map(); this.discoveryUntil = 0; this.status = 'Desativada'; this.rate = new RateLimiter(60);
+    this.multicastInterfaces = new Set();
   }
   save() { writeJson(this.file, this.data); }
   openDiscovery() { this.discoveryUntil = Date.now() + 120000; this.candidates.clear(); this.advertise(); }
@@ -63,6 +64,24 @@ class Alexa {
         for (const target of ['upnp:rootdevice', HUE_DEVICE_TYPE]) this.socket.send(this.ssdp(target, adapter.address, true), 1900, '239.255.255.250');
       } catch { /* Interface may disappear during discovery. */ }
     }
+  }
+  syncInterfaces() {
+    if (!this.socket || !this.udpReady) return false;
+    const current = new Set(this.getInterfaces().map(adapter => adapter.address));
+    let changed = false;
+    for (const address of this.multicastInterfaces) {
+      if (current.has(address)) continue;
+      try { this.socket.dropMembership('239.255.255.250', address); } catch { /* Old IP may already be gone. */ }
+      this.multicastInterfaces.delete(address); changed = true;
+    }
+    for (const address of current) {
+      if (this.multicastInterfaces.has(address)) continue;
+      try {
+        this.socket.addMembership('239.255.255.250', address);
+        this.multicastInterfaces.add(address); changed = true;
+      } catch { /* DHCP may precede interface readiness. Retry next interval. */ }
+    }
+    return changed;
   }
   async request(req, res) {
     let recordHttp = () => {};
@@ -130,11 +149,12 @@ class Alexa {
       });
       this.socket.bind(1900, '0.0.0.0', () => {
         this.udpReady = true; this.socket.setMulticastTTL(1);
-        for (const a of this.getInterfaces()) { try { this.socket.addMembership('239.255.255.250', a.address); } catch { /* Adapter may disappear during startup. */ } }
+        this.syncInterfaces();
+        this.interfaceTimer = setInterval(() => { if (this.syncInterfaces()) this.advertise(); }, 5000); this.interfaceTimer.unref();
         this.advertise(); this.notifyTimer = setInterval(() => this.advertise(), 30000); this.notifyTimer.unref();
       });
     });
   }
-  stop(reset = true) { clearInterval(this.notifyTimer); this.udpReady = false; this.server?.closeAllConnections(); this.server?.close(); this.server = null; try { this.socket?.close(); } catch {} this.socket = null; if (reset) this.status = 'Desativada'; }
+  stop(reset = true) { clearInterval(this.notifyTimer); clearInterval(this.interfaceTimer); this.multicastInterfaces.clear(); this.udpReady = false; this.server?.closeAllConnections(); this.server?.close(); this.server = null; try { this.socket?.close(); } catch {} this.socket = null; if (reset) this.status = 'Desativada'; }
 }
 module.exports = { Alexa, huePatch, bridgeIdentity, searchTargets };

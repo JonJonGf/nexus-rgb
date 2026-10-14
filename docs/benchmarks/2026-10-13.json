@@ -1,0 +1,322 @@
+{
+  "formatVersion": 1,
+  "measurementDate": "2026-10-13",
+  "timezone": "America/Sao_Paulo",
+  "installedSoftwareVersion": "0.1.0",
+  "equipment": {
+    "cpuModel": "AMD Ryzen 5 3600 6-Core Processor",
+    "physicalCores": 6.0,
+    "logicalProcessors": 12,
+    "memoryReportedGiB": 31.891910552978516,
+    "operatingSystem": "Microsoft Windows 11 Pro",
+    "osVersion": "10.0.26300",
+    "osBuild": "26300",
+    "physicalControllers": 3,
+    "logicalComponents": 5,
+    "configuredLEDs": 92.0,
+    "components": [
+      {
+        "name": "ENE DRAM",
+        "configuredLEDs": 8
+      },
+      {
+        "name": "ENE DRAM",
+        "configuredLEDs": 8
+      },
+      {
+        "name": "ASUS TUF GAMING A520M-PLUS II",
+        "configuredLEDs": 4
+      },
+      {
+        "name": "ARGB 1",
+        "configuredLEDs": 36
+      },
+      {
+        "name": "ARGB 2",
+        "configuredLEDs": 36
+      }
+    ],
+    "alexaEnabled": true
+  },
+  "measurement": {
+    "source": "Windows CIM Win32_Process",
+    "cumulativeCpuFields": [
+      "KernelModeTime",
+      "UserModeTime"
+    ],
+    "cumulativeCpuUnit": "100 ns ticks",
+    "cpuFormula": "100 * delta((KernelModeTime + UserModeTime)/10000000) / actualElapsedSeconds / logicalProcessors",
+    "cpuNormalization": "Entire machine, 12 logical processors",
+    "requestedSampleIntervalSeconds": 1,
+    "cpuPeakDefinition": "Maximum measured interval, approximately 1 second",
+    "workingSetSource": "WorkingSetSize",
+    "privateMemorySource": "PrivatePageCount",
+    "memoryUnit": "MiB",
+    "bytesPerMiB": 1048576,
+    "processIdentification": "Registered service ProcessId and executable, direct child relationships, confirmed installed tray executable",
+    "notes": [
+      "Protected .NET TotalProcessorTime was unavailable; CIM kernel+user cumulative time is its equivalent.",
+      "Working-set sums can double-count shared pages.",
+      "Private memory is committed private memory; do not add it to working set.",
+      "Short-window noise and counter granularity explain small differences between idle-off and static; no claim that turning on improves performance."
+    ],
+    "excluded": [
+      "Browser CPU and memory",
+      "Other applications",
+      "Build and sampling tools",
+      "Kernel-driver allocations",
+      "GPU measurements",
+      "Electrical power in watts",
+      "Temperature",
+      "Battery duration"
+    ]
+  },
+  "scenarios": [
+    {
+      "id": "idle-off",
+      "startedAt": "2026-10-13T22:38:21.4770047-03:00",
+      "durationSeconds": 39.996344799999996,
+      "sampleCount": 41,
+      "warmupSeconds": 0,
+      "mixedScenario": false,
+      "master": {
+        "power": false,
+        "color": "#00ff7c",
+        "brightness": 100,
+        "effect": "static",
+        "speed": 17
+      },
+      "totals": {
+        "cpuMeanPercent": 0.06511011642910597,
+        "cpuPeakSamplePercent": 0.3947485831746996,
+        "workingSetMeanMiB": 187.37795350609755,
+        "workingSetPeakMiB": 187.4140625,
+        "privateMemoryMeanMiB": 136.6122332317073,
+        "privateMemoryPeakMiB": 136.65625
+      },
+      "processes": [
+        {
+          "role": "Network supervisor",
+          "group": "Supervisors",
+          "cpuMeanPercent": 0.0032555058214552984,
+          "cpuPeakSamplePercent": 0.132888074511079,
+          "workingSetMeanMiB": 22.210365853658537,
+          "workingSetPeakMiB": 22.21875,
+          "privateMemoryMeanMiB": 16.88719512195122,
+          "privateMemoryPeakMiB": 16.890625
+        },
+        {
+          "role": "Node LAN server",
+          "group": "Node",
+          "cpuMeanPercent": 0.0032555058214552984,
+          "cpuPeakSamplePercent": 0.12915064124181916,
+          "workingSetMeanMiB": 68.93102134146342,
+          "workingSetPeakMiB": 68.94140625,
+          "privateMemoryMeanMiB": 67.48475609756098,
+          "privateMemoryPeakMiB": 67.5
+        },
+        {
+          "role": "Hardware supervisor",
+          "group": "Supervisors",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 21.8461318597561,
+          "workingSetPeakMiB": 21.84765625,
+          "privateMemoryMeanMiB": 16.96922637195122,
+          "privateMemoryPeakMiB": 16.97265625
+        },
+        {
+          "role": "OpenRGB controller",
+          "group": "OpenRGB",
+          "cpuMeanPercent": 0.05859910478619537,
+          "cpuPeakSamplePercent": 0.3947485831746996,
+          "workingSetMeanMiB": 26.21484375,
+          "workingSetPeakMiB": 26.21484375,
+          "privateMemoryMeanMiB": 7.20703125,
+          "privateMemoryPeakMiB": 7.20703125
+        },
+        {
+          "role": "Tray",
+          "group": "Tray",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 48.17559070121951,
+          "workingSetPeakMiB": 48.19140625,
+          "privateMemoryMeanMiB": 28.0640243902439,
+          "privateMemoryPeakMiB": 28.0859375
+        }
+      ]
+    },
+    {
+      "id": "static",
+      "startedAt": "2026-10-13T22:41:59.1866389-03:00",
+      "durationSeconds": 30.0077146,
+      "sampleCount": 31,
+      "warmupSeconds": 3,
+      "mixedScenario": false,
+      "master": {
+        "power": true,
+        "color": "#00ff7c",
+        "brightness": 100,
+        "effect": "static",
+        "speed": 17
+      },
+      "totals": {
+        "cpuMeanPercent": 0.034713295582552185,
+        "cpuPeakSamplePercent": 0.3926827360735732,
+        "workingSetMeanMiB": 187.67842741935485,
+        "workingSetPeakMiB": 187.70703125,
+        "privateMemoryMeanMiB": 136.88949092741936,
+        "privateMemoryPeakMiB": 136.95703125
+      },
+      "processes": [
+        {
+          "role": "Network supervisor",
+          "group": "Supervisors",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 22.265625,
+          "workingSetPeakMiB": 22.28125,
+          "privateMemoryMeanMiB": 16.955519153225808,
+          "privateMemoryPeakMiB": 17.01171875
+        },
+        {
+          "role": "Node LAN server",
+          "group": "Node",
+          "cpuMeanPercent": 0.004339161947819023,
+          "cpuPeakSamplePercent": 0.1315952419068379,
+          "workingSetMeanMiB": 69.05204133064517,
+          "workingSetPeakMiB": 69.0546875,
+          "privateMemoryMeanMiB": 67.6171875,
+          "privateMemoryPeakMiB": 67.6171875
+        },
+        {
+          "role": "Hardware supervisor",
+          "group": "Supervisors",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 21.858240927419356,
+          "workingSetPeakMiB": 21.86328125,
+          "privateMemoryMeanMiB": 16.961315524193548,
+          "privateMemoryPeakMiB": 16.97265625
+        },
+        {
+          "role": "OpenRGB controller",
+          "group": "OpenRGB",
+          "cpuMeanPercent": 0.030374133634733163,
+          "cpuPeakSamplePercent": 0.3926827360735732,
+          "workingSetMeanMiB": 26.21484375,
+          "workingSetPeakMiB": 26.21484375,
+          "privateMemoryMeanMiB": 7.20703125,
+          "privateMemoryPeakMiB": 7.20703125
+        },
+        {
+          "role": "Tray",
+          "group": "Tray",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 48.28767641129032,
+          "workingSetPeakMiB": 48.29296875,
+          "privateMemoryMeanMiB": 28.1484375,
+          "privateMemoryPeakMiB": 28.1484375
+        }
+      ]
+    },
+    {
+      "id": "wave",
+      "startedAt": "2026-10-13T22:42:32.2880996-03:00",
+      "durationSeconds": 30.0182678,
+      "sampleCount": 31,
+      "warmupSeconds": 3,
+      "mixedScenario": false,
+      "master": {
+        "power": true,
+        "color": "#00ff7c",
+        "brightness": 100,
+        "effect": "wave",
+        "speed": 17
+      },
+      "totals": {
+        "cpuMeanPercent": 0.4684647393278302,
+        "cpuPeakSamplePercent": 1.037488803005843,
+        "workingSetMeanMiB": 187.86164314516128,
+        "workingSetPeakMiB": 188.02734375,
+        "privateMemoryMeanMiB": 137.17930947580646,
+        "privateMemoryPeakMiB": 137.578125
+      },
+      "processes": [
+        {
+          "role": "Network supervisor",
+          "group": "Supervisors",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 22.280241935483872,
+          "workingSetPeakMiB": 22.28125,
+          "privateMemoryMeanMiB": 17.009198588709676,
+          "privateMemoryPeakMiB": 17.01171875
+        },
+        {
+          "role": "Node LAN server",
+          "group": "Node",
+          "cpuMeanPercent": 0.056389274178349935,
+          "cpuPeakSamplePercent": 0.263373375188546,
+          "workingSetMeanMiB": 69.20073084677419,
+          "workingSetPeakMiB": 69.3671875,
+          "privateMemoryMeanMiB": 67.78566028225806,
+          "privateMemoryPeakMiB": 68.17578125
+        },
+        {
+          "role": "Hardware supervisor",
+          "group": "Supervisors",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 21.862777217741936,
+          "workingSetPeakMiB": 21.86328125,
+          "privateMemoryMeanMiB": 16.971522177419356,
+          "privateMemoryPeakMiB": 16.97265625
+        },
+        {
+          "role": "OpenRGB controller",
+          "group": "OpenRGB",
+          "cpuMeanPercent": 0.4120754651494803,
+          "cpuPeakSamplePercent": 0.9078027026301125,
+          "workingSetMeanMiB": 26.21484375,
+          "workingSetPeakMiB": 26.21484375,
+          "privateMemoryMeanMiB": 7.20703125,
+          "privateMemoryPeakMiB": 7.20703125
+        },
+        {
+          "role": "Tray",
+          "group": "Tray",
+          "cpuMeanPercent": 0.0,
+          "cpuPeakSamplePercent": 0.0,
+          "workingSetMeanMiB": 48.30304939516129,
+          "workingSetPeakMiB": 48.30859375,
+          "privateMemoryMeanMiB": 28.205897177419356,
+          "privateMemoryPeakMiB": 28.2109375
+        }
+      ]
+    }
+  ],
+  "restoration": {
+    "originalProfileRestored": true,
+    "temporaryProfileDeleted": true,
+    "userRequestedLightsLeftOn": true,
+    "finalMaster": {
+      "power": true,
+      "color": "#00ff7c",
+      "brightness": 100,
+      "effect": "static",
+      "speed": 17
+    },
+    "allOriginalIndividualSettingsPreserved": true,
+    "zonesPreserved": true,
+    "servicesRestarted": false
+  },
+  "limitations": [
+    "Single PC and 92 configured LEDs; results are not universal requirements or guarantees.",
+    "Short samples do not establish absence of memory leaks or long-duration stability.",
+    "No effective hardware frame-rate measurement; software effects are scheduled every 50 ms.",
+    "A zero sampled CPU increase does not mean a process always uses zero CPU."
+  ]
+}

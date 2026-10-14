@@ -78,6 +78,21 @@ test('portas mantêm identidade ao redimensionar e salvar usa a controladora fí
   assert.equal(hardware.snapshot().devices.find(d => d.id === port.id).ledCount, 5); assert.equal(store.data.zones[physicalId][1], 5);
   assert.equal(store.data.zones[port.id], undefined); hardware.stop();
 });
+
+test('desconexão durante redimensionamento recupera o controlador e preserva quantidade salva', async () => {
+  const { identity } = require('../server/hardware'); const raw = zonedController();
+  const physicalId = identity(raw), store = { data: { master: defaults, devices: {}, zones: { [physicalId]: { 1: 2 } } } };
+  const mock = new Mock([raw]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect();
+  const port = hardware.snapshot().devices.find(d => d.name === 'ARGB 1');
+  mock.resizeZone = () => { mock.emit('disconnect'); };
+  mock.getControllerCount = async () => { throw new Error('Controlador desconectado durante ajuste.'); };
+  await assert.rejects(hardware.resize(port.id, 1, 6), /desconectado/);
+  assert.equal(hardware.connected, false); assert.equal(hardware.busy, false);
+  assert.ok(hardware.reconnect, 'O supervisor deve agendar nova conexão após liberar busy.');
+  assert.equal(store.data.zones[physicalId][1], 2);
+  hardware.stop();
+});
 test('não adivinha offsets quando as zonas não cobrem todos os LEDs', async () => {
   const raw = zonedController(); raw.zones[1].ledsCount = 1;
   const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => new Mock([raw]) }); hardware.stopped = false; await hardware.connect();

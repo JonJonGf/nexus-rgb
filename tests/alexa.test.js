@@ -87,3 +87,38 @@ test('SSDP responde ao tipo solicitado e ignora buscas de outros dispositivos', 
   assert.match(response, /LOCATION: http:\/\/192.168.20.5:80\/description.xml/);
   assert.match(response, /USN: uuid:e7790cc1-d2a4-4c01-b16c-b743c5066530::upnp:rootdevice/);
 });
+
+test('descoberta acompanha DHCP e troca de IP sem reiniciar a ponte ou ampliar aprovação', t => {
+  const { Alexa } = require('../server/alexa');
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-hue-dhcp-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  let interfaces = [], rejectJoin = false;
+  const calls = [];
+  const alexa = new Alexa({ data: { alexaEnabled: true } }, {}, directory, () => {}, { getInterfaces: () => interfaces });
+  alexa.socket = {
+    addMembership(group, address) { calls.push(['join', group, address]); if (rejectJoin) throw new Error('Interface not ready'); },
+    dropMembership(group, address) { calls.push(['leave', group, address]); },
+    close() {}
+  };
+  alexa.udpReady = true;
+  assert.equal(alexa.syncInterfaces(), false); assert.deepEqual(calls, []);
+  interfaces = [{ address: '192.168.20.5', netmask: '255.255.255.0' }];
+  assert.equal(alexa.syncInterfaces(), true);
+  assert.deepEqual(calls, [['join', '239.255.255.250', '192.168.20.5']]);
+  assert.equal(alexa.syncInterfaces(), false); assert.equal(calls.length, 1);
+  interfaces = [{ address: '192.168.20.6', netmask: '255.255.255.0' }];
+  rejectJoin = true; assert.equal(alexa.syncInterfaces(), true);
+  assert.deepEqual([...alexa.multicastInterfaces], []);
+  rejectJoin = false; assert.equal(alexa.syncInterfaces(), true);
+  assert.deepEqual([...alexa.multicastInterfaces], ['192.168.20.6']);
+  assert.deepEqual(calls.slice(1), [
+    ['leave', '239.255.255.250', '192.168.20.5'],
+    ['join', '239.255.255.250', '192.168.20.6'],
+    ['join', '239.255.255.250', '192.168.20.6']
+  ]);
+  assert.deepEqual(alexa.data.peers, []); assert.deepEqual(alexa.snapshot().candidates, []);
+  interfaces = []; assert.equal(alexa.syncInterfaces(), true);
+  assert.deepEqual(calls.at(-1), ['leave', '239.255.255.250', '192.168.20.6']);
+  alexa.stop(); assert.equal(alexa.multicastInterfaces.size, 0);
+});

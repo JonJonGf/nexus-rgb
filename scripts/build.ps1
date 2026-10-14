@@ -9,7 +9,7 @@ if(Test-Path -LiteralPath $buildRoot){
   Remove-Item -LiteralPath $resolvedBuild -Recurse -Force
 }
 New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
-foreach($folder in @('server','public')) { Copy-Item -LiteralPath (Join-Path $projectRoot $folder) -Destination $buildRoot -Recurse -Force }
+foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-Path $projectRoot $folder) -Destination $buildRoot -Recurse -Force }
 New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $buildRoot 'runtime'),(Join-Path $buildRoot 'licenses'),(Join-Path $buildRoot 'sources') -Force | Out-Null
 Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
@@ -37,6 +37,9 @@ try { & npm.cmd ci --omit=dev --ignore-scripts; if($LASTEXITCODE -ne 0){throw 'F
 finally { Pop-Location }
 & 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /target:winexe /platform:x64 /optimize+ ('/out:'+(Join-Path $buildRoot 'NexusRGB.exe')) ('/win32icon:'+(Join-Path $projectRoot 'native\app.ico')) /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.ServiceProcess.dll (Join-Path $projectRoot 'native\NexusRGB.cs')
 if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o executável nativo.'}
+& 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /target:winexe /platform:x64 /optimize+ ('/out:'+(Join-Path $buildRoot 'NexusRGB-Uninstall.exe')) ('/win32icon:'+(Join-Path $projectRoot 'native\app.ico')) /reference:System.Windows.Forms.dll (Join-Path $projectRoot 'native\NexusRGBUninstall.cs')
+if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o assistente de desinstalação.'}
+Copy-Item -LiteralPath (Join-Path $buildRoot 'NexusRGB-Uninstall.exe') -Destination (Join-Path $projectRoot 'dist\NexusRGB-Uninstall-0.1.0.exe') -Force
 $testProcess=Start-Process -FilePath (Join-Path $buildRoot 'NexusRGB.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
 if($testProcess.ExitCode -ne 0){throw 'Instalação de teste incompleta.'}
 # Include each third-party license shipped in node_modules, without developer dependencies.
@@ -44,4 +47,7 @@ if($testProcess.ExitCode -ne 0){throw 'Instalação de teste incompleta.'}
 if($LASTEXITCODE -ne 0){throw 'Falha ao coletar licenças.'}
 & (Join-Path $projectRoot 'tools\inno\ISCC.exe') /Qp installer/NexusRGB.iss
 if($LASTEXITCODE -ne 0){throw 'Falha ao gerar instalador.'}
-Get-FileHash -LiteralPath 'dist\NexusRGB-Setup-0.1.0.exe' -Algorithm SHA256 | Format-List
+$releaseFiles=@('dist\NexusRGB-Setup-0.1.0.exe','dist\NexusRGB-Uninstall-0.1.0.exe')
+$checksums=@(foreach($releaseFile in $releaseFiles){ ((Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256).Hash.ToLowerInvariant())+'  '+[IO.Path]::GetFileName($releaseFile) })
+[IO.File]::WriteAllLines((Join-Path $projectRoot 'dist\SHA256SUMS.txt'),$checksums,[Text.UTF8Encoding]::new($false))
+Get-FileHash -LiteralPath $releaseFiles -Algorithm SHA256 | Format-List

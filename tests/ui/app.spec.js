@@ -81,3 +81,47 @@ test('arrastar a bolinha move a cor sem selecionar a página, inclusive fora da 
   await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height * .1); await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' }); await page.keyboard.press('Escape');
   expect(writes.length).toBe(1); await expect(page.locator('#hex')).toHaveValue('#FF0000'); expect(errors).toEqual([]);
 });
+
+test('sessão do PC expirada é refeita e controle recusado com 401 é enviado uma única vez após autenticar', async ({ page }) => {
+  let bootstraps = 0, refused = false, successfulWrites = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/session/local')) bootstraps++; });
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  expect(bootstraps).toBe(1);
+  await page.route('**/api/control', async route => {
+    if (!refused) { refused = true; return route.fulfill({ status: 401, json: { error: 'Sessão do processo anterior.' } }); }
+    successfulWrites++; return route.continue();
+  });
+  await page.getByRole('button', { name: 'Usar cor #bd00ff', exact: true }).click();
+  await expect(page.locator('#hex')).toHaveValue('#BD00FF');
+  expect(bootstraps).toBe(2); expect(successfulWrites).toBe(1);
+});
+
+test('queda do stream e nova sessão do serviço recuperam o painel sem recarregar', async ({ page }) => {
+  let bootstraps = 0, streamRequests = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/session/local')) bootstraps++; });
+  await page.route('**/api/events', route => {
+    streamRequests++;
+    // Simulate a service exiting and invalidating its in-memory session.
+    if (streamRequests <= 2) return route.fulfill({ status: 401, json: { error: 'Serviço reiniciado.' } });
+    return route.continue();
+  });
+  await page.goto('/');
+  await expect.poll(() => streamRequests, { timeout: 15000 }).toBeGreaterThanOrEqual(3);
+  await expect(page.locator('#power')).toBeEnabled();
+  expect(bootstraps).toBe(3);
+  await page.getByRole('button', { name: 'Usar cor #ff8000', exact: true }).click();
+  await expect(page.locator('#hex')).toHaveValue('#FF8000');
+});
+
+test('cliente LAN com resposta 401 nunca solicita uma sessão administrativa', async ({ page }) => {
+  const adapters = require('../../server/network').adapters();
+  test.skip(!adapters.length, 'Este ambiente não tem adaptador privado para testar a LAN real.');
+  let bootstraps = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/session/local')) bootstraps++; });
+  await page.goto(`http://${adapters[0].address}:5071/`);
+  await expect(page.locator('#power')).toBeEnabled();
+  await page.route('**/api/control', route => route.fulfill({ status: 401, json: { error: 'Sessão LAN recusada.' } }));
+  await page.getByRole('button', { name: 'Usar cor #ff0055', exact: true }).click();
+  await expect(page.locator('#toast')).toHaveText('Sessão LAN recusada.');
+  expect(bootstraps).toBe(0);
+});
