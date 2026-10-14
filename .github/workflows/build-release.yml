@@ -1,0 +1,53 @@
+name: Preparar artefatos Windows para assinatura
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.20.0'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=moderate
+      - name: Verificar e preparar dependências oficiais
+        shell: powershell
+        run: ./scripts/download-vendor.ps1
+      - run: npm run build
+      - run: npm run test:installer
+      - name: Conferir e separar artefatos próprios ainda sem assinatura
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:PSModulePath=Join-Path $PSHOME 'Modules'
+          $unsignedRoot=Join-Path $PWD 'dist\signing-input'
+          New-Item -ItemType Directory -Path $unsignedRoot -Force | Out-Null
+          $ownFiles=@('dist\app\NexusRGB.exe','dist\NexusRGB-Uninstall-0.1.0.exe','dist\NexusRGB-Setup-0.1.0.exe')
+          $records=@(foreach($ownFile in $ownFiles) {
+            $item=Get-Item -LiteralPath $ownFile
+            if($item.VersionInfo.ProductName.Trim() -ne 'Nexus RGB' -or $item.VersionInfo.ProductVersion.Trim() -ne '0.1.0.0'){throw "Metadados divergentes: $ownFile"}
+            if((Get-AuthenticodeSignature -LiteralPath $ownFile).Status -ne 'NotSigned'){throw "Assinatura inesperada no build sem certificado: $ownFile"}
+            $digest=(Get-FileHash -LiteralPath $ownFile -Algorithm SHA256).Hash.ToLowerInvariant()
+            Copy-Item -LiteralPath $ownFile -Destination $unsignedRoot
+            [pscustomobject]@{name=$item.Name;sha256=$digest;size=$item.Length;productVersion=$item.VersionInfo.ProductVersion.Trim()}
+          })
+          if((Get-FileHash -LiteralPath LICENSE.md).Hash -ne (Get-FileHash -LiteralPath dist\app\LICENSE.md).Hash){throw 'A MIT não corresponde à licença do pacote.'}
+          $sourceCommit=(& git rev-parse HEAD).Trim()
+          if($LASTEXITCODE -ne 0 -or $sourceCommit -ne $env:GITHUB_SHA){throw 'Commit de origem divergente.'}
+          $report=[ordered]@{repository=$env:GITHUB_REPOSITORY;commit=$sourceCommit;runId=$env:GITHUB_RUN_ID;runAttempt=$env:GITHUB_RUN_ATTEMPT;signed=$false;files=$records}
+          [IO.File]::WriteAllText((Join-Path $unsignedRoot 'BUILD-INFO.json'),($report | ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+          $checksums=@(foreach($record in $records){$record.sha256+'  '+$record.name})
+          [IO.File]::WriteAllLines((Join-Path $unsignedRoot 'SHA256SUMS.txt'),$checksums,[Text.UTF8Encoding]::new($false))
+          Copy-Item -LiteralPath LICENSE.md,THIRD-PARTY-NOTICES.md -Destination $unsignedRoot
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        id: unsigned
+        with:
+          name: nexus-windows-unsigned-${{ github.sha }}
+          path: dist/signing-input/
+          if-no-files-found: error
+          retention-days: 30

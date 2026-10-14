@@ -2,6 +2,8 @@
 
 **Status: os executáveis próprios do Nexus RGB ainda não são assinados.** Não há aprovação nem certificado concedido pela SignPath Foundation. A licença MIT permite distribuir o código; ela não autentica o editor de um executável.
 
+A candidatura está sendo preparada. [Code signing policy in English](SIGNING.md) reúne os dados para avaliação. O [workflow de artefatos Windows](../.github/workflows/build-release.yml) gera arquivos sem assinatura a partir do commit executado no GitHub; a integração com a assinatura ainda depende da aprovação e configuração da conta.
+
 ## Responsabilidade
 
 [JonJonGf](https://github.com/JonJonGf) mantém o projeto e é o responsável pelo código, revisão e aprovação de versões. Contribuições externas precisam ser revisadas antes de integrar uma versão. Se um serviço de assinatura for aprovado, o mantenedor deverá confirmar a autenticação multifator no GitHub e no provedor e aprovar manualmente cada solicitação de assinatura.
