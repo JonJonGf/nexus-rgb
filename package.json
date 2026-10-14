@@ -12,7 +12,9 @@
     "test": "node --test tests/*.test.js",
     "build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build.ps1",
     "test:ui": "playwright test",
-    "test:installer": "node scripts/test-installer-smoke.js"
+    "test:installer": "node scripts/test-installer-smoke.js",
+    "test:supervisor": "node scripts/test-supervisor.js",
+    "test:stability": "node scripts/test-stability.js"
   },
   "dependencies": {
     "openrgb-sdk": "0.6.0",

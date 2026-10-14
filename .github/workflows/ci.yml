@@ -15,8 +15,14 @@ jobs:
       - run: npm audit --audit-level=moderate
       - run: npm test
       - run: npm run test:ui
+      - run: npm run test:supervisor
+      - run: npm run test:stability
+        env:
+          NEXUS_STABILITY_SECONDS: '60'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: resultados-de-interface
-          path: test-results/*.png
+          path: |
+            test-results/*.png
+            test-results/stability.json

@@ -6,6 +6,13 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+test('teste destrutivo de instalação recusa execução fora de runner descartável', { skip: process.platform !== 'win32' }, () => {
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.resolve(__dirname, '..', 'scripts', 'test-installed-package.ps1'), '-Installer', 'does-not-exist.exe'], {
+    encoding: 'utf8', env: { ...process.env, GITHUB_ACTIONS: 'false', RUNNER_ENVIRONMENT: 'local' }
+  });
+  assert.notEqual(result.status, 0); assert.match(result.stderr, /VM descart/);
+});
+
 test('build rejeita qualquer biblioteca ou driver WinRing no ZIP antes de extrair arquivos', { skip: process.platform !== 'win32' }, t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-archive-check-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

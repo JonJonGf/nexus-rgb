@@ -113,6 +113,21 @@ test('queda do stream e nova sessão do serviço recuperam o painel sem recarreg
   await expect(page.locator('#hex')).toHaveValue('#FF8000');
 });
 
+test('nomes de perfil com HTML são exibidos como texto sem executar conteúdo', async ({ page }) => {
+  const name = '<img src=x onerror=alert(1)>', errors = [], dialogs = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('dialog', async dialog => { dialogs.push(dialog.message()); await dialog.dismiss(); });
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  const response = await page.request.post('/api/profiles', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { name } });
+  expect(response.status()).toBe(200);
+  await page.locator('.nav[data-page=profiles]').click();
+  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  expect(await page.locator('img[onerror]').count()).toBe(0); expect(errors).toEqual([]); expect(dialogs).toEqual([]);
+  const state = await (await page.request.get('/api/state')).json();
+  const profile = state.profiles.find(p => p.name === name);
+  expect((await page.request.delete('/api/profiles/' + profile.id, { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: {} })).status()).toBe(200);
+});
+
 test('cliente LAN com resposta 401 nunca solicita uma sessão administrativa', async ({ page }) => {
   const adapters = require('../../server/network').adapters();
   test.skip(!adapters.length, 'Este ambiente não tem adaptador privado para testar a LAN real.');

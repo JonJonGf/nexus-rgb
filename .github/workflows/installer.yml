@@ -1,0 +1,29 @@
+name: Validar instalador em VM descartável
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  install:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.20.0'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verificar e preparar dependências oficiais
+        shell: powershell
+        run: ./scripts/download-vendor.ps1
+      - run: npm run build
+      - run: npm run test:installer
+      - name: Instalar, atualizar, recuperar, remover e reinstalar
+        shell: powershell
+        run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: validacao-do-instalador
+          path: test-results/installation/

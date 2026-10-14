@@ -110,7 +110,6 @@ async function createApp(options = {}) {
         else {
           if (body.effect !== undefined && !device.effects.includes(body.effect)) throw new Error('Efeito não disponível neste dispositivo.');
           if (body.nativeMode !== undefined && !device.modes.some(m => m.id === body.nativeMode)) throw new Error('Modo não disponível neste dispositivo.');
-          if (body.effect !== undefined) delete store.data.devices[device.id]?.nativeMode;
           store.device(device.id, body); hardware.changed();
         }
         broadcast(); return json(res, 200, snapshot());

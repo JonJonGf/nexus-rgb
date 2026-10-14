@@ -46,7 +46,11 @@ class Store {
     this.data.master.power = value; this.save(); return true;
   }
   master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; this.data.devices = {}; this.save(); }
-  device(id, patch) { this.data.devices[id] = { ...(this.data.devices[id] || {}), ...validatePatch(patch, true) }; this.save(); }
+  device(id, patch) {
+    const valid = validatePatch(patch, true), previous = { ...(this.data.devices[id] || {}) };
+    if ('effect' in valid) delete previous.nativeMode;
+    this.data.devices[id] = { ...previous, ...valid }; this.save();
+  }
   zone(id, zoneId, count) { this.data.zones[id] ??= {}; this.data.zones[id][zoneId] = count; this.save(); }
   profile(name) {
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 48) throw new Error('Nome: 1 a 48 caracteres.');

@@ -20,7 +20,13 @@ function adapters(interfaces = os.networkInterfaces()) {
 function sameSubnet(ip, interfaces = adapters()) {
   ip = normalize(ip);
   if (!privateIp(ip)) return false;
-  return interfaces.some(i => ((ipv4(ip) & ipv4(i.netmask)) >>> 0) === ((ipv4(i.address) & ipv4(i.netmask)) >>> 0));
+  return interfaces.some(i => {
+    const mask = ipv4(i.netmask), address = ipv4(i.address);
+    if (mask === null || mask === 0 || !privateIp(i.address)) return false;
+    const inverse = (~mask) >>> 0;
+    if ((inverse & (inverse + 1)) !== 0) return false;
+    return ((ipv4(ip) & mask) >>> 0) === ((address & mask) >>> 0);
+  });
 }
 function allowedHost(host, localPort, interfaces = adapters()) {
   const allowed = new Set([`127.0.0.1:${localPort}`, `localhost:${localPort}`,

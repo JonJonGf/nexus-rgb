@@ -2,6 +2,28 @@
 const test = require('node:test'); const assert = require('node:assert/strict');
 const { Security, RateLimiter } = require('../server/security'); const network = require('../server/network');
 const interfaces = [{ name: 'Wi-Fi', address: '192.168.3.46', netmask: '255.255.255.0' }];
+
+test('metadados de rede incompletos ou máscara inválida não ampliam autorização LAN', () => {
+  for (const netmask of [undefined, '', 'invalid', '255.255.0', '0.0.0.0', '255.0.255.0']) {
+    assert.equal(network.sameSubnet('192.168.99.7', [{ address: '192.168.3.46', netmask }]), false);
+    assert.equal(network.sameSubnet('192.168.3.7', [{ address: '192.168.3.46', netmask }]), false);
+  }
+  assert.equal(network.sameSubnet('192.168.3.7', [{ address: '8.8.8.8', netmask: '255.255.255.0' }]), false);
+  assert.equal(network.sameSubnet('192.168.3.7', interfaces), true);
+});
+
+test('sessões vencidas, tokens forjados e sessões removidas pelo limite não recebem administração', () => {
+  const { hash } = require('../server/security');
+  const security = new Security('', () => interfaces);
+  const request = token => ({ socket: { remoteAddress: '127.0.0.1' }, headers: { cookie: `nexus_session=${token}` } });
+  const first = security.newAdmin(); security.admins.set(hash(first), Date.now() - 1);
+  assert.equal(security.session(request(first)), null);
+  assert.equal(security.session(request('a'.repeat(43))), null);
+  assert.equal(security.session(request('invalid')), null);
+  const oldest = security.newAdmin();
+  for (let i = 0; i < 32; i++) security.newAdmin();
+  assert.equal(security.admins.size, 32); assert.equal(security.session(request(oldest)), null);
+});
 test('LAN acessa sem token; IP externo e outra sub-rede são recusados', () => {
   const security = new Security('', () => interfaces);
   assert.equal(security.session({ socket: { remoteAddress: '192.168.3.7' }, headers: {} }).admin, false);

@@ -38,8 +38,10 @@ begin
   Result := True; ResultCode := 0;
   if Pos('vc_redist', Filename) > 0 then begin
     if ExpandConstant('{param:mode|success}') = 'restart' then ResultCode := 3010;
+    if ExpandConstant('{param:mode|success}') = 'runtime-failure' then ResultCode := 1603;
   end else if Pos('-Mode Install', Params) > 0 then begin
     if (ExpandConstant('{param:mode|success}') = 'stale') or (ExpandConstant('{param:mode|success}') = 'fresh') then ResultCode := 1;
+    if ExpandConstant('{param:mode|success}') = 'launch-failure' then Result := False;
   end;
 end;
 function FixtureLoad(Filename: String; var Content: AnsiString): Boolean;
@@ -55,7 +57,7 @@ ${postInstall}
   const filename = path.join(directory, 'fixture.iss'); fs.writeFileSync(filename, '\ufeff' + fixture);
   const compiled = spawnSync(compiler, ['/Q', filename], { encoding: 'utf8' });
   assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
-  for (const [mode, expected] of [['success', 0], ['stale', 1], ['fresh', 1], ['restart', 3010]]) {
+  for (const [mode, expected] of [['success', 0], ['stale', 1], ['fresh', 1], ['restart', 3010], ['runtime-failure', 1], ['launch-failure', 1]]) {
     const log = path.join(directory, mode + '.log');
     const result = spawnSync(path.join(directory, 'fixture.exe'), ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=' + log, '/mode=' + mode], { timeout: 20000 });
     assert.equal(result.status, expected, `mode=${mode}, status=${result.status}, error=${result.error || ''}`);
