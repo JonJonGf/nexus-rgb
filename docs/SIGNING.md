@@ -1,6 +1,6 @@
 # Code signing policy
 
-**Current status: unsigned; SignPath Foundation approval has not been granted.** Nexus RGB is preparing an application for the free open-source program. No signing account, certificate or API token is configured in this repository.
+**Current status: unsigned; SignPath Foundation approval has not been granted.** An application for the free open-source program was submitted on **14 October 2026**; the application page confirmed receipt. A decision is pending. No signing account, certificate or API token is configured in this repository.
 
 ## Project and responsibility
 

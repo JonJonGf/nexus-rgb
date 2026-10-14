@@ -2,7 +2,7 @@
 
 **Status: os executáveis próprios do Nexus RGB ainda não são assinados.** Não há aprovação nem certificado concedido pela SignPath Foundation. A licença MIT permite distribuir o código; ela não autentica o editor de um executável.
 
-A candidatura está sendo preparada. [Code signing policy in English](SIGNING.md) reúne os dados para avaliação. O [workflow de artefatos Windows](../.github/workflows/build-release.yml) gera arquivos sem assinatura a partir do commit executado no GitHub; a integração com a assinatura ainda depende da aprovação e configuração da conta.
+A candidatura foi enviada em **14/10/2026** e aguarda avaliação; a página confirmou o recebimento do formulário. [Code signing policy in English](SIGNING.md) reúne os dados para avaliação. O [workflow de artefatos Windows](../.github/workflows/build-release.yml) gera arquivos sem assinatura a partir do commit executado no GitHub; a integração com a assinatura ainda depende da aprovação e configuração da conta.
 
 ## Responsabilidade
 
