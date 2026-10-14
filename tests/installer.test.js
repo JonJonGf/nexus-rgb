@@ -99,13 +99,16 @@ test('instalação aguarda ready booleano do painel e limita espera quando Node 
     if($errors.Count){throw 'Falha ao analisar script.'}
     $function=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Wait-NexusPanel'},$true)
     . ([scriptblock]::Create($function.Extent.Text))
-    try {Wait-NexusPanel -Url $env:NEXUS_TEST_HEALTH_URL -TimeoutSeconds 1; 'panel-ready'; exit 0}
+    try {Wait-NexusPanel -Url $env:NEXUS_TEST_HEALTH_URL -TimeoutSeconds ([int]$env:NEXUS_TEST_HEALTH_TIMEOUT); 'panel-ready'; exit 0}
     catch {'panel-unavailable'; exit 9}
   `;
   const args = ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')];
-  const options = { timeout: 6000, env: { ...process.env, NEXUS_TEST_INSTALL_SCRIPT: path.resolve(__dirname, '..', 'scripts', 'install-services.ps1'), NEXUS_TEST_HEALTH_URL: `http://127.0.0.1:${server.address().port}/api/health` } };
+  // A fresh Windows runner may initialize ConvertFrom-Json modules on the first
+  // response; allow that cold start without weakening the short failure deadline.
+  const options = { timeout: 15000, env: { ...process.env, NEXUS_TEST_INSTALL_SCRIPT: path.resolve(__dirname, '..', 'scripts', 'install-services.ps1'), NEXUS_TEST_HEALTH_URL: `http://127.0.0.1:${server.address().port}/api/health`, NEXUS_TEST_HEALTH_TIMEOUT: '10' } };
   const success = await promisify(execFile)('powershell.exe', args, options);
   assert.equal(success.stdout.trim(), 'panel-ready'); assert.equal(requests, 2);
   ready = false;
+  options.env.NEXUS_TEST_HEALTH_TIMEOUT = '1';
   await assert.rejects(promisify(execFile)('powershell.exe', args, options), error => error.code === 9 && error.stdout.trim() === 'panel-unavailable');
 });
