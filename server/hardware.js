@@ -60,7 +60,7 @@ class Hardware extends EventEmitter {
     // SDK 0.6.0 cannot parse newer zone flag bits. Protocol 4 retains colors,
     // native modes, brightness, matrices and segments without that broken parser.
     this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
-    this.devices = []; this.client = null; this.connected = false; this.busy = false; this.stopped = true;
+    this.devices = []; this.output = new Map(); this.client = null; this.connected = false; this.busy = false; this.stopped = true;
     this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.retry = 1000; this.dirty = true;
   }
   async operation(promise, timeout = 4000) {
@@ -123,6 +123,7 @@ class Hardware extends EventEmitter {
     for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
     const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
     for (const id of this.animations.keys()) if (!channels.has(id)) this.animations.delete(id);
+    for (const id of this.output.keys()) if (!channels.has(id)) this.output.delete(id);
     this.devices = devices; this.nextDiscovery = Date.now() + 30000; this.dirty = true; this.emit('change');
   }
   snapshot() {
@@ -138,6 +139,10 @@ class Hardware extends EventEmitter {
     return settings;
   }
   changed() { this.dirty = true; }
+  rememberOutput(id, colors, settings) {
+    this.output.set(id, { colors, at: Date.now(), source: !settings.power ? 'off' : settings.nativeMode !== undefined ? 'native' : this.studio?.hasDevice(id) ? 'map' : 'software' });
+  }
+  outputFor(id) { return this.connected ? this.output.get(id) : null; }
   renderFrame(id, settings, count, seconds) {
     const spatial = this.studio?.colorsFor(id, settings, count);
     if (spatial) return spatial;
@@ -185,6 +190,7 @@ class Hardware extends EventEmitter {
             for (let index = 0; index < zoneColors.length; index++) colors[component.offset + index] = zoneColors[index];
           }
           this.client.updateLeds(d.sdkId, colors); d.error = null; this.applied.set(d.id, signature);
+          for (const component of d.components) this.rememberOutput(component.id, colors.slice(component.offset, component.offset + component.ledCount), this.settings(component.id, true));
           if (oldError !== d.error) changedErrors = true;
           continue;
         }
@@ -196,7 +202,10 @@ class Hardware extends EventEmitter {
         else if (settings.power && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
         else {
           await this.applyMode(d, mode, settings, mode.flagList.includes('perLedColor') && (!settings.power || settings.nativeMode === undefined));
-          if ((!settings.power || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) this.client.updateLeds(d.sdkId, this.renderFrame(d.id, settings, d.ledCount, seconds));
+          let colors = null;
+          if ((!settings.power || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) { colors = this.renderFrame(d.id, settings, d.ledCount, seconds); this.client.updateLeds(d.sdkId, colors); }
+          if (!settings.power && !colors) colors = Array.from({ length: d.ledCount }, () => ({ red: 0, green: 0, blue: 0 }));
+          this.rememberOutput(d.id, colors, settings);
           d.error = null; this.applied.set(d.id, signature);
         }
         if (oldError !== d.error) changedErrors = true;

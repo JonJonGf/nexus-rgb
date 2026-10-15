@@ -82,8 +82,9 @@ class StudioRenderer {
   }
   setValues(values) {
     for (const [key, value] of Object.entries(values)) {
-      const handle = typeof value === 'string' ? this.vm.newString(value) : typeof value === 'number' ? this.vm.newNumber(value) : value ? this.vm.true : this.vm.false;
-      this.vm.setProp(this.vm.global, key, handle); if (typeof value !== 'boolean') handle.dispose();
+      // SignalRGB's boolean metatags expose numeric 0/1 to Lightscripts.
+      const handle = typeof value === 'string' ? this.vm.newString(value) : this.vm.newNumber(typeof value === 'boolean' ? Number(value) : value);
+      this.vm.setProp(this.vm.global, key, handle); handle.dispose();
     }
   }
   frame(milliseconds) {

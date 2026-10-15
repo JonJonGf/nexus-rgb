@@ -38,9 +38,10 @@
         <div class="studio-stage-column">
           <div class="studio-stage" id="studio-stage" role="group" aria-label="Mapa dos dispositivos RGB">
             <div class="studio-stage-grid"></div><img id="studio-preview" alt="Prévia do efeito no mapa" draggable="false">
-            <div id="studio-items"></div><span class="studio-axis">X → / Y ↓</span><div class="studio-empty" id="studio-empty">Os componentes com controle por LED aparecem aqui quando o OpenRGB os detectar.</div>
+            <div id="studio-items"></div><canvas id="studio-leds" width="960" height="600" aria-label="Últimas cores enviadas aos LEDs"></canvas><span class="studio-axis">X → / Y ↓</span><div class="studio-empty" id="studio-empty">Os componentes com controle por LED aparecem aqui quando o OpenRGB os detectar.</div>
           </div>
           <div class="studio-stage-footer"><span id="studio-map-summary">Nenhum componente</span><span id="studio-metrics">Motor em repouso</span></div>
+          <p class="muted small studio-live-note" id="studio-live-note">Fundo: efeito. Pontos: últimas cores enviadas aos LEDs; não são leitura física do hardware.</p>
           <div class="studio-actions"><button class="button primary studio-admin" id="studio-save">Salvar mapa</button><button class="button subtle studio-admin" id="studio-reset">Reorganizar</button><span class="muted small" id="studio-dirty">Mapa salvo</span></div>
         </div>
         <aside class="studio-inspector">

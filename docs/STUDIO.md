@@ -18,6 +18,16 @@ Exemplo: uma porta com 36 LEDs que alimenta três fans de 12 LEDs pode usar as f
 
 Componentes novos compatíveis recebem uma posição inicial. Ajustes salvos de dispositivos ausentes são preservados para uma futura reconexão. Confira as faixas do mapa depois de mudar a quantidade de LEDs de uma porta. Os limites são 256 posições, 4.096 LEDs por componente e 32.768 LEDs no total.
 
+## Entender a prévia e a saída dos LEDs
+
+O **fundo** mostra a imagem do efeito. Os **pontos** mostram as últimas cores enviadas pelo Nexus a cada índice de LED, incluindo o brilho e o estado ligado/desligado. Esses dados não são uma leitura física da luz nem uma confirmação eletrônica do dispositivo.
+
+Ao arrastar uma peça, você edita um rascunho. Os pontos e as luzes continuam usando as posições salvas até clicar em **Salvar mapa**. A mensagem abaixo do mapa indica essa diferença. Desligamento, perda de conexão e falha do efeito também aparecem nessa legenda.
+
+Modos nativos calculados pelo próprio hardware não fornecem uma leitura por LED; seus pontos ficam sem cor conhecida. Em configurações grandes, a tela limita os marcadores a aproximadamente 4.096 pontos para reduzir o trabalho do navegador. Todos os LEDs configurados continuam sendo enviados ao controlador.
+
+Peças com o mesmo nome, como duas memórias RAM, são identificadas pelo OpenRGB; a ordem detectada pode ser diferente da posição física no gabinete. Para identificá-las, altere temporariamente a cor de apenas uma peça em **Dispositivos**. Posicione essa peça no mapa e selecione novamente o efeito do mapa para reintegrá-la à sincronização.
+
 ## Efeitos incluídos
 
 - **Aurora espacial:** onda de cores atravessando o mapa.
@@ -48,6 +58,8 @@ Esta é uma **compatibilidade parcial e experimental** com efeitos Canvas usados
 O limite por arquivo é 128 KiB; o Canvas pode ter até 640 × 400 pixels. A biblioteca admite até 64 importações. Alguns efeitos avançam uma etapa a cada quadro: mudar os FPS pode mudar também sua velocidade. Não há promessa de equivalência visual completa com o SignalRGB.
 
 O Nexus mantém o nome e a autoria informados no HTML. Importe apenas arquivos que você tenha direito de usar e confira sua licença antes de redistribuir. Nenhum pacote de efeitos de terceiros acompanha o instalador ou é enviado ao GitHub automaticamente.
+
+Controles booleanos são guardados como ligado/desligado na configuração e enviados ao script como números `0` e `1`, conforme as metatags de Lightscripts. Isso inclui efeitos que usam comparações estritas com `1`.
 
 ## Criar uma fórmula Nexus
 

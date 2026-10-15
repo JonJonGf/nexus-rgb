@@ -33,6 +33,20 @@ test('Canvas importado roda sem APIs do Node/rede e produz amostras de cor', asy
     await renderer.load(schema.parseHTML(source(check + paint, '<meta property="ink" type="color" default="#1234ab">')));
     const pixels = renderer.frame(50); assert.deepEqual(renderer.sample([{ x: 30, y: 70 }], pixels), [[18, 52, 171]]);
     assert.equal(renderer.canvas.toBuffer('image/png').subarray(1, 4).toString(), 'PNG');
+    await renderer.load(schema.parseHTML(source('var ctx=document.getElementById("exCanvas").getContext("2d");ctx.fillStyle="#ff0000";ctx.fillRect(0,0,160,200);ctx.fillStyle="#00ff00";ctx.fillRect(160,0,160,200)')));
+    const base = { deviceId: 'a'.repeat(24), start: 0, count: 36, x: 0.25, y: 0.5, width: 0.13, height: 0.21, rotation: 0, shape: 'fan', columns: 8, reverse: false };
+    const splitPixels = renderer.frame(50);
+    assert.ok(renderer.sample(spatial.points(base), splitPixels).every(color => color.join(',') === '255,0,0'));
+    assert.ok(renderer.sample(spatial.points({ ...base, x: 0.75 }), splitPixels).every(color => color.join(',') === '0,255,0'));
+  } finally { renderer.close(); }
+});
+
+test('booleanos SignalRGB entram no script como 0/1, inclusive comparação estrita', async () => {
+  const renderer = new StudioRenderer();
+  const effect = schema.parseHTML(source('var ctx=document.getElementById("exCanvas").getContext("2d");function run(){ctx.fillStyle=enabled===1?"#ff0000":"#00ff00";ctx.fillRect(0,0,320,200);requestAnimationFrame(run)}requestAnimationFrame(run)', '<meta property="enabled" type="boolean" default="1">'));
+  try {
+    await renderer.load(effect); assert.deepEqual(renderer.sample([{ x: 20, y: 20 }], renderer.frame(50)), [[255, 0, 0]]);
+    await renderer.load(effect, { enabled: false }); assert.deepEqual(renderer.sample([{ x: 20, y: 20 }], renderer.frame(50)), [[0, 255, 0]]);
   } finally { renderer.close(); }
 });
 test('motor interrompe loop infinito e impede operações fora do Canvas permitido', async () => {
@@ -97,4 +111,20 @@ test('encerrar o aplicativo cancela a validação em andamento sem salvar import
   const pending = assert.rejects(studio.import(source('while(true){}')), /cancelada|encerrando/);
   assert.equal(studio.probes.size, 1); studio.stop(); await pending;
   assert.equal(studio.probes.size, 0); assert.equal(studio.effects.size, 3);
+});
+
+test('prévia leva as cores enviadas por índice de LED e atualiza desligamento com imagem estática', async t => {
+  const id = 'a'.repeat(24); let colors = [{ red: 0, green: 0, blue: 0 }, { red: 0, green: 0, blue: 0 }];
+  const hardware = { connected: true, on() {}, changed() {}, stop() {}, async tick() { await sleep(50); colors = [{ red: 255, green: 0, blue: 0 }, { red: 0, green: 255, blue: 0 }]; }, snapshot() { return { connected: this.connected, devices: [{ id, name: 'Teste', type: 1, ledCount: 2, effects: ['static', 'wave'], settings: { power: true } }] }; }, outputFor() { return this.connected ? { colors, source: 'map', at: Date.now() } : null; } };
+  const f = await fixture(t, { hardware }), studio = f.app.studio;
+  const effect = schema.recipe({ format: 'nexus-effect/1', name: 'Gradiente teste', pattern: 'gradient', palette: ['#ff0000', '#00ff00'], speed: 0, angle: 0, scale: 1 }); studio.effects.set(effect.id, effect);
+  const events = [], client = { res: { destroyed: false, writableLength: 0, end() {}, write(text) { if (text.startsWith('data: ')) events.push(JSON.parse(text.slice(6))); } }, authorized: () => true };
+  studio.clients.add(client); studio.configure({ activeId: effect.id, enabled: true });
+  for (let i = 0; i < 100 && !events.length; i++) await sleep(30);
+  assert.ok(events.length); assert.deepEqual([...Buffer.from(events.at(-1).output[0].rgb, 'base64')], [255, 0, 0, 0, 255, 0]);
+  assert.equal(events.at(-1).layout[0].deviceId, id); const image = events.at(-1).image, revision = studio.revision;
+  f.app.store.power(false); colors = colors.map(() => ({ red: 0, green: 0, blue: 0 }));
+  await sleep(250); assert.equal(events.at(-1).power, false); assert.equal(events.at(-1).image, image); assert.equal(studio.revision, revision);
+  assert.deepEqual([...Buffer.from(events.at(-1).output[0].rgb, 'base64')], [0, 0, 0, 0, 0, 0]);
+  hardware.connected = false; await sleep(250); assert.equal(events.at(-1).output[0].rgb, null);
 });

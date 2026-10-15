@@ -112,11 +112,24 @@ class Studio {
     const colors = this.colors.get(id), scale = settings.power ? settings.brightness / 100 : 0;
     return Array.from({ length: count }, (_, index) => { const color = colors[index] || [0, 0, 0]; return { red: Math.round(color[0] * scale), green: Math.round(color[1] * scale), blue: Math.round(color[2] * scale) }; });
   }
+  previewPacket() {
+    const devices = this.devices();
+    return { image: this.preview.toString('base64'), layout: this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.connected, error: this.error,
+      output: devices.map(device => {
+        const sent = this.hardware.outputFor?.(device.id);
+        return { id: device.id, source: sent?.source || 'unavailable', at: sent?.at || null,
+          rgb: sent?.colors ? Buffer.from(sent.colors.flatMap(color => [color.red, color.green, color.blue])).toString('base64') : null };
+      }) };
+  }
+  publishPreview() {
+    const event = 'data: ' + JSON.stringify(this.previewPacket()) + '\n\n';
+    for (const client of this.clients) client.res.write(event);
+  }
   watch(req, res, authorized) {
     if (this.clients.size >= 4) throw Error('Limite de prévias simultâneas atingido.');
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' }); res.write('retry: 2000\n\n');
     const client = { req, res, authorized }; this.clients.add(client); res.on('close', () => this.clients.delete(client));
-    if (this.preview) res.write('data: ' + JSON.stringify({ image: this.preview.toString('base64') }) + '\n\n');
+    if (this.preview) res.write('data: ' + JSON.stringify(this.previewPacket()) + '\n\n');
   }
   stopWorker() { clearTimeout(this.deadline); this.worker?.kill(); this.worker = null; this.busy = false; this.ready = false; this.frames = 0; this.windowAt = Date.now(); this.nextFrame = 0; this.metrics.fps = 0; this.metrics.memoryMB = 0; }
   fail(message) { this.stopWorker(); this.error = String(message).slice(0, 160); this.changed(); this.hardware.changed(); }
@@ -124,7 +137,10 @@ class Studio {
     for (const c of this.clients) if (c.res.destroyed || !c.authorized() || c.res.writableLength > 512 * 1024) { c.res.end(); this.clients.delete(c); }
     const running = this.config.enabled && this.store.data.master.power && this.hardware.connected && this.devices().some(d => d.settings?.power !== false && !(this.config.excluded || []).includes(d.id));
     if (!running && !this.clients.size) { if (this.worker) this.stopWorker(); return; }
-    if (this.error) return;
+    if (this.error) {
+      if (this.clients.size && this.preview && performance.now() - (this.lastPreview || 0) > 100) { this.lastPreview = performance.now(); this.publishPreview(); }
+      return;
+    }
     const effect = this.effects.get(this.config.activeId); if (!effect) { this.fail('O efeito salvo não está na biblioteca. Importe o arquivo novamente ou escolha outro efeito.'); return; }
     const layout = this.layout(), signature = JSON.stringify([effect.id, this.config.values, layout]);
     if (signature !== this.signature || !this.worker) {
@@ -133,13 +149,14 @@ class Studio {
       this.deadline = setTimeout(() => { if (this.worker === child) this.fail('O motor demorou para iniciar.'); }, 6000);
       child.on('error', () => { if (this.worker === child) this.fail('Não foi possível iniciar o motor.'); });
       child.on('exit', () => { if (this.worker === child) this.fail('O motor encerrou inesperadamente.'); });
-      child.on('message', message => {
+      child.on('message', async message => {
+        try {
         if (this.worker !== child) return;
         clearTimeout(this.deadline);
         if (message.kind === 'ready') { this.ready = true; this.busy = false; }
         else if (message.kind === 'failure') this.fail(message.error);
         else if (message.kind === 'frame') {
-          this.busy = false; this.colors.clear();
+          this.colors.clear();
           this.rendered = true; this.revision++;
           for (let i = 0; i < this.points.length; i++) {
             const p = this.points[i]; if (!this.colors.has(p.deviceId)) this.colors.set(p.deviceId, []);
@@ -148,16 +165,18 @@ class Studio {
           this.hardware.changed();
           // Submit a completed spatial frame without waiting for a second timer.
           // Hardware's busy guard and SDK backpressure still serialize writes.
-          if (this.config.enabled && this.hardware.tick) this.hardware.tick(true).catch(error => this.fail(error.message));
+          if (this.config.enabled && this.hardware.tick) await this.hardware.tick(true);
+          if (this.worker !== child) return;
+          this.busy = false;
           this.metrics.renderMs = Math.round(message.renderMs * 100) / 100; this.metrics.memoryMB = Math.round(message.memoryMB);
           this.frames++; const elapsed = Date.now() - this.windowAt;
           if (elapsed >= 1000) { this.metrics.fps = Math.round(this.frames * 1000 / elapsed); this.frames = 0; this.windowAt = Date.now(); }
           if (message.preview) {
             this.preview = Buffer.from(message.preview);
-            const event = 'data: ' + JSON.stringify({ image: this.preview.toString('base64') }) + '\n\n';
-            for (const c of this.clients) c.res.write(event);
+            this.publishPreview();
           }
         }
+        } catch (error) { if (this.worker === child) this.fail(error.message); }
       });
       child.send({ kind: 'load', effect, values: this.config.values }); return;
     }
@@ -168,7 +187,10 @@ class Studio {
     this.nextFrame = Math.max((this.nextFrame || now) + interval, now);
     if (this.busy) { this.metrics.dropped++; return; }
     // Static recipes retain their frame instead of redrawing while idle.
-    if (effect.format === 'nexus-effect/1' && (effect.pattern === 'gradient' || effect.speed === 0) && this.rendered && (!this.clients.size || this.preview)) return;
+    if (effect.format === 'nexus-effect/1' && (effect.pattern === 'gradient' || effect.speed === 0) && this.rendered && (!this.clients.size || this.preview)) {
+      if (this.clients.size && now - (this.lastPreview || 0) > 100) { this.lastPreview = now; this.publishPreview(); }
+      return;
+    }
     this.lastFrame = now; this.points = layout.flatMap(spatial.points); this.busy = true;
     this.deadline = setTimeout(() => this.fail('O efeito excedeu o tempo de resposta e foi pausado.'), 1000);
     const preview = this.clients.size > 0 && now - (this.lastPreview || 0) > 100;

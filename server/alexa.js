@@ -35,7 +35,7 @@ class Alexa {
     this.getInterfaces = options.getInterfaces || net.adapters;
     this.file = path.join(directory, 'alexa.json'); this.data = readJson(this.file, { uuid: crypto.randomUUID(), peers: [] });
     this.identity = bridgeIdentity(this.data.uuid);
-    this.diagnostics = { lastSearch: null, lastHttp: null, lastCommand: null };
+    this.diagnostics = { lastSearch: null, lastHttp: null, lastCommand: null, recent: [] };
     this.candidates = new Map(); this.discoveryUntil = 0; this.status = 'Desativada'; this.rate = new RateLimiter(60);
     this.multicastInterfaces = new Set();
   }
@@ -46,7 +46,10 @@ class Alexa {
   snapshot() { return { enabled: this.store.data.alexaEnabled, status: this.status, lightName: LIGHT_NAME, discoveryUntil: this.discoveryUntil, candidates: [...this.candidates.keys()].filter(ip => !this.ownAddress(ip)), peers: [...this.data.peers], diagnostics: structuredClone(this.diagnostics) }; }
   lights() {
     const state = this.store.data.master;
-    return { '1': { type: 'On/off light', modelid: 'HASS321', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, alert: 'none', reachable: this.hardware.connected } } };
+    // Echo firmware can report a failed command for a pure On/Off resource even
+    // after accepting its success response. A fixed Hue brightness is metadata
+    // compatibility only: voice commands still never change RGB brightness.
+    return { '1': { type: 'Dimmable light', modelid: 'HASS123', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, bri: 254, mode: 'homeautomation', alert: 'none', reachable: this.hardware.connected } } };
   }
   description(ip) {
     return `<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>http://${xmlEscape(ip)}:${this.port}/</URLBase><device><deviceType>${HUE_DEVICE_TYPE}</deviceType><friendlyName>Nexus RGB (${xmlEscape(ip)})</friendlyName><manufacturer>Royal Philips Electronics</manufacturer><modelDescription>Philips hue Personal Wireless Lighting</modelDescription><modelName>Philips hue bridge 2012</modelName><modelNumber>929000226503</modelNumber><serialNumber>${this.identity.serial}</serialNumber><UDN>uuid:${this.data.uuid}</UDN><presentationURL>http://${xmlEscape(ip)}:${this.port}/</presentationURL></device></root>`;
@@ -99,7 +102,12 @@ class Alexa {
     const url = new URL(req.url, 'http://nexus.invalid');
     // Fixed labels keep Hue usernames and arbitrary request text out of diagnostics.
     const resource = url.pathname === '/description.xml' ? 'Descrição da ponte' : /\/lights(?:\/\d+)?\/state$/.test(url.pathname) ? 'Comando de iluminação' : /\/lights(?:\/\d+)?$/.test(url.pathname) ? 'Lista de luzes' : url.pathname === '/api' ? 'Cadastro Hue' : 'Configuração da ponte';
-    recordHttp = status => { if (!this.ownAddress(ip)) this.diagnostics.lastHttp = { at: Date.now(), ip, resource, status }; };
+    recordHttp = status => {
+      if (this.ownAddress(ip)) return;
+      const event = { at: Date.now(), ip, resource, status, method: ['GET', 'POST', 'PUT'].includes(req.method) ? req.method : 'OTHER' };
+      this.diagnostics.lastHttp = event; this.diagnostics.recent.push(event);
+      if (this.diagnostics.recent.length > 32) this.diagnostics.recent.shift();
+    };
     if (url.pathname === '/description.xml' && req.method === 'GET') { if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now()); recordHttp(200); res.writeHead(200, { 'Content-Type': 'text/xml' }); return res.end(this.description(localIp)); }
     // Hue discovery reads public bridge metadata before creating a user.
     if (url.pathname === '/api/config' && req.method === 'GET') { if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now()); return send(200, this.config(localIp)); }

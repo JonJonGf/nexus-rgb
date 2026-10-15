@@ -11,12 +11,14 @@ test('mapa atualiza LEDs uma vez por quadro e restaura estático ou modo nativo 
   let active = true;
   hardware.studio = { revision: 1, hasDevice: target => active && target === id, colorsFor(target, settings, count) { return active ? Array(count).fill({ red: 0, green: settings.power ? 255 : 0, blue: 0 }) : null; } };
   hardware.changed(); await hardware.tick(); assert.equal(mock.calls.at(-1)[2][0].green, 255);
+  assert.deepEqual(hardware.outputFor(id).colors, mock.calls.at(-1)[2]);
   mock.calls = []; await hardware.tick(); assert.equal(mock.calls.length, 0, 'Não reenviar um quadro que não mudou.');
   hardware.studio.revision++; hardware.changed(); await hardware.tick(); assert.equal(mock.calls.length, 1); assert.equal(mock.calls[0][0], 'leds');
   active = false; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1)[2][0], { red: 255, green: 0, blue: 0 });
   store.data.devices[id] = { nativeMode: 0 }; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1), ['mode', 0, 0]);
   active = true; hardware.changed(); await hardware.tick(); assert.equal(mock.calls.at(-1)[2][0].green, 255);
   active = false; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1), ['mode', 0, 0]);
+  assert.equal(hardware.outputFor(id).colors, null); assert.equal(hardware.outputFor(id).source, 'native');
 });
 
 test('envio imediato do mapa não duplica a taxa de efeitos comuns de outros dispositivos', async t => {

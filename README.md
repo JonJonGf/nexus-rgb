@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.7/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.7">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.8/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.8">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.7 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.8 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -41,6 +41,7 @@
 - **RGB e ARGB separados:** quando o hardware informa um mapa completo de zonas e permite cor por LED, as portas e a iluminação interna aparecem como componentes independentes.
 - **O layout acompanha sua cor:** a cor estática escolhida também muda a identidade visual do painel.
 - **Um efeito atravessando o setup:** organize as peças no mapa, divida faixas de LEDs e ajuste rotação, tamanho e ordem.
+- **Saída por LED:** pontos no mapa mostram as últimas cores enviadas, com brilho e desligamento, e distinguem posições salvas de rascunhos.
 - **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada.
 - **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
 - **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
@@ -68,7 +69,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.7/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.7) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.8/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.8) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -231,6 +232,8 @@ A integração é opcional e vem desativada. Você precisa de um Echo compatíve
 
 A Alexa controla **somente ligar e desligar**. Cores, brilho, efeitos e perfis ficam no painel Nexus. Ao religar pela Alexa, seus ajustes individuais são preservados; componentes que estavam apagados continuam apagados.
 
+A ponte usa uma apresentação Hue de compatibilidade com brilho declarado fixo. O aplicativo Alexa pode exibir 100% ou um controle de brilho; esse valor não representa nem altera o brilho RGB escolhido no Nexus. Os comandos suportados continuam sendo ligar e desligar.
+
 Use o nome completo **Iluminação Nexus** para evitar confusão com outros dispositivos cadastrados na Alexa. Caso existam entradas antigas de versões anteriores do Nexus, remova-as no aplicativo Alexa e faça a descoberta novamente.
 
 Reserve os IPs do PC e do Echo no roteador. A descoberta pode variar com o modelo e firmware do Echo; a [documentação da emulação Hue](https://www.home-assistant.io/integrations/emulated_hue/) explica as limitações desse protocolo. A integração não é certificada pela Amazon ou Philips.
@@ -251,7 +254,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.7/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.8/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -277,7 +280,7 @@ Efeitos animados usam a taxa escolhida em Configurações, de 5 a 60 FPS (padrã
 
 Os números são uma referência da configuração medida em 13/10/2026, anterior a esta prévia; o consumo pode variar em outras versões e máquinas. O navegador acrescenta seu próprio consumo quando o painel está aberto. GPU, energia em watts, inicialização e comportamento durante horas de uso não foram medidos. Consulte o [relatório completo e o método](docs/DESEMPENHO.md).
 
-**Novo motor espacial — ensaio isolado de 15/10/2026:** no mesmo PC, servidor e processo de efeitos somaram **0,364% de CPU / 136,70 MiB** com Aurora a 20 FPS e **0,803% / 161,25 MiB** a 60 FPS, sem prévia aberta. Com prévia a 60 FPS, foram **1,031% / 189,47 MiB**. Um HTML próprio de barras a 60 FPS, sem prévia, usou **0,809% / 253,80 MiB**. São médias de janelas de aproximadamente 26 segundos, com SDK simulado e 92 LEDs; **não incluem OpenRGB, serviços, bandeja ou navegador**, e não medem a taxa física dos LEDs. Os dois efeitos renderizaram cerca de 20/60 FPS conforme solicitado. Veja todos os cenários e limites no [relatório do motor espacial](docs/DESEMPENHO.md#motor-espacial--medição-de-15102026).
+**Novo motor espacial — ensaio isolado de 15/10/2026:** no mesmo PC, servidor e processo de efeitos somaram **0,372% de CPU / 132,82 MiB** com Aurora a 20 FPS e **0,593% / 156,97 MiB** a 60 FPS, sem prévia aberta. Com prévia a 60 FPS, foram **0,969% / 184,58 MiB**. Um HTML próprio de barras a 60 FPS, sem prévia, usou **1,055% / 250,24 MiB**. São médias de janelas de aproximadamente 26 segundos, com SDK simulado e 92 LEDs; **não incluem OpenRGB, serviços, bandeja ou navegador**, e não medem a taxa física dos LEDs. Os dois efeitos renderizaram cerca de 20/60 FPS conforme solicitado. Veja todos os cenários e limites no [relatório do motor espacial](docs/DESEMPENHO.md#motor-espacial--medição-de-15102026).
 
 Os testes de lógica, interface, instalação e recuperação estão descritos no [relatório de validação](docs/VALIDACAO.md), com data, ambiente e limites de cada ensaio. Os testes da API isolada medem somente o servidor Node; os números acima representam o conjunto instalado com OpenRGB e serviços.
 

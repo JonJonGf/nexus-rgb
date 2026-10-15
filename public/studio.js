@@ -3,7 +3,29 @@
   const $ = id => document.getElementById(id), make = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, stream, poll, dragging = false, loading = false;
   const item = () => data?.layout.find(i => i.key === selected);
-  function mark() { dirty = true; $('studio-dirty').textContent = 'Alterações não salvas'; }
+  let liveFrame;
+  function mark() { dirty = true; $('studio-dirty').textContent = 'Alterações não salvas'; drawOutput(); }
+  function drawOutput() {
+    const canvas = $('studio-leds'), ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!liveFrame?.layout) return;
+    const output = new Map((liveFrame.output || []).map(d => [d.id, { ...d, bytes: d.rgb ? atob(d.rgb) : '' }]));
+    const count = liveFrame.layout.reduce((sum, i) => sum + i.count, 0), stride = Math.max(1, Math.ceil(count / 4096)); let n = 0;
+    for (const entry of liveFrame.layout) {
+      const sent = output.get(entry.deviceId);
+      for (const point of NexusSpatial.points(entry)) {
+        if (n++ % stride) continue;
+        const offset = point.index * 3, known = sent && sent.bytes.length >= offset + 3;
+        ctx.beginPath(); ctx.arc(point.x * 3, point.y * 3, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = known ? 'rgb(' + [0, 1, 2].map(i => sent.bytes.charCodeAt(offset + i)).join(',') + ')' : '#151b23';
+        ctx.fill(); ctx.strokeStyle = known ? '#ffffff90' : '#79828c'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+    }
+    $('studio-live-note').textContent = dirty ? 'Rascunho: os pontos e as luzes ainda usam as posições salvas. Clique em Salvar mapa para aplicar.'
+      : !liveFrame.connected ? 'Controlador desconectado: saída dos LEDs indisponível. O fundo é somente a prévia do efeito.'
+      : liveFrame.error ? 'Efeito pausado. Pontos: últimas cores enviadas pelos ajustes comuns; o fundo está parado.'
+      : !liveFrame.power ? 'Luzes desligadas. Pontos: última cor enviada; o fundo continua mostrando a prévia do efeito.'
+      : 'Fundo: prévia do efeito. Pontos: últimas cores enviadas' + (liveFrame.enabled ? ' aos LEDs do mapa.' : '; o mapa está desativado.') + ' Modos nativos não fornecem leitura por LED.';
+  }
   function error(e) { toast?.(e.message || String(e)); }
   async function request(route, body, method) { try { return await api(route, body, method); } catch (e) { error(e); return null; } }
   function selection() {
@@ -90,7 +112,7 @@
   });
   $('studio-save').addEventListener('click', async () => {
     const result = await request('/api/studio', { layout: data.layout }, 'POST');
-    if (result) { data = result; dirty = false; $('studio-dirty').textContent = 'Mapa salvo'; map(); toast('Posições salvas.'); }
+    if (result) { data = result; dirty = false; $('studio-dirty').textContent = 'Mapa salvo'; map(); drawOutput(); toast('Posições salvas.'); }
   });
   $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
   $('studio-device-form').addEventListener('submit', e => e.preventDefault());
@@ -138,7 +160,11 @@
     poll = setInterval(refresh, 3000);
     if (name === 'studio') {
       stream = new EventSource('/api/studio/preview');
-      stream.onmessage = event => { try { const frame = JSON.parse(event.data); $('studio-preview').src = 'data:image/png;base64,' + frame.image; } catch {} };
+      stream.onmessage = event => { try {
+        const frame = JSON.parse(event.data); $('studio-preview').src = 'data:image/png;base64,' + frame.image; liveFrame = frame;
+        if (data && !dirty && !dragging && JSON.stringify(data.layout) !== JSON.stringify(frame.layout)) { data.layout = structuredClone(frame.layout); map(); selection(); }
+        drawOutput();
+      } catch {} };
     } else if (isAdmin) api('/api/network').then(n => { $('settings-ports').textContent = 'Painel TCP ' + n.ports.panel + ' · SDK TCP ' + n.ports.sdk + ' · Alexa TCP ' + n.ports.alexa + ' · descoberta UDP 1900.'; }).catch(error);
   }
   document.addEventListener('visibilitychange', () => open(current));

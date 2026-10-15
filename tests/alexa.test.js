@@ -34,8 +34,10 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   const config = JSON.parse((await request('192.168.20.8', '/api/nexus/config')).body);
   assert.deepEqual(root.config, config);
   assert.equal(root.lights[1].name, 'Iluminação Nexus');
-  assert.equal(root.lights[1].type, 'On/off light');
-  assert.deepEqual(Object.keys(root.lights[1].state).sort(), ['alert', 'on', 'reachable']);
+  assert.equal(root.lights[1].type, 'Dimmable light');
+  assert.equal(root.lights[1].modelid, 'HASS123');
+  assert.deepEqual(Object.keys(root.lights[1].state).sort(), ['alert', 'bri', 'mode', 'on', 'reachable']);
+  assert.equal(root.lights[1].state.bri, 254);
   assert.ok(Object.values(root.lights).every(light => !/\bPC\b|computador/i.test(light.name)));
   assert.ok(Object.values(root.lights).every(light => /^(?:[a-f0-9]{2}:){7}[a-f0-9]{2}-[a-f0-9]{2}$/.test(light.uniqueid)));
   store.master({ color: '#ff0055', brightness: 37, speed: 63, effect: 'wave', palette: ['#ff0055', '#6600ff'] });
@@ -49,6 +51,9 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   assert.equal(off.headers['Content-Length'], Buffer.byteLength(off.body));
   assert.equal(off.headers['Content-Type'], 'application/json; charset=utf-8');
   assert.equal(writes, 1); assert.equal(broadcasts, 1);
+  const reportedOff = JSON.parse((await request('192.168.20.8', '/api/nexus/lights/1')).body);
+  assert.equal(reportedOff.state.on, false); assert.equal(reportedOff.state.bri, 254);
+  assert.equal(store.data.master.brightness, 37);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.name, 'Iluminação Nexus');
   assert.equal(alexa.snapshot().diagnostics.lastCommand.power, false);
   assert.deepEqual(alexa.snapshot().diagnostics.lastCommand.fields, ['on', 'bri', 'hue', 'sat', 'effect', 'transitiontime']);
@@ -68,6 +73,8 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   assert.deepEqual(JSON.parse(on.body), [{ success: { '/lights/1/state/on': true } }]);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.otherFieldCount, 1);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('do-not-log-this'));
+  assert.ok(alexa.snapshot().diagnostics.recent.length <= 32);
+  assert.equal(alexa.snapshot().diagnostics.recent.at(-1).method, 'PUT');
   assert.deepEqual(store.data, before); assert.deepEqual(new Store(directory).data, before);
   assert.equal(writes, 2); assert.equal(broadcasts, 2);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('/api/nexus'));
