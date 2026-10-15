@@ -86,3 +86,38 @@ if(($script:rules -join ',') -ne '5200,8080'){throw 'Wrong firewall ports'}
   const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], { encoding: 'utf8', windowsHide: true, env: { ...process.env, NEXUS_PORT_HELPER: path.resolve(__dirname, '../scripts/ports.ps1') } });
   assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /port-rules-safe/);
 });
+
+test('persistência real cria e atualiza DWORDs sem substituir a chave', { skip: process.platform !== 'win32' }, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-registry-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'registry.ps1');
+  fs.writeFileSync(file, '\ufeff' + String.raw`
+$ErrorActionPreference='Stop'
+. $env:NEXUS_PORT_HELPER
+$tokens=$null; $errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_PORT_HELPER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'Invalid helper syntax'}
+$definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-NexusPorts'},$true).Extent.Text
+# Run the actual writer against an isolated, disposable current-user key.
+$subkey='Software\NexusRGB-Test-'+[Guid]::NewGuid().ToString('N')
+if(-not $definition.Contains('::LocalMachine') -or -not $definition.Contains('SOFTWARE\NexusRGB')){throw 'Writer fixture needs updating'}
+. ([scriptblock]::Create($definition.Replace('::LocalMachine','::CurrentUser').Replace('SOFTWARE\NexusRGB',$subkey)))
+$key=$null
+try {
+  Set-NexusPorts 5050 6743 80
+  $key=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($subkey,$true)
+  $key.SetValue('Preserve','unchanged'); $key.Dispose(); $key=$null
+  Set-NexusPorts 5151 6754 8081
+  $failed=$false; try {Set-NexusPorts 5151 5151 80} catch {$failed=$true}
+  if(-not $failed){throw 'Invalid write accepted'}
+  $key=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($subkey)
+  foreach($pair in @(@{Name='PanelPort';Value=5151},@{Name='SDKPort';Value=6754},@{Name='AlexaPort';Value=8081})) {
+    if($key.GetValue($pair.Name) -ne $pair.Value -or $key.GetValueKind($pair.Name) -ne 'DWord'){throw 'Registry value or type changed'}
+  }
+  if($key.GetValue('Preserve') -ne 'unchanged'){throw 'Unrelated value lost'}
+  'registry-write-passed'
+} finally {if($key){$key.Dispose()}; [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKey($subkey,$false)}
+`);
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], { encoding: 'utf8', windowsHide: true, timeout: 15000, env: { ...process.env, NEXUS_PORT_HELPER: path.resolve(__dirname, '../scripts/ports.ps1') } });
+  assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /registry-write-passed/);
+});

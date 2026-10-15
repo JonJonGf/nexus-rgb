@@ -20,8 +20,13 @@ function Get-NexusPorts {
 }
 function Set-NexusPorts([int]$PanelPort,[int]$SDKPort,[int]$AlexaPort) {
   Assert-NexusPorts $PanelPort $SDKPort $AlexaPort
-  New-Item -Path 'HKLM:\SOFTWARE\NexusRGB' -Force | Out-Null
-  foreach($item in @(@{Name='PanelPort';Value=$PanelPort},@{Name='SDKPort';Value=$SDKPort},@{Name='AlexaPort';Value=$AlexaPort})) {
-    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\NexusRGB' -Name $item.Name -Value $item.Value -PropertyType DWord -Force | Out-Null
-  }
+  # New-Item -Force failed on an existing protected key during a real upgrade.
+  # Open/create it directly and update only our values, without replacing it.
+  $key=[Microsoft.Win32.Registry]::LocalMachine.CreateSubKey('SOFTWARE\NexusRGB')
+  try {
+    foreach($item in @(@{Name='PanelPort';Value=$PanelPort},@{Name='SDKPort';Value=$SDKPort},@{Name='AlexaPort';Value=$AlexaPort})) {
+      $key.SetValue($item.Name,[int]$item.Value,[Microsoft.Win32.RegistryValueKind]::DWord)
+    }
+    $key.Flush()
+  } finally {if($key){$key.Dispose()}}
 }
