@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 test.use({ serviceWorkers: 'block' });
-test('mapa permite arrastar, dividir, salvar e importar uma fórmula sem executar HTML no navegador', async ({ page }) => {
+test('mapa aplica o arraste antes de soltar e salva divisões automaticamente', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const devices = [0, 1, 2].map(i => ({ id: String(i + 1).padStart(24, '0'), name: i === 2 ? 'ARGB de teste' : 'RAM ' + (i + 1), vendor: 'Teste', type: i < 2 ? 1 : 0, kind: i === 2 ? 'argb' : 'device', ledCount: i === 2 ? 24 : 8, status: 'online', settings: { power: true, color: '#00f0ff', brightness: 80, speed: 40, effect: 'static' }, effects: ['static', 'wave'], modes: [], zones: [] }));
   await page.route('**/api/state', async route => { const response = await route.fetch(); const body = await response.json(); body.hardware = { connected: true, controllerCount: 3, devices }; await route.fulfill({ json: body }); });
@@ -13,11 +13,19 @@ test('mapa permite arrastar, dividir, salvar e importar uma fórmula sem executa
   await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
   await expect(page.locator('.studio-item')).toHaveCount(3);
   const target = page.locator('.studio-item').last(); const box = await target.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 - 75, box.y + box.height / 2 + 30, { steps: 8 }); await page.mouse.up();
-  await expect(page.locator('#studio-dirty')).toHaveText('Alterações não salvas');
-  await expect(page.locator('#studio-live-note')).toContainText('posições salvas');
-  await page.locator('#studio-split').click(); await expect(page.locator('.studio-item')).toHaveCount(4);
-  await page.locator('#studio-save').click(); await expect(page.locator('#studio-dirty')).toHaveText('Mapa salvo');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 - 75, box.y + box.height / 2 + 30, { steps: 8 });
+  await expect.poll(async () => { const s = await (await page.request.get('/api/studio')).json(); return s.enabled && s.layout.at(-1).x < layout.at(-1).x - 0.01; }).toBe(true);
+  await page.mouse.up(); await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
+  const moved = (await (await page.request.get('/api/studio')).json()).layout.at(-1).x;
+  await target.press('ArrowRight');
+  await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).layout.at(-1).x).toBeCloseTo(moved + 0.01, 5);
+  await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
+  await page.waitForResponse(r => r.url().endsWith('/api/studio') && r.request().method() === 'GET');
+  await target.press('ArrowRight');
+  await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).layout.at(-1).x).toBeCloseTo(moved + 0.02, 5);
+  await expect(page.locator('#studio-enabled')).toHaveCount(0); await expect(page.locator('#studio-save')).toHaveCount(0);
+  await page.locator('#studio-fan-leds').fill('8'); await page.locator('#studio-fan-split').click(); await expect(page.locator('.studio-item')).toHaveCount(5);
+  await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
   await expect(page.locator('#studio-preview')).toHaveAttribute('src', /^data:image\/png;base64,/);
   await expect(page.locator('#studio-leds')).toBeVisible();
   const savedMap = await (await page.request.get('/api/studio')).json();
@@ -30,14 +38,34 @@ test('mapa permite arrastar, dividir, salvar e importar uma fórmula sem executa
     return Array.from(ctx.getImageData(Math.round(point.x * 3), Math.round(point.y * 3), 1, 1).data).slice(0, 3);
   }, packet.layout)).toEqual([0, 255, 0]);
   await page.locator('#studio-new').click(); const recipe = { format: 'nexus-effect/1', name: 'Minha onda no mapa', pattern: 'wave', palette: ['#ff0055', '#00f0ff'], speed: 20, angle: 45, scale: 1 };
-  await page.locator('#studio-source').fill(JSON.stringify(recipe)); await page.locator('#studio-formula-form').getByRole('button', { name: 'Salvar fórmula na biblioteca' }).click();
-  await expect(page.locator('#studio-effect')).toContainText('Minha onda no mapa'); await page.locator('#studio-formula-close').click();
+  await expect(page.locator('#studio-formula-dialog')).toBeVisible(); await page.locator('#formula-advanced summary').click();
+  await page.locator('#studio-source').fill(JSON.stringify(recipe)); await page.locator('#formula-save').click();
+  await expect(page.locator('#studio-effect')).toContainText('Minha onda no mapa'); await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).profiles.some(p => p.name === 'Minha onda no mapa' && p.spatial)).toBe(true);
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: width > 800 ? 900 : 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: 'test-results/mapa-' + width + '.png', fullPage: true });
   }
-  await page.reload(); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=studio]').click(); await expect(page.locator('.studio-item')).toHaveCount(4);
+  await page.reload(); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=studio]').click(); await expect(page.locator('.studio-item')).toHaveCount(5);
   expect(errors).toEqual([]);
+});
+
+test('criador visual fica sobre o mapa no desktop e celular e guarda um perfil sem aplicar', async ({ page }) => {
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=studio]').click();
+  await expect(page.locator('#studio-effect option')).not.toHaveCount(0); const before = await (await page.request.get('/api/studio')).json();
+  await page.locator('#studio-new').click();
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: width > 800 ? 900 : 844 });
+    const box = await page.locator('#studio-formula-dialog').boundingBox(); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width); expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(width > 800 ? 900 : 844);
+    expect(await page.locator('#formula-save').evaluate(b => { const r = b.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === b; })).toBe(true);
+    await page.screenshot({ path: 'test-results/criador-' + width + '.png' });
+  }
+  await page.locator('#formula-name').fill('Minha onda vertical'); await page.locator('#formula-pattern').selectOption('wave'); await page.locator('#formula-angle').fill('90');
+  await page.locator('#formula-save').click(); await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();
+  const after = await (await page.request.get('/api/studio')).json(); expect(after.activeId).toBe(before.activeId); expect(after.enabled).toBe(before.enabled);
+  await page.locator('.nav[data-page=profiles]').click(); const card = page.locator('#profiles .profile-card').filter({ has: page.getByRole('heading', { name: 'Minha onda vertical', exact: true }) });
+  await expect(card).toBeVisible(); await expect(card).toContainText('Efeito no mapa'); await card.getByRole('button', { name: 'Ativar perfil', exact: true }).click();
+  await expect.poll(async () => { const s = await (await page.request.get('/api/studio')).json(); return s.enabled && s.effects.find(e => e.id === s.activeId)?.name; }).toBe('Minha onda vertical');
 });
 test('configurações permitem escolher e persistir FPS sem reiniciar o servidor', async ({ page }) => {
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=settings]').click();

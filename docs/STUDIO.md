@@ -9,12 +9,16 @@ Esse controle exige **Direct e cor por LED** no OpenRGB. A posição dos compone
 1. Abra **Mapa do setup** no painel do próprio PC.
 2. Arraste as peças para representar o gabinete. As setas do teclado também movem a peça selecionada.
 3. Escolha o formato **Fita**, **Ventoinha/anel** ou **Matriz**, ajuste tamanho e rotação e, se necessário, marque **Inverter ordem dos LEDs**.
-4. Clique em **Salvar mapa**. Mover uma peça cria um rascunho até esse botão ser usado.
-5. Escolha um efeito na biblioteca e marque **Aplicar mapa às luzes**. Com essa opção desativada, a imagem é somente uma prévia.
+4. Mover uma peça atualiza as luzes durante o arraste e salva a posição automaticamente. O painel agrupa movimentos em intervalos de até 350 ms, além do tempo da conexão/controladora. Aguarde **Salvo automaticamente** antes de fechar a página. Em falha, o ajuste fica no navegador e **Tentar novamente** permite reenviá-lo.
+5. Escolha um efeito na biblioteca: ele é aplicado automaticamente ao mapa. Editar posições e parâmetros também ativa o mapa, respeitando a energia geral e individual. Apenas abrir a aba não muda a seleção das luzes. Use **Voltar ao controle comum** para sair do mapa.
 
 **Dividir faixa** separa uma sequência de LEDs em duas peças virtuais. Ajuste **Primeiro LED** e **Quantidade** para que cada peça corresponda a uma ventoinha ou trecho de fita. **Unir faixas** junta trechos vizinhos do mesmo componente. As faixas não podem compartilhar o mesmo LED.
 
 Exemplo: uma porta com 36 LEDs que alimenta três fans de 12 LEDs pode usar as faixas 1–12, 13–24 e 25–36. Isso só permite efeitos independentes se os LEDs forem endereçáveis em sequência. Um hub que espelha o mesmo sinal em todos os fans continua mostrando as mesmas cores neles.
+
+Para fans iguais, selecione a faixa, informe **LEDs por ventoinha** e clique em **Separar em ventoinhas**. A faixa é dividida em anéis consecutivos, sem alterar a quantidade configurada no OpenRGB. Três fans de 36 LEDs em sequência exigem 108 LEDs configurados na porta, não 36; confira o hardware antes de alterar a quantidade em **Dispositivos**. Uma controladora que replica sinal não passa a oferecer endereçamento independente com essa divisão.
+
+O formato **Ventoinha/anel** descreve onde cada LED está na peça, e não obriga o efeito a girar. Num movimento vertical, LEDs na mesma altura recebem a mesma amostra; a onda percorre o anel de cima para baixo. Ajuste **Rotação** para alinhar o primeiro LED físico e **Inverter ordem** quando o cabeamento percorre o sentido oposto. Se uma porta representa vários fans, mapeá-la como um único anel distribui setores desse anel entre as peças e pode distorcer o movimento.
 
 Componentes novos compatíveis recebem uma posição inicial. Ajustes salvos de dispositivos ausentes são preservados para uma futura reconexão. Confira as faixas do mapa depois de mudar a quantidade de LEDs de uma porta. Os limites são 256 posições, 4.096 LEDs por componente e 32.768 LEDs no total.
 
@@ -22,7 +26,7 @@ Componentes novos compatíveis recebem uma posição inicial. Ajustes salvos de 
 
 O **fundo** mostra a imagem do efeito. Os **pontos** mostram as últimas cores enviadas pelo Nexus a cada índice de LED, incluindo o brilho e o estado ligado/desligado. Esses dados não são uma leitura física da luz nem uma confirmação eletrônica do dispositivo.
 
-Ao arrastar uma peça, você edita um rascunho. Os pontos e as luzes continuam usando as posições salvas até clicar em **Salvar mapa**. A mensagem abaixo do mapa indica essa diferença. Desligamento, perda de conexão e falha do efeito também aparecem nessa legenda.
+Durante o arraste, as posições são enviadas e salvas automaticamente. Os pontos acompanham a peça que está sendo editada; suas cores continuam representando a última saída enviada, até chegar a atualização seguinte. Uma imagem antiga do stream não substitui as posições editadas. Mover peças não reinicia o processo nem o relógio da animação. Desligamento, perda de conexão e falha do efeito aparecem na legenda.
 
 Modos nativos calculados pelo próprio hardware não fornecem uma leitura por LED; seus pontos ficam sem cor conhecida. Em configurações grandes, a tela limita os marcadores a aproximadamente 4.096 pontos para reduzir o trabalho do navegador. Todos os LEDs configurados continuam sendo enviados ao controlador.
 
@@ -34,11 +38,13 @@ Peças com o mesmo nome, como duas memórias RAM, são identificadas pelo OpenRG
 - **Cometa no setup:** uma faixa luminosa com rastro.
 - **Anéis de luz:** cores que se expandem a partir do centro.
 
-Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o mapa. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, selecione o efeito do mapa outra vez ou salve o mapa.
+Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o mapa. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, selecione o efeito do mapa outra vez ou edite o mapa.
 
 Ligar/desligar e mudar brilho preservam a seleção do efeito. A Alexa continua usando somente ligar/desligar. Ativar um componente com o controle geral desligado liga apenas aquele componente.
 
 **Perfis → Guardar ajustes atuais** salva também o efeito ativo e seus parâmetros. As posições do setup são compartilhadas entre todos os perfis. Os arquivos importados devem permanecer na biblioteca: o perfil guarda uma referência ao efeito. Editar esse perfil pelo criador de sequências substitui o efeito espacial por uma sequência comum.
+
+Na biblioteca do mapa, **Salvar como perfil** guarda o efeito selecionado e seus parâmetros com um nome próprio, sem mudar as luzes ao salvar. Ele aparece em **Perfis** como **Efeito no mapa**; **Ativar perfil** recupera esse efeito com os ajustes de energia/brilho e componentes guardados. O criador de efeitos também oferece **Guardar também na aba Perfis**, marcado inicialmente. Não remova o arquivo importado enquanto houver perfis que dependam dele.
 
 ## Importar HTML de efeitos
 
@@ -63,7 +69,9 @@ Controles booleanos são guardados como ligado/desligado na configuração e env
 
 ## Criar uma fórmula Nexus
 
-**Criar fórmula** abre um editor do formato declarativo `nexus-effect/1`. Edite o JSON e use **Salvar fórmula na biblioteca**. Também é possível importar um arquivo JSON nesse formato.
+**Criar efeito** abre uma janela própria, acima do mapa, com rolagem interna no desktop e no celular. Escolha nome, movimento, até oito cores ordenadas, ritmo, direção e escala. **Salvar na biblioteca** adiciona o modelo sem aplicá-lo às luzes; a opção **Guardar também na aba Perfis** cria um perfil para ativar depois. A faixa colorida do editor representa a paleta, sem simular a animação.
+
+**Editar JSON · avançado** permite escrever o formato declarativo `nexus-effect/1`. Alterar os controles visuais substitui esse JSON. Também é possível importar um arquivo JSON nesse formato.
 
 ```json
 {

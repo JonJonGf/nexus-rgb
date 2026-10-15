@@ -4,13 +4,44 @@
   let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, stream, poll, dragging = false, loading = false;
   const item = () => data?.layout.find(i => i.key === selected);
   let liveFrame;
-  function mark() { dirty = true; $('studio-dirty').textContent = 'Alterações não salvas'; drawOutput(); }
+  let editVersion = 0, savedVersion = 0, saving = false, saveTimer, lastSave = 0;
+  function mark() { editVersion++; dirty = true; $('studio-dirty').textContent = 'Atualizando luzes…'; $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    if (saving || !dirty) return;
+    // Coalesce pointer events and stay below the LAN API request budget,
+    // including the metadata poll. The first movement is sent immediately.
+    saveTimer = setTimeout(saveLayout, Math.max(0, lastSave + 350 - Date.now()));
+  }
+  async function saveLayout() {
+    if (saving || !dirty || !isAdmin) return;
+    saving = true; lastSave = Date.now(); const version = editVersion;
+    try {
+      const next = await api('/api/studio', { layout: structuredClone(data.layout), enabled: true }, 'POST');
+      savedVersion = version; dirty = editVersion !== savedVersion;
+      // Buttons retain references to these items in their pointer handlers.
+      // An acknowledgement must not swap them for detached JSON objects.
+      next.layout = data.layout;
+      data = next; status();
+      $('studio-dirty').textContent = dirty ? 'Atualizando luzes…' : 'Salvo automaticamente';
+      $('studio-retry').hidden = true;
+    } catch (e) {
+      $('studio-dirty').textContent = 'Não foi possível salvar'; $('studio-retry').hidden = false; error(e);
+      // Keep the local edit for an explicit retry; do not flood a failed API.
+      return;
+    } finally { saving = false; }
+    if (dirty) scheduleSave();
+  }
   function drawOutput() {
     const canvas = $('studio-leds'), ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
     if (!liveFrame?.layout) return;
     const output = new Map((liveFrame.output || []).map(d => [d.id, { ...d, bytes: d.rgb ? atob(d.rgb) : '' }]));
-    const count = liveFrame.layout.reduce((sum, i) => sum + i.count, 0), stride = Math.max(1, Math.ceil(count / 4096)); let n = 0;
-    for (const entry of liveFrame.layout) {
+    // Draw the piece and its markers from the same editable geometry. Colors
+    // still come from the last SDK write, including while an edit is pending.
+    const localLayout = data?.layout;
+    const layout = localLayout && localLayout.every(i => Number.isInteger(i.count) && i.count > 0 && i.count <= 4096) && localLayout.reduce((n, i) => n + i.count, 0) <= 32768 ? localLayout : liveFrame.layout;
+    const count = layout.reduce((sum, i) => sum + i.count, 0), stride = Math.max(1, Math.ceil(count / 4096)); let n = 0;
+    for (const entry of layout) {
       const sent = output.get(entry.deviceId);
       for (const point of NexusSpatial.points(entry)) {
         if (n++ % stride) continue;
@@ -20,7 +51,7 @@
         ctx.fill(); ctx.strokeStyle = known ? '#ffffff90' : '#79828c'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
-    $('studio-live-note').textContent = dirty ? 'Rascunho: os pontos e as luzes ainda usam as posições salvas. Clique em Salvar mapa para aplicar.'
+    $('studio-live-note').textContent = dirty ? 'Atualizando posições nas luzes. Pontos: últimas cores enviadas ao controlador.'
       : !liveFrame.connected ? 'Controlador desconectado: saída dos LEDs indisponível. O fundo é somente a prévia do efeito.'
       : liveFrame.error ? 'Efeito pausado. Pontos: últimas cores enviadas pelos ajustes comuns; o fundo está parado.'
       : !liveFrame.power ? 'Luzes desligadas. Pontos: última cor enviada; o fundo continua mostrando a prévia do efeito.'
@@ -49,7 +80,7 @@
         event.preventDefault(); selected = value.key; dragging = true; selection(); button.classList.add('selected'); button.setPointerCapture(event.pointerId);
         const rect = $('studio-stage').getBoundingClientRect(), origin = { x: event.clientX, y: event.clientY, px: value.x, py: value.y };
         const move = e => { value.x = Math.max(0, Math.min(1, origin.px + (e.clientX - origin.x) / rect.width)); value.y = Math.max(0, Math.min(1, origin.py + (e.clientY - origin.y) / rect.height)); position(button, value); selection(); mark(); };
-        const finish = () => { dragging = false; button.removeEventListener('pointermove', move); button.removeEventListener('pointerup', finish); button.removeEventListener('pointercancel', finish); };
+        const finish = () => { dragging = false; scheduleSave(); button.removeEventListener('pointermove', move); button.removeEventListener('pointerup', finish); button.removeEventListener('pointercancel', finish); };
         button.addEventListener('pointermove', move); button.addEventListener('pointerup', finish); button.addEventListener('pointercancel', finish);
       });
       button.addEventListener('keydown', event => {
@@ -75,45 +106,47 @@
       const value = data.values?.[control.key] ?? control.default; if (control.type === 'boolean') input.checked = value; else input.value = value;
       label.append(input); form.append(label);
     }
-    if (effect.controls.length) { const save = make('button', 'Salvar parâmetros', 'button primary'); form.append(save); }
+  }
+  function status() {
+    $('studio-toggle').textContent = data.enabled ? 'Voltar ao controle comum' : 'Usar este efeito';
+    $('studio-error').hidden = !data.error; $('studio-error').textContent = data.error || '';
+    $('studio-state').textContent = data.error ? 'Efeito pausado' : data.enabled ? 'Mapa ao vivo' : 'Controle comum';
   }
   function renderLibrary() {
     const select = $('studio-effect'); select.replaceChildren();
     for (const effect of data.effects) { const option = make('option', effect.name); option.value = effect.id; select.append(option); }
-    select.value = data.activeId; $('studio-enabled').checked = data.enabled; controls();
-    $('studio-error').hidden = !data.error; $('studio-error').textContent = data.error || '';
-    $('studio-state').textContent = data.error ? 'Efeito pausado' : data.enabled ? 'Mapa nas luzes' : 'Somente prévia';
+    select.value = data.activeId; controls(); status();
+    if (document.activeElement !== $('studio-profile-name')) $('studio-profile-name').value = data.effects.find(e => e.id === data.activeId)?.name.slice(0, 48) || '';
   }
   async function refresh(keepDraft = true) {
     if (!api || loading || document.hidden || !['studio', 'settings'].includes(current)) return;
     loading = true;
     try {
-      const next = await api('/api/studio');
+      const version = editVersion, next = await api('/api/studio');
       const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values);
       const layoutChanged = !old || JSON.stringify(old.layout) !== JSON.stringify(next.layout);
-      if (old && dirty && keepDraft) next.layout = old.layout;
+      if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) next.layout = old.layout;
       data = next;
       if (current === 'studio') {
-        if (changed) { map(); selection(); renderLibrary(); }
-        else { $('studio-enabled').checked = data.enabled; $('studio-error').hidden = !data.error; $('studio-error').textContent = data.error || ''; $('studio-state').textContent = data.error ? 'Efeito pausado' : data.enabled ? 'Mapa nas luzes' : 'Somente prévia'; }
+        if (changed) { if (!dragging) { map(); selection(); } renderLibrary(); }
+        else status();
         if (layoutChanged && !dirty && !dragging) { map(); selection(); }
       }
       const text = data.metrics.fps ? data.metrics.fps + ' FPS renderizados · ' + data.metrics.renderMs + ' ms/quadro · motor ' + data.metrics.memoryMB + ' MiB' : 'Motor em repouso';
       $('studio-metrics').textContent = text; $('settings-metrics').textContent = text;
     } catch (e) { error(e); } finally { loading = false; }
   }
-  async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty) next.layout = data.layout; data = next; renderLibrary(); map(); selection(); } }
-  $('studio-effect').addEventListener('change', () => play({ activeId: $('studio-effect').value }));
-  $('studio-enabled').addEventListener('change', () => play({ enabled: $('studio-enabled').checked }));
-  $('studio-parameters').addEventListener('submit', event => {
+  async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty || dragging) next.layout = data.layout; data = next; renderLibrary(); if (!dragging) { map(); selection(); } } }
+  $('studio-effect').addEventListener('change', () => play({ activeId: $('studio-effect').value, enabled: true }));
+  $('studio-toggle').addEventListener('click', () => play({ enabled: !data.enabled }));
+  function parameters(event) {
     event.preventDefault(); const values = {};
     for (const input of $('studio-parameters').querySelectorAll('[data-key]')) values[input.dataset.key] = input.dataset.type === 'boolean' ? input.checked : input.dataset.type === 'number' ? Number(input.value) : input.value;
-    play({ values });
-  });
-  $('studio-save').addEventListener('click', async () => {
-    const result = await request('/api/studio', { layout: data.layout }, 'POST');
-    if (result) { data = result; dirty = false; $('studio-dirty').textContent = 'Mapa salvo'; map(); drawOutput(); toast('Posições salvas.'); }
-  });
+    play({ values, enabled: true });
+  }
+  $('studio-parameters').addEventListener('submit', parameters);
+  $('studio-parameters').addEventListener('change', parameters);
+  $('studio-retry').addEventListener('click', scheduleSave);
   $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
   $('studio-device-form').addEventListener('submit', e => e.preventDefault());
   $('studio-device-form').addEventListener('change', () => {
@@ -134,21 +167,64 @@
     if (!other) return toast('Selecione uma divisão com faixa de LEDs vizinha.');
     value.start = Math.min(value.start, other.start); value.count += other.count; data.layout = data.layout.filter(i => i !== other); mark(); map(); selection();
   });
+  $('studio-fan-split').addEventListener('click', () => {
+    const value = item(), size = Number($('studio-fan-leds').value);
+    if (!value || !Number.isInteger(size) || size < 1 || value.count % size || size > value.count) return toast('Use a quantidade real de LEDs por fan, que deve dividir a faixa selecionada sem sobrar LEDs.');
+    const count = value.count / size;
+    if (count + data.layout.length - 1 > 256) return toast('Limite de 256 posições no mapa.');
+    const parts = Array.from({ length: count }, (_, n) => ({ ...value, key: n ? crypto.randomUUID() : value.key, name: value.name.slice(0, 45) + ' · fan ' + (n + 1), start: value.start + n * size, count: size, shape: 'fan', x: Math.min(0.94, value.x + (n % 4) * 0.15), y: Math.min(0.88, value.y + Math.floor(n / 4) * 0.24) }));
+    data.layout = data.layout.flatMap(i => i === value ? parts : [i]); selected = parts[0].key; mark(); map(); selection();
+  });
   async function importSource(source) {
     const result = await request('/api/studio/import', { source }, 'POST');
-    if (result) { if (dirty) result.layout = data.layout; data = result; renderLibrary(); toast('Efeito adicionado à biblioteca. Escolha-o na lista para visualizar.'); }
+    if (result) { result.layout = data.layout; data = result; renderLibrary(); toast('Efeito adicionado à biblioteca. Escolha-o na lista para visualizar.'); }
   }
   $('studio-import').addEventListener('change', async event => {
     const input = event.target; input.disabled = true;
     try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + ': limite de 128 KiB.'); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
   });
-  $('studio-new').addEventListener('click', () => {
-    $('studio-source').value = JSON.stringify({ format: 'nexus-effect/1', name: 'Minha onda', pattern: 'wave', palette: ['#00f0ff', '#7954ff', '#ff0055'], speed: 30, angle: 0, scale: 1 }, null, 2);
-    $('studio-formula-form').hidden = false; $('studio-source').focus();
+  let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'];
+  function formulaSource() {
+    const recipe = { format: 'nexus-effect/1', name: $('formula-name').value, pattern: $('formula-pattern').value, palette: formulaColors, speed: Number($('formula-speed').value), angle: Number($('formula-angle').value), scale: Number($('formula-scale').value) };
+    $('studio-source').value = JSON.stringify(recipe, null, 2); $('formula-speed-label').value = recipe.speed + '%';
+    $('formula-palette-preview').style.background = 'linear-gradient(90deg,' + (formulaColors.length === 1 ? [formulaColors[0], formulaColors[0]] : formulaColors).join(',') + ')';
+  }
+  function formulaPalette() {
+    const container = $('formula-colors'); container.replaceChildren();
+    formulaColors.forEach((value, i) => {
+      const wrap = make('div', undefined, 'formula-color'), input = make('input'); input.type = 'color'; input.value = value; input.setAttribute('aria-label', 'Cor ' + (i + 1) + ' do efeito');
+      input.addEventListener('input', () => { formulaColors[i] = input.value; formulaSource(); }); wrap.append(input);
+      for (const [delta, text] of [[-1, '←'], [1, '→'], [0, '×']]) {
+        const button = make('button', text); button.type = 'button'; button.setAttribute('aria-label', (delta ? 'Mover' : 'Remover') + ' cor ' + (i + 1) + (delta ? delta < 0 ? ' para esquerda' : ' para direita' : ''));
+        button.disabled = delta ? i + delta < 0 || i + delta >= formulaColors.length : formulaColors.length === 1;
+        button.addEventListener('click', () => { if (delta) [formulaColors[i], formulaColors[i + delta]] = [formulaColors[i + delta], formulaColors[i]]; else formulaColors.splice(i, 1); formulaPalette(); }); wrap.append(button);
+      }
+      container.append(wrap);
+    });
+    $('formula-add-color').disabled = formulaColors.length >= 8; formulaSource();
+  }
+  $('formula-add-color').addEventListener('click', () => { if (formulaColors.length < 8) { formulaColors.push('#ffffff'); formulaPalette(); } });
+  for (const key of ['name', 'pattern', 'speed', 'angle', 'scale']) $('formula-' + key).addEventListener('input', formulaSource);
+  $('studio-new').textContent = 'Criar efeito';
+  $('studio-new').addEventListener('click', () => { $('formula-error').hidden = true; formulaPalette(); $('studio-formula-dialog').showModal(); $('formula-name').focus(); });
+  $('studio-formula-close').addEventListener('click', () => $('studio-formula-dialog').close());
+  $('studio-formula-form').addEventListener('submit', async event => {
+    event.preventDefault(); $('formula-save').disabled = true; $('formula-error').hidden = true;
+    try {
+      const result = await api('/api/studio/import', { source: $('studio-source').value }, 'POST');
+      result.layout = data.layout; data = result; renderLibrary();
+      const effect = result.effects.find(e => e.id === result.id);
+      if ($('formula-profile').checked) await api('/api/studio/profiles', { name: effect.name.slice(0, 48), activeId: effect.id, values: {} }, 'POST');
+      $('studio-formula-dialog').close(); toast($('formula-profile').checked ? 'Efeito guardado na biblioteca e em Perfis.' : 'Efeito guardado na biblioteca.');
+    } catch (e) { $('formula-error').textContent = e.message; $('formula-error').hidden = false; }
+    finally { $('formula-save').disabled = false; }
   });
-  $('studio-formula-close').addEventListener('click', () => { $('studio-formula-form').hidden = true; });
-  $('studio-formula-form').addEventListener('submit', async event => { event.preventDefault(); await importSource($('studio-source').value); });
-  $('studio-remove-effect').addEventListener('click', async () => { const result = await request('/api/studio/effects/' + data.activeId, undefined, 'DELETE'); if (result) { data = result; renderLibrary(); } });
+  $('studio-profile-form').addEventListener('submit', async event => {
+    event.preventDefault(); const button = event.submitter; button.disabled = true;
+    try { const result = await request('/api/studio/profiles', { name: $('studio-profile-name').value, activeId: data.activeId, values: data.values }, 'POST'); if (result) toast('Efeito guardado na aba Perfis.'); }
+    finally { button.disabled = false; }
+  });
+  $('studio-remove-effect').addEventListener('click', async () => { const result = await request('/api/studio/effects/' + data.activeId, undefined, 'DELETE'); if (result) { result.layout = data.layout; data = result; renderLibrary(); } });
   function fpsLabel() { const fps = Number($('settings-fps').value); $('settings-fps-label').textContent = fps + ' FPS'; document.querySelectorAll('[data-fps]').forEach(b => b.classList.toggle('active', Number(b.dataset.fps) === fps)); }
   $('settings-fps').addEventListener('input', () => { fpsDirty = true; fpsLabel(); });
   document.querySelectorAll('[data-fps]').forEach(button => button.addEventListener('click', () => { fpsDirty = true; $('settings-fps').value = button.dataset.fps; fpsLabel(); }));
@@ -162,7 +238,8 @@
       stream = new EventSource('/api/studio/preview');
       stream.onmessage = event => { try {
         const frame = JSON.parse(event.data); $('studio-preview').src = 'data:image/png;base64,' + frame.image; liveFrame = frame;
-        if (data && !dirty && !dragging && JSON.stringify(data.layout) !== JSON.stringify(frame.layout)) { data.layout = structuredClone(frame.layout); map(); selection(); }
+        // A frame can still use the preceding geometry while a new edit is
+        // being sampled. It describes sent colors, never editable positions.
         drawOutput();
       } catch {} };
     } else if (isAdmin) api('/api/network').then(n => { $('settings-ports').textContent = 'Painel TCP ' + n.ports.panel + ' · SDK TCP ' + n.ports.sdk + ' · Alexa TCP ' + n.ports.alexa + ' · descoberta UDP 1900.'; }).catch(error);

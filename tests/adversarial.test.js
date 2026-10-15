@@ -46,6 +46,7 @@ test('LAN permite iluminação mas recusa todas as rotas administrativas mesmo c
   const { app, localPort, request, cookie } = await fixture(t);
   const host = `http://${interfaces[0].address}:${localPort}`, baseline = JSON.stringify(app.store.data);
   const routes = [['/api/network', 'GET', undefined], ['/api/session/local', 'POST', {}], ['/api/profiles', 'POST', { name: 'Ataque' }], ['/api/link', 'POST', {}], ['/api/alexa', 'POST', { enabled: true }], ['/api/alexa/discover', 'POST', {}], ['/api/alexa/approve', 'POST', { ip: interfaces[0].address }], ['/api/alexa/revoke', 'POST', { ip: '192.168.1.1' }]];
+  routes.push(['/api/studio/profiles', 'POST', { name: 'Ataque' }]);
   for (const [route, method, body] of routes) assert.equal((await request(route, { method, body, host, cookie })).status, 403, route);
   assert.equal(JSON.stringify(app.store.data), baseline);
   assert.equal((await request('/api/control', { method: 'POST', body: { color: '#445566' }, host })).status, 200);
@@ -71,4 +72,14 @@ test('limitação HTTP real recusa inundação e volta a atender depois da janel
   for (let i = 0; i < 239; i++) assert.equal((await request('/api/health')).status, 200);
   assert.equal((await request('/api/health')).status, 429);
   await sleep(60500); assert.equal((await request('/api/health')).status, 200);
+});
+
+test('arquivos da interface têm limite próprio sem consumir ou contornar o orçamento da API', async t => {
+  const { request } = await fixture(t);
+  for (let i = 0; i < 230; i++) assert.equal((await request('/api/health')).status, 200);
+  for (let i = 0; i < 250; i++) assert.equal((await request('/studio.js')).status, 200);
+  for (let i = 0; i < 9; i++) assert.equal((await request('/api/health')).status, 200);
+  assert.equal((await request('/api/health')).status, 429);
+  for (let i = 250; i < 512; i++) assert.equal((await request('/studio.js')).status, 200);
+  assert.equal((await request('/studio.js')).status, 429);
 });

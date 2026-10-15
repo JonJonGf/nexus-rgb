@@ -17,7 +17,7 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   const request = async (ip, route, method = 'GET', body) => {
     const req = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
     Object.assign(req, { socket: { remoteAddress: ip, localAddress: '192.168.20.5' }, headers: { host: '192.168.20.5' }, url: route, method });
-    const res = { writeHead(status, headers) { this.status = status; this.headers = headers; }, end(value) { this.body = value; } };
+    const res = Object.assign(new (require('node:events').EventEmitter)(), { writeHead(status, headers) { this.status = status; this.headers = headers; }, end(value) { this.body = value; this.emit('finish'); } });
     await alexa.request(req, res); return res;
   };
   alexa.openDiscovery();
@@ -75,6 +75,8 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('do-not-log-this'));
   assert.ok(alexa.snapshot().diagnostics.recent.length <= 32);
   assert.equal(alexa.snapshot().diagnostics.recent.at(-1).method, 'PUT');
+  assert.equal(alexa.snapshot().diagnostics.recent.at(-1).power, true);
+  assert.equal(alexa.snapshot().diagnostics.recent.at(-1).finished, true);
   assert.deepEqual(store.data, before); assert.deepEqual(new Store(directory).data, before);
   assert.equal(writes, 2); assert.equal(broadcasts, 2);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('/api/nexus'));

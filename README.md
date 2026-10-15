@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.8/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.8">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.9/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.9">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.8 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.9 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -41,7 +41,7 @@
 - **RGB e ARGB separados:** quando o hardware informa um mapa completo de zonas e permite cor por LED, as portas e a iluminação interna aparecem como componentes independentes.
 - **O layout acompanha sua cor:** a cor estática escolhida também muda a identidade visual do painel.
 - **Um efeito atravessando o setup:** organize as peças no mapa, divida faixas de LEDs e ajuste rotação, tamanho e ordem.
-- **Saída por LED:** pontos no mapa mostram as últimas cores enviadas, com brilho e desligamento, e distinguem posições salvas de rascunhos.
+- **Mapa ao vivo:** arrastar peças atualiza as luzes e salva automaticamente, mantendo a animação em andamento. Pontos no mapa mostram as últimas cores enviadas, com brilho e desligamento.
 - **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada.
 - **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
 - **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
@@ -69,7 +69,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.8/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.8) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.9/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.9) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -187,7 +187,9 @@ Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos an
 
 ### Organizar os dispositivos no espaço
 
-Abra **Mapa do setup**, arraste as peças para representar seu gabinete e clique em **Salvar mapa**. Escolha um efeito da biblioteca e marque **Aplicar mapa às luzes**. Assim, a posição de cada LED determina a cor recebida de uma única imagem em movimento. Há formatos de fita, anel e matriz, com rotação e inversão da ordem.
+Abra **Mapa do setup** e arraste as peças para representar seu gabinete: as luzes acompanham e as posições são salvas automaticamente. Escolher um efeito também o aplica ao mapa, respeitando os botões de energia. Assim, a posição de cada LED determina a cor recebida de uma única imagem em movimento. Há formatos de fita, anel e matriz, com rotação e inversão da ordem. **Separar em ventoinhas** divide uma faixa em fans consecutivos quando o cabeamento permite endereçamento independente.
+
+Use **Criar efeito** para escolher movimento, cores em sequência, ritmo, direção e escala em um editor visual. O JSON fica na opção avançada. Você pode guardar o modelo também em **Perfis**, ou usar **Salvar como perfil** na biblioteca; salvar não aplica o efeito às luzes.
 
 O mapa inclui **Aurora espacial**, **Cometa no setup** e **Anéis de luz**. No PC, **Importar efeito** adiciona HTML Canvas compatível à biblioteca local; **Criar fórmula** abre o formato JSON `nexus-effect/1`. A importação não ativa as luzes automaticamente.
 
@@ -254,7 +256,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.8/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.9/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 

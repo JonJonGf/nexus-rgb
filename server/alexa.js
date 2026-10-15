@@ -91,7 +91,7 @@ class Alexa {
     let recordHttp = () => {};
     const send = (status, value) => {
       const payload = Buffer.from(JSON.stringify(value));
-      recordHttp(status);
+      recordHttp(status, value);
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': payload.length, 'Connection': 'close', 'X-Content-Type-Options': 'nosniff' });
       res.end(payload);
     };
@@ -101,10 +101,15 @@ class Alexa {
     if (req.headers.host !== localIp && req.headers.host !== `${localIp}:${this.port}`) return send(403, {});
     const url = new URL(req.url, 'http://nexus.invalid');
     // Fixed labels keep Hue usernames and arbitrary request text out of diagnostics.
-    const resource = url.pathname === '/description.xml' ? 'Descrição da ponte' : /\/lights(?:\/\d+)?\/state$/.test(url.pathname) ? 'Comando de iluminação' : /\/lights(?:\/\d+)?$/.test(url.pathname) ? 'Lista de luzes' : url.pathname === '/api' ? 'Cadastro Hue' : 'Configuração da ponte';
-    recordHttp = status => {
+    const resource = url.pathname === '/description.xml' ? 'Descrição da ponte' : /\/lights\/\d+\/state$/.test(url.pathname) ? 'Estado da luz' : /\/lights\/\d+$/.test(url.pathname) ? 'Luz individual' : /\/lights$/.test(url.pathname) ? 'Lista de luzes' : url.pathname === '/api' ? 'Cadastro Hue' : 'Configuração da ponte';
+    recordHttp = (status, value) => {
       if (this.ownAddress(ip)) return;
       const event = { at: Date.now(), ip, resource, status, method: ['GET', 'POST', 'PUT'].includes(req.method) ? req.method : 'OTHER' };
+      const state = value?.state || value?.['1']?.state || value?.lights?.['1']?.state;
+      if (req.method === 'GET' && typeof state?.on === 'boolean') { event.power = state.on; event.reachable = state.reachable; }
+      const acceptedPower = value?.[0]?.success?.['/lights/1/state/on'];
+      if (typeof acceptedPower === 'boolean') event.power = acceptedPower;
+      res.once('finish', () => { event.finished = true; event.responseMs = Math.round(performance.now() - started); });
       this.diagnostics.lastHttp = event; this.diagnostics.recent.push(event);
       if (this.diagnostics.recent.length > 32) this.diagnostics.recent.shift();
     };

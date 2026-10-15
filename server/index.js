@@ -42,7 +42,7 @@ async function createApp(options = {}) {
   const store = options.store || new Store(directory); const security = new Security(directory, getInterfaces);
   const hardware = options.hardware || new Hardware(store, { port: configuredPorts.sdk });
   const localPort = configuredPorts.panel;
-  const clients = new Set(); const rate = new RateLimiter(240); const globalRate = new RateLimiter(2000);
+  const clients = new Set(); const rate = new RateLimiter(240); const assetRate = new RateLimiter(512); const globalRate = new RateLimiter(2000);
   let local, heartbeat;
   const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices, studio: savedStudio }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length, spatial: Boolean(savedStudio?.enabled) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
   const broadcast = () => {
@@ -79,8 +79,9 @@ async function createApp(options = {}) {
     const origin = `${req.socket.encrypted ? 'https' : 'http'}://${req.headers.host}`;
     if (req.headers.origin && req.headers.origin !== origin) return json(res, 403, { error: 'Origem não autorizada.' });
     if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origem não autorizada.' });
-    if (!rate.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     const url = new URL(req.url, origin); const route = url.pathname;
+    const budget = ['GET', 'HEAD'].includes(req.method) && assets.has(route) ? assetRate : rate;
+    if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION });
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
@@ -101,6 +102,7 @@ async function createApp(options = {}) {
       if (route === '/api/studio' && req.method === 'POST') { admin(); studio.configure(await readBody(req, 128 * 1024)); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/studio/preview' && req.method === 'GET') { studio.watch(req, res, () => security.session(req)); return; }
       if (route === '/api/studio/import' && req.method === 'POST') { admin(); const body = await readBody(req, 256 * 1024); const id = await studio.import(body.source); return json(res, 200, { id, ...studio.snapshot(true) }); }
+      if (route === '/api/studio/profiles' && req.method === 'POST') { admin(); studio.profile(await readBody(req)); broadcast(); return json(res, 200, snapshot()); }
       const effectRoute = route.match(/^\/api\/studio\/effects\/([a-f0-9]{24})$/);
       if (effectRoute && req.method === 'DELETE') { admin(); studio.remove(effectRoute[1]); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/session' && req.method === 'GET') return json(res, 200, { admin: session.admin });

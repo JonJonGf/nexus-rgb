@@ -98,12 +98,23 @@ class Studio {
       const devices = new Map(this.devices().map(d => [d.id, d.ledCount]));
       for (const item of next.layout) if (devices.has(item.deviceId) && item.start + item.count > devices.get(item.deviceId)) throw Error('A faixa ultrapassa a quantidade de LEDs do componente.');
     }
-    this.store.data.studio = next; this.store.save(); this.reset(); this.hardware.changed(); this.changed();
+    this.store.data.studio = next; this.store.save();
+    // Geometry only changes where the next frame is sampled. Keep the worker
+    // and animation clock alive while editing; failed effects can be retried.
+    if (previous.activeId !== next.activeId || JSON.stringify(previous.values) !== JSON.stringify(next.values) || this.error) this.reset();
+    this.hardware.changed(); this.changed();
   }
   remove(id) {
     const effect = this.effects.get(id); if (!effect || effect.builtin) throw Error('Este efeito não pode ser removido.');
     if (this.config.activeId === id) this.configure({ activeId: builtin[0].id, enabled: false });
     fs.unlinkSync(path.join(this.directory, id + '.json')); this.effects.delete(id); this.changed();
+  }
+  profile(body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['name', 'activeId', 'values'].includes(k))) throw Error('Perfil do mapa inválido.');
+    const effect = this.effects.get(Object.hasOwn(body, 'activeId') ? body.activeId : this.config.activeId);
+    if (!effect) throw Error('Efeito não encontrado.');
+    const values = schema.parameters(effect, Object.hasOwn(body, 'values') ? body.values : effect.id === this.config.activeId ? this.config.values : {});
+    return this.store.profile(body.name, undefined, { enabled: true, activeId: effect.id, values, excluded: [] });
   }
   reset() { this.signature = ''; this.error = null; this.colors.clear(); this.stopWorker(); this.preview = null; this.rendered = false; }
   hasDevice(id) { return this.config.enabled && !this.error && !(this.config.excluded || []).includes(id) && this.layout().some(item => item.deviceId === id); }
@@ -114,7 +125,7 @@ class Studio {
   }
   previewPacket() {
     const devices = this.devices();
-    return { image: this.preview.toString('base64'), layout: this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.connected, error: this.error,
+    return { image: this.preview.toString('base64'), layout: this.frameLayout || this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.connected, error: this.error,
       output: devices.map(device => {
         const sent = this.hardware.outputFor?.(device.id);
         return { id: device.id, source: sent?.source || 'unavailable', at: sent?.at || null,
@@ -142,7 +153,7 @@ class Studio {
       return;
     }
     const effect = this.effects.get(this.config.activeId); if (!effect) { this.fail('O efeito salvo não está na biblioteca. Importe o arquivo novamente ou escolha outro efeito.'); return; }
-    const layout = this.layout(), signature = JSON.stringify([effect.id, this.config.values, layout]);
+    const layout = this.layout(), layoutSignature = JSON.stringify(layout), signature = JSON.stringify([effect.id, this.config.values]);
     if (signature !== this.signature || !this.worker) {
       this.stopWorker(); this.signature = signature; this.ready = false;
       const child = this.worker = this.spawn();
@@ -157,7 +168,7 @@ class Studio {
         else if (message.kind === 'failure') this.fail(message.error);
         else if (message.kind === 'frame') {
           this.colors.clear();
-          this.rendered = true; this.revision++;
+          this.rendered = true; this.revision++; this.renderedLayout = this.pendingLayoutSignature; this.frameLayout = this.pendingLayout;
           for (let i = 0; i < this.points.length; i++) {
             const p = this.points[i]; if (!this.colors.has(p.deviceId)) this.colors.set(p.deviceId, []);
             this.colors.get(p.deviceId)[p.index] = message.colors[i];
@@ -187,11 +198,11 @@ class Studio {
     this.nextFrame = Math.max((this.nextFrame || now) + interval, now);
     if (this.busy) { this.metrics.dropped++; return; }
     // Static recipes retain their frame instead of redrawing while idle.
-    if (effect.format === 'nexus-effect/1' && (effect.pattern === 'gradient' || effect.speed === 0) && this.rendered && (!this.clients.size || this.preview)) {
+    if (effect.format === 'nexus-effect/1' && (effect.pattern === 'gradient' || effect.speed === 0) && this.rendered && this.renderedLayout === layoutSignature && (!this.clients.size || this.preview)) {
       if (this.clients.size && now - (this.lastPreview || 0) > 100) { this.lastPreview = now; this.publishPreview(); }
       return;
     }
-    this.lastFrame = now; this.points = layout.flatMap(spatial.points); this.busy = true;
+    this.lastFrame = now; this.pendingLayout = structuredClone(layout); this.pendingLayoutSignature = layoutSignature; this.points = layout.flatMap(spatial.points); this.busy = true;
     this.deadline = setTimeout(() => this.fail('O efeito excedeu o tempo de resposta e foi pausado.'), 1000);
     const preview = this.clients.size > 0 && now - (this.lastPreview || 0) > 100;
     if (preview) this.lastPreview = now;

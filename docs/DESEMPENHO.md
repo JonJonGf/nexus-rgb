@@ -2,7 +2,7 @@
 
 ## Motor espacial — medição de 15/10/2026
 
-Ensaio isolado da implementação destinada à **v0.1.0-alpha.8**, no Ryzen 5 3600 com 12 processadores lógicos, 31,89 GiB de RAM, Windows 11 build 26300 e Node 24.20.0.
+Ensaio isolado do motor espacial em desenvolvimento em 15/10/2026, no Ryzen 5 3600 com 12 processadores lógicos, 31,89 GiB de RAM, Windows 11 build 26300 e Node 24.20.0. A coleta antecede as alterações de edição ao vivo da v0.1.0-alpha.9.
 
 Esta tabela inclui **servidor Node e processo de efeitos**. A classe de hardware é a mesma da aplicação, conectada a um SDK simulado com 3 controladoras, 5 componentes e 92 LEDs. **OpenRGB, serviços, bandeja, navegador e driver ficam fora da soma.** Portanto, os valores não representam o consumo total do aplicativo instalado.
 
@@ -36,11 +36,31 @@ Uma sondagem local separada verificou 28 arquivos HTML fornecidos para compatibi
 
 O [resumo em JSON](benchmarks/2026-10-15-studio.json) registra os valores e o escopo. A coleta inclui envio imediato de quadros e dados de saída por LED; antecede ajustes posteriores de diagnóstico, atualização de status em prévias estáticas/pausadas e espera do envio antes de publicar a imagem. Não é uma nova aferição de cada linha do código final. GPU, energia elétrica, temperatura, inicialização e horas/dias de uso não foram medidos.
 
+### Edição ao vivo do mapa
+
+O arraste agrupa alterações em até uma requisição a cada 350 ms, evitando uma escrita em disco para cada evento do mouse. Cada envio aceito salva a configuração de forma atômica. Mudar a geometria preserva o processo e a fase do efeito e atualiza a amostragem no próximo quadro disponível; efeitos estáticos recalculam a amostra quando as posições mudam. O teste de regressão confirma a troca de cores sem recriar o processo. O custo de um arraste prolongado não foi aferido separadamente na tabela acima.
+
 ## Aplicativo completo — referência histórica de 13/10/2026
 
 Medição real realizada em **13/10/2026**, na versão instalada **0.1.0**, com os serviços do Nexus RGB, OpenRGB e ícone da bandeja em execução. Os números abaixo representam este equipamento e estas configurações; não são requisitos mínimos nem uma garantia para todos os PCs.
 
 A medição é de 13/10/2026 e antecede as alterações posteriores de recuperação de conexão, instalação, perfis e portas. Os valores não representam uma nova aferição de cada prévia publicada.
+
+## Identificar processos no Windows
+
+O Nexus usa serviços que iniciam antes do login, além de um ícone executado na sessão do usuário. Eles podem aparecer separados no Gerenciador de Tarefas. O supervisor já mantém seus filhos em Job Objects para encerrar processos corretamente; isso não determina um grupo visual único no Gerenciador.
+
+| Parte | Processo esperado |
+| --- | --- |
+| Serviço do painel | `NexusRGB.exe --service`, serviço `NexusRGB`, com um filho `runtime\node.exe` executando `server\index.js` |
+| Acesso ao RGB | `NexusRGB.exe --hardware-service`, serviço `NexusRGBHardware`, com um filho `openrgb\OpenRGB.exe` |
+| Ícone perto do relógio | `NexusRGB.exe --tray`, na sessão do usuário |
+| Motor espacial | Um filho Node executando `server\studio-worker.js`, enquanto há mapa ativo ou prévia aberta; uma validação de importação pode abrir outro processo temporário |
+| Janela do painel | Processos do navegador escolhido pelo Windows/Nexus |
+
+Na aba **Serviços**, localize `NexusRGB` e `NexusRGBHardware` e use **Ir para detalhes** para identificar seus PIDs. Na aba **Detalhes**, habilite as colunas **PID** e **Linha de comando**; alguns dados de serviços exigem abrir o Gerenciador como administrador. PIDs mudam ao reiniciar. Confira o caminho da instalação para distinguir esses filhos de outros programas que também usam Node.
+
+Processos Node pertencentes ao Codex, editores ou outras aplicações não devem ser somados ao consumo do Nexus. O título `Node.js` sozinho não identifica qual aplicativo o iniciou. Renomear o executável ou definir `process.title` não garante um nome/grupo no Gerenciador; a [documentação do Node](https://nodejs.org/api/process.html#processtitle) também registra essa limitação. AppUserModelIDs controlam [agrupamento de janelas na barra de tarefas](https://learn.microsoft.com/en-us/windows/win32/shell/appids), sem oferecer por si só a árvore solicitada de serviços no Gerenciador.
 
 ## Equipamento e configuração
 

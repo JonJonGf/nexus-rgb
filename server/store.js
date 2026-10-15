@@ -77,8 +77,9 @@ class Store {
     if (!valid.palette?.length) throw new Error('Escolha de 1 a 8 cores para a sequência.');
     return { name: name.trim(), master: { ...defaults, ...structuredClone(valid), color: valid.palette[0].toLowerCase() }, devices: {} };
   }
-  profile(name, settings) {
+  profile(name, settings, studio) {
     const configuration = this.profileSettings(name, settings);
+    if (studio) configuration.studio = structuredClone(studio);
     if (this.data.profiles.length >= 32) throw new Error('Limite de 32 perfis.');
     const item = { id: crypto.randomUUID(), ...configuration };
     this.data.profiles.push(item); this.save(); return item;
@@ -94,7 +95,7 @@ class Store {
     const p = this.data.profiles.find(p => p.id === id);
     if (!p) throw new Error('Perfil não encontrado.');
     this.data.master = structuredClone(p.master); this.data.devices = structuredClone(p.devices);
-    if (this.data.studio) this.data.studio = { ...this.data.studio, enabled: false, ...(p.studio ? structuredClone(p.studio) : {}) };
+    if (this.data.studio || p.studio) this.data.studio = { layout: [], ...this.data.studio, enabled: false, ...(p.studio ? structuredClone(p.studio) : {}) };
     this.save();
   }
 }

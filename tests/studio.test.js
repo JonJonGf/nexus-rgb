@@ -38,6 +38,10 @@ test('Canvas importado roda sem APIs do Node/rede e produz amostras de cor', asy
     const splitPixels = renderer.frame(50);
     assert.ok(renderer.sample(spatial.points(base), splitPixels).every(color => color.join(',') === '255,0,0'));
     assert.ok(renderer.sample(spatial.points({ ...base, x: 0.75 }), splitPixels).every(color => color.join(',') === '0,255,0'));
+    await renderer.load(schema.parseHTML(source('var ctx=document.getElementById("exCanvas").getContext("2d");ctx.fillStyle="#ff0000";ctx.fillRect(0,0,320,100);ctx.fillStyle="#00ff00";ctx.fillRect(0,100,320,100)')));
+    const vertical = renderer.frame(50), colors = renderer.sample(spatial.points({ ...base, count: 12, y: 0.5 }), vertical);
+    assert.deepEqual(colors[0], [255, 0, 0]); assert.deepEqual(colors[6], [0, 255, 0]);
+    assert.deepEqual(colors[1], colors[11]); assert.deepEqual(colors[2], colors[10]); assert.deepEqual(colors[4], colors[8]);
   } finally { renderer.close(); }
 });
 
@@ -111,6 +115,39 @@ test('encerrar o aplicativo cancela a validação em andamento sem salvar import
   const pending = assert.rejects(studio.import(source('while(true){}')), /cancelada|encerrando/);
   assert.equal(studio.probes.size, 1); studio.stop(); await pending;
   assert.equal(studio.probes.size, 0); assert.equal(studio.effects.size, 3);
+});
+
+test('mover um componente troca a amostra estática sem reiniciar o motor e persiste a posição', async t => {
+  const id = 'a'.repeat(24);
+  const hardware = { connected: true, on() {}, changed() {}, stop() {}, snapshot() { return { connected: true, devices: [{ id, name: 'Teste', type: 1, ledCount: 2, effects: ['static', 'wave'], settings: { power: true } }] }; } };
+  const f = await fixture(t, { hardware }), studio = f.app.studio;
+  const effect = schema.recipe({ format: 'nexus-effect/1', name: 'Gradiente imóvel', pattern: 'gradient', palette: ['#ff0000', '#00ff00'], speed: 0, angle: 0, scale: 1 }); studio.effects.set(effect.id, effect);
+  const layout = spatial.defaults(hardware.snapshot().devices).map(i => ({ ...i, x: 0.1, width: 0.01 }));
+  studio.configure({ layout, activeId: effect.id, enabled: true });
+  for (let i = 0; i < 100 && !studio.rendered; i++) await sleep(20);
+  assert.ok(studio.rendered); const child = studio.worker, before = structuredClone(studio.colors.get(id)), revision = studio.revision;
+  const moved = layout.map(i => ({ ...i, x: 0.9 }));
+  assert.equal((await f.request('/api/studio', { method: 'POST', cookie: f.cookie, body: { layout: moved, enabled: true } })).status, 200);
+  for (let i = 0; i < 100 && studio.revision === revision; i++) await sleep(20);
+  assert.equal(studio.worker, child); assert.notDeepEqual(studio.colors.get(id), before);
+  assert.equal(studio.frameLayout[0].x, 0.9); assert.equal(JSON.parse(fs.readFileSync(path.join(f.directory, 'settings.json'))).studio.layout[0].x, 0.9);
+  const after = studio.revision; await sleep(150); assert.equal(studio.revision, after);
+});
+
+test('biblioteca cria perfil espacial sem aplicar o efeito e valida referências antes de salvar', async t => {
+  const f = await fixture(t), studio = f.app.studio, before = structuredClone(f.app.store.data.master), effect = [...studio.effects.values()][1];
+  const save = body => f.request('/api/studio/profiles', { method: 'POST', cookie: f.cookie, body });
+  assert.equal((await save({ name: 'Cometa guardado', activeId: effect.id })).status, 200);
+  assert.deepEqual(f.app.store.data.master, before); assert.equal(studio.config.enabled, false); assert.equal(f.app.store.data.studio, undefined);
+  const p = f.app.store.data.profiles.at(-1); assert.equal(p.studio.activeId, effect.id); assert.equal(p.studio.enabled, true);
+  assert.equal((await save({ name: 'Falha', activeId: '0'.repeat(24) })).status, 400);
+  assert.equal((await save({ name: 'Falha', activeId: effect.id, values: { invalid: 1 } })).status, 400);
+  assert.equal((await save({ name: 'Falha', activeId: effect.id, values: null })).status, 400);
+  assert.equal((await save({ name: 'Falha', activeId: '' })).status, 400);
+  assert.equal(f.app.store.data.profiles.length, 1);
+  assert.equal((await f.request('/api/profiles/' + p.id, { method: 'POST', cookie: f.cookie, body: {} })).status, 200);
+  assert.equal(studio.config.enabled, true); assert.equal(studio.config.activeId, effect.id);
+  const saved = JSON.parse(fs.readFileSync(path.join(f.directory, 'settings.json'))); assert.equal(saved.studio.activeId, effect.id);
 });
 
 test('prévia leva as cores enviadas por índice de LED e atualiza desligamento com imagem estática', async t => {
