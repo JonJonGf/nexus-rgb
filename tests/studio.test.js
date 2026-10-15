@@ -101,7 +101,7 @@ test('falha do efeito pausa o processo e voltar a um efeito válido recupera o m
   const id = (await f.request('/api/studio/import', { method: 'POST', cookie: f.cookie, body: { source: source('var n=0;function run(){if(++n>1)while(true){}requestAnimationFrame(run)}requestAnimationFrame(run)') } })).json().id;
   assert.ok(id); // The first frame passes import validation; a later frame is hostile.
   const client = { res: { destroyed: false, writableLength: 0, write() {}, end() {} }, authorized: () => true };
-  studio.clients.add(client); studio.configure({ activeId: id });
+  studio.clients.add(client); studio.configure({ activeId: id, enabled: true });
   for (let i = 0; i < 100 && !studio.error; i++) await sleep(30);
   assert.match(studio.error, /interrupted|orçamento|tempo/i); assert.equal(studio.worker, null);
   const fallback = [...studio.effects.values()].find(e => e.builtin).id; studio.configure({ activeId: fallback });
@@ -164,4 +164,52 @@ test('prévia leva as cores enviadas por índice de LED e atualiza desligamento 
   await sleep(250); assert.equal(events.at(-1).power, false); assert.equal(events.at(-1).image, image); assert.equal(studio.revision, revision);
   assert.deepEqual([...Buffer.from(events.at(-1).output[0].rgb, 'base64')], [0, 0, 0, 0, 0, 0]);
   hardware.connected = false; await sleep(250); assert.equal(events.at(-1).output[0].rgb, null);
+});
+
+test('prévia comum acompanha exatamente a saída do SDK no arco-íris, perfil, desligamento e modo nativo sem criar motor', async t => {
+  const { EventEmitter } = require('node:events'), { Hardware } = require('../server/hardware');
+  const { Store } = require('../server/store');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-output-'));
+  const store = new Store(directory);
+  class SDK extends EventEmitter {
+    async connect() {} async getControllerCount() { return 1; }
+    async getControllerData() { return { name: 'ARGB genérico', vendor: 'Teste', location: 'USB:test', type: 2, zones: [], colors: Array(37).fill({ red: 0, green: 0, blue: 0 }), modes: [{ id: 0, name: 'Rainbow', flagList: [] }, { id: 1, name: 'Direct', flagList: ['perLedColor'] }] }; }
+    async updateMode() {} updateLeds(id, colors) { this.last = structuredClone(colors); } disconnect() {}
+  }
+  const sdk = new SDK(), hardware = new Hardware(store, { makeClient: () => sdk });
+  const f = await fixture(t, { store, hardware });
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  hardware.stopped = false; await hardware.connect();
+  const studio = f.app.studio, events = [], client = { res: { destroyed: false, writableLength: 0, end() {}, write(text) { events.push(JSON.parse(text.slice(6))); } }, authorized: () => true };
+  studio.spawn = () => { throw Error('Observar a saída comum não pode iniciar Canvas.'); }; studio.clients.add(client);
+  store.master({ effect: 'rainbow', brightness: 100 }); await hardware.tick(); studio.pump();
+  const encoded = () => Buffer.from(sdk.last.flatMap(c => [c.red, c.green, c.blue])).toString('base64');
+  assert.equal(events.at(-1).image, null); assert.equal(events.at(-1).output[0].rgb, encoded());
+  assert.deepEqual(events.at(-1).playback, { spatial: false, effect: 'rainbow', name: null });
+  const before = encoded(); await sleep(170); await hardware.tick(); await sleep(120);
+  assert.notEqual(encoded(), before); assert.equal(events.at(-1).output[0].rgb, encoded());
+  const profile = store.profile('Sequência teste', { palette: ['#ff0000', '#00ff00'], effect: 'sequence', brightness: 31, speed: 25 });
+  await f.request('/api/profiles/' + profile.id, { method: 'POST', cookie: f.cookie, body: {} });
+  await hardware.tick(); await sleep(120); assert.equal(events.at(-1).playback.effect, 'sequence'); assert.equal(events.at(-1).output[0].rgb, encoded());
+  store.power(false); hardware.changed(); await hardware.tick(); await sleep(120);
+  assert.equal(events.at(-1).power, false); assert.ok([...Buffer.from(events.at(-1).output[0].rgb, 'base64')].every(v => v === 0));
+  const id = hardware.snapshot().devices[0].id;
+  store.power(true); store.device(id, { nativeMode: 0 }); hardware.changed(); await hardware.tick(); await sleep(120);
+  assert.equal(events.at(-1).output[0].source, 'native'); assert.equal(events.at(-1).output[0].rgb, null);
+  hardware.connected = false; await sleep(120); assert.equal(events.at(-1).connected, false); assert.equal(events.at(-1).output[0].rgb, null);
+  assert.equal(studio.worker, null); assert.equal(studio.metrics.memoryMB, 0);
+});
+
+test('editar geometria preserva a fonte ativa, os ajustes individuais e um efeito pausado', async t => {
+  const id = 'b'.repeat(24), hardware = { connected: true, on() {}, changed() {}, stop() {}, snapshot() { return { connected: true, devices: [{ id, name: 'Peça', type: 1, ledCount: 8, effects: ['static', 'wave'] }] }; } };
+  const f = await fixture(t, { hardware }), studio = f.app.studio, layout = studio.layout();
+  studio.configure({ layout, enabled: false });
+  f.app.store.master({ effect: 'rainbow' });
+  f.app.store.device(id, { color: '#00ff00', effect: 'static' });
+  const before = structuredClone(f.app.store.data), moved = layout.map(i => ({ ...i, x: 0.6 }));
+  studio.configure({ layout: moved });
+  assert.equal(studio.config.enabled, false); assert.deepEqual(f.app.store.data.master, before.master); assert.deepEqual(f.app.store.data.devices, before.devices); assert.deepEqual(studio.config.excluded, [id]);
+  studio.configure({ enabled: true }); studio.fail('Teste pausado'); studio.configure({ layout });
+  assert.equal(studio.error, 'Teste pausado'); assert.equal(studio.worker, null);
+  assert.equal(studio.previewPacket().image, null); assert.equal(studio.previewPacket().playback.spatial, false);
 });

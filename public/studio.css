@@ -22,6 +22,9 @@
 .studio-inspector { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; }
 .studio-inspector .panel { padding: 16px; }
 .studio-inspector .eyebrow { display: block; margin-bottom: 13px; color: var(--accent); }
+#studio-current-effect { display: block; font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+.studio-library-heading { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; }
+.studio-library-heading .eyebrow { margin-bottom: 10px; }
 .studio-inspector label, .studio-formula label { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 5px; }
 .studio-inspector select, .studio-inspector input:not([type=checkbox]), .studio-formula textarea { min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--border); background: #0b0f15; border-radius: 3px; color: var(--text); }
 .studio-enable { display: flex !important; gap: 9px; align-items: center; color: var(--text) !important; }

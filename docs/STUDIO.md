@@ -1,6 +1,6 @@
 # Mapa do setup e biblioteca de efeitos
 
-O mapa usa uma imagem em movimento como fonte de cor para todos os LEDs. Posicionar uma memória à esquerda e uma ventoinha à direita permite que uma onda atravesse os dois componentes em sequência.
+O mapa reúne os efeitos da Iluminação, os perfis salvos e a biblioteca espacial. As peças mostram as últimas cores enviadas a cada LED. Nos efeitos espaciais, uma imagem em movimento é a fonte de cor: posicionar uma memória à esquerda e uma ventoinha à direita permite que uma onda atravesse os dois componentes em sequência.
 
 Esse controle exige **Direct e cor por LED** no OpenRGB. A posição dos componentes é uma organização virtual; o Nexus não reconhece sozinho onde cada peça está instalada fisicamente.
 
@@ -9,8 +9,8 @@ Esse controle exige **Direct e cor por LED** no OpenRGB. A posição dos compone
 1. Abra **Mapa do setup** no painel do próprio PC.
 2. Arraste as peças para representar o gabinete. As setas do teclado também movem a peça selecionada.
 3. Escolha o formato **Fita**, **Ventoinha/anel** ou **Matriz**, ajuste tamanho e rotação e, se necessário, marque **Inverter ordem dos LEDs**.
-4. Mover uma peça atualiza as luzes durante o arraste e salva a posição automaticamente. O painel agrupa movimentos em intervalos de até 350 ms, além do tempo da conexão/controladora. Aguarde **Salvo automaticamente** antes de fechar a página. Em falha, o ajuste fica no navegador e **Tentar novamente** permite reenviá-lo.
-5. Escolha um efeito na biblioteca: ele é aplicado automaticamente ao mapa. Editar posições e parâmetros também ativa o mapa, respeitando a energia geral e individual. Apenas abrir a aba não muda a seleção das luzes. Use **Voltar ao controle comum** para sair do mapa.
+4. Solte a peça para salvar a posição automaticamente. Durante o arraste, a geometria muda apenas na tela; as luzes recebem a nova posição ao soltar, além do tempo da conexão/controladora. Edições por teclado e campos são agrupadas em intervalos de até 350 ms. Aguarde **Salvo automaticamente** antes de fechar a página. Em falha, o ajuste fica no navegador e **Tentar novamente** permite reenviá-lo.
+5. Escolha um efeito na biblioteca para ativar o mapa espacial. Alterar seus parâmetros também ativa esse efeito, respeitando a energia geral e individual. Abrir a aba ou editar posições preserva o efeito ativo e os controles individuais. Use **Voltar ao controle comum** para sair do efeito espacial.
 
 **Dividir faixa** separa uma sequência de LEDs em duas peças virtuais. Ajuste **Primeiro LED** e **Quantidade** para que cada peça corresponda a uma ventoinha ou trecho de fita. **Unir faixas** junta trechos vizinhos do mesmo componente. As faixas não podem compartilhar o mesmo LED.
 
@@ -24,11 +24,13 @@ Componentes novos compatíveis recebem uma posição inicial. Ajustes salvos de 
 
 ## Entender a prévia e a saída dos LEDs
 
-O **fundo** mostra a imagem do efeito. Os **pontos** mostram as últimas cores enviadas pelo Nexus a cada índice de LED, incluindo o brilho e o estado ligado/desligado. Esses dados não são uma leitura física da luz nem uma confirmação eletrônica do dispositivo.
+As peças e os pontos mostram as últimas cores enviadas pelo Nexus a cada índice de LED, incluindo brilho e estado ligado/desligado. Isso inclui **Arco-íris**, Onda, sequências dos perfis e os ajustes individuais. O cabeçalho **Em reprodução** identifica o movimento geral ou o efeito espacial selecionado; componentes personalizados podem usar outros ajustes. Esses dados não são uma leitura física da luz nem uma confirmação eletrônica do dispositivo.
 
-Durante o arraste, as posições são enviadas e salvas automaticamente. Os pontos acompanham a peça que está sendo editada; suas cores continuam representando a última saída enviada, até chegar a atualização seguinte. Uma imagem antiga do stream não substitui as posições editadas. Mover peças não reinicia o processo nem o relógio da animação. Desligamento, perda de conexão e falha do efeito aparecem na legenda.
+O **fundo colorido** aparece somente quando um efeito espacial está ativo, conectado e com a energia geral ligada. Nos efeitos comuns, a tela mantém a grade e mostra as cores nas próprias peças; ela não exibe a imagem de um efeito espacial antigo. Efeitos comuns seguem a ordem física dos LEDs: mover uma peça muda sua organização visual, sem transformar esse movimento em um efeito espacial.
 
-Modos nativos calculados pelo próprio hardware não fornecem uma leitura por LED; seus pontos ficam sem cor conhecida. Em configurações grandes, a tela limita os marcadores a aproximadamente 4.096 pontos para reduzir o trabalho do navegador. Todos os LEDs configurados continuam sendo enviados ao controlador.
+Durante o arraste, os pontos acompanham a peça que está sendo editada; suas cores continuam representando a última saída enviada. Ao soltar, as novas posições são salvas e passam a orientar a amostragem do efeito espacial. Uma imagem antiga do stream não substitui as posições editadas. Mover peças não reinicia o processo nem o relógio da animação. Desligamento, perda de conexão e falha do efeito aparecem na legenda.
+
+Modos nativos calculados pelo próprio hardware não fornecem uma leitura por LED; suas peças e pontos ficam sem cor conhecida. Em configurações grandes, a tela limita os marcadores e a amostragem do preenchimento a aproximadamente 4.096 LEDs para reduzir o trabalho do navegador. Todos os LEDs configurados continuam sendo enviados ao controlador.
 
 Peças com o mesmo nome, como duas memórias RAM, são identificadas pelo OpenRGB; a ordem detectada pode ser diferente da posição física no gabinete. Para identificá-las, altere temporariamente a cor de apenas uma peça em **Dispositivos**. Posicione essa peça no mapa e selecione novamente o efeito do mapa para reintegrá-la à sincronização.
 
@@ -38,7 +40,9 @@ Peças com o mesmo nome, como duas memórias RAM, são identificadas pelo OpenRG
 - **Cometa no setup:** uma faixa luminosa com rastro.
 - **Anéis de luz:** cores que se expandem a partir do centro.
 
-Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o mapa. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, selecione o efeito do mapa outra vez ou edite o mapa.
+Em **Perfis e cenas**, no próprio mapa, escolha qualquer perfil salvo ou uma cena pronta. **Movimento da Iluminação** oferece os mesmos movimentos usados no controle comum. São as mesmas configurações das outras abas: ativar um perfil por qualquer uma delas altera as mesmas luzes e a visualização acompanha a saída.
+
+Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o efeito espacial. O mapa continua mostrando os componentes e suas cores. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, selecione o efeito espacial outra vez; editar apenas a posição não remove essa personalização.
 
 Ligar/desligar e mudar brilho preservam a seleção do efeito. A Alexa continua usando somente ligar/desligar. Ativar um componente com o controle geral desligado liga apenas aquele componente.
 
@@ -102,7 +106,7 @@ Em **Configurações → Atualização do RGB**, escolha **5 a 60 FPS** e salve.
 
 FPS maiores aumentam o trabalho do processador e a quantidade de comandos enviados ao OpenRGB. Um PC rápido não elimina limites da conexão ou da controladora. Se houver atraso, reduza a taxa.
 
-A métrica **FPS renderizados** mede a produção de quadros pelo motor do mapa. Não mede a taxa física dos LEDs nem a taxa dos efeitos comuns. A prévia no navegador usa até 10 FPS para limitar tráfego e compressão de imagens. Efeitos estáticos mantêm seu último quadro, sem renderização e envio contínuos.
+A métrica **FPS renderizados** mede a produção de quadros pelo motor espacial. Não mede a taxa física dos LEDs nem a taxa dos efeitos comuns. A prévia no navegador usa até 10 FPS para limitar tráfego e compressão de imagens. Assistir aos efeitos comuns usa a saída já enviada pelo controlador, sem iniciar um processo Canvas ou uma segunda animação. Efeitos espaciais estáticos mantêm seu último quadro, sem renderização e envio contínuos.
 
 Consulte as [medições de desempenho e seus limites](DESEMPENHO.md).
 
@@ -112,7 +116,7 @@ O HTML nunca é inserido na página nem executado pelo JavaScript do Node. Seu c
 
 O motor impõe limites de memória da VM (16 MiB), pilha (256 KiB), operações de desenho e tempo por quadro (40 ms). O processo tem limite de heap V8 de 64 MiB e verificação de RAM residente acima de 256 MiB entre etapas de desenho/quadros. Essa verificação não é uma reserva rígida de memória do sistema operacional. O supervisor interrompe o processo se um quadro deixar de responder por um segundo.
 
-Em falha, o mapa é pausado, o erro aparece no painel e os componentes voltam aos ajustes comuns. Escolher outro efeito ou reconfigurar o mapa permite tentar novamente. Fechar a prévia encerra seu stream; o processo de efeitos encerra quando não há luzes ativas no mapa nem clientes de prévia.
+Em falha, o efeito espacial é pausado, o erro aparece no painel e os componentes voltam aos ajustes comuns. Escolher outro efeito ou usar o botão para ativá-lo permite tentar novamente; mover uma peça preserva a pausa. Fechar a prévia encerra seu stream. O processo de efeitos encerra quando o controle comum está ativo, ou quando não há luzes ativas no efeito espacial nem clientes de prévia.
 
 Essas restrições reduzem a superfície de execução, mas não equivalem a uma auditoria independente nem garantem que bibliotecas nativas estejam livres de vulnerabilidades.
 

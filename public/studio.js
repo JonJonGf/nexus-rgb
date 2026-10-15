@@ -1,29 +1,30 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id), make = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+  const effectNames = { static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso', strobe: 'Estrobo', sequence: 'Sequência', comet: 'Cometa', scanner: 'Vai e vem', sparkle: 'Cintilação' };
   let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, stream, poll, dragging = false, loading = false;
   const item = () => data?.layout.find(i => i.key === selected);
   let liveFrame;
   let editVersion = 0, savedVersion = 0, saving = false, saveTimer, lastSave = 0;
-  function mark() { editVersion++; dirty = true; $('studio-dirty').textContent = 'Atualizando luzes…'; $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
+  function mark() { editVersion++; dirty = true; $('studio-dirty').textContent = dragging ? 'Solte para salvar a posição' : 'Salvando posição…'; $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
   function scheduleSave() {
     clearTimeout(saveTimer);
-    if (saving || !dirty) return;
-    // Coalesce pointer events and stay below the LAN API request budget,
-    // including the metadata poll. The first movement is sent immediately.
+    if (saving || !dirty || dragging) return;
+    // Keep dragging local; submit the final position on release. Coalesce
+    // keyboard/inspector edits below the LAN API request budget as well.
     saveTimer = setTimeout(saveLayout, Math.max(0, lastSave + 350 - Date.now()));
   }
   async function saveLayout() {
-    if (saving || !dirty || !isAdmin) return;
+    if (saving || !dirty || !isAdmin || dragging) return;
     saving = true; lastSave = Date.now(); const version = editVersion;
     try {
-      const next = await api('/api/studio', { layout: structuredClone(data.layout), enabled: true }, 'POST');
+      const next = await api('/api/studio', { layout: structuredClone(data.layout) }, 'POST');
       savedVersion = version; dirty = editVersion !== savedVersion;
       // Buttons retain references to these items in their pointer handlers.
       // An acknowledgement must not swap them for detached JSON objects.
       next.layout = data.layout;
       data = next; status();
-      $('studio-dirty').textContent = dirty ? 'Atualizando luzes…' : 'Salvo automaticamente';
+      $('studio-dirty').textContent = dirty ? dragging ? 'Solte para salvar a posição' : 'Salvando posição…' : 'Salvo automaticamente';
       $('studio-retry').hidden = true;
     } catch (e) {
       $('studio-dirty').textContent = 'Não foi possível salvar'; $('studio-retry').hidden = false; error(e);
@@ -31,6 +32,28 @@
       return;
     } finally { saving = false; }
     if (dirty) scheduleSave();
+  }
+  function paintPiece(ctx, entry, bytes, stride) {
+    if (!bytes) return;
+    const width = entry.width * 960, height = entry.height * 600;
+    ctx.save(); ctx.translate(entry.x * 960, entry.y * 600); ctx.rotate(entry.rotation * Math.PI / 180);
+    for (let n = 0; n < entry.count; n += stride) {
+      const offset = (entry.start + n) * 3; if (bytes.length < offset + 3) continue;
+      const i = entry.reverse ? entry.count - 1 - n : n, group = Math.min(stride, entry.count - n);
+      ctx.fillStyle = 'rgb(' + [0, 1, 2].map(channel => bytes.charCodeAt(offset + channel)).join(',') + ')';
+      if (entry.shape === 'fan') {
+        const start = (entry.reverse ? i - group + 0.5 : i - 0.5) / entry.count * Math.PI * 2 - Math.PI / 2, end = start + group / entry.count * Math.PI * 2;
+        ctx.save(); ctx.scale(width, height); ctx.beginPath(); ctx.arc(0, 0, 0.49, start, end); ctx.arc(0, 0, 0.30, end, start, true); ctx.closePath(); ctx.fill(); ctx.restore();
+      } else if (entry.shape === 'matrix') {
+        const rows = Math.ceil(entry.count / entry.columns);
+        ctx.fillRect(((i % entry.columns) / entry.columns - 0.5) * width, (Math.floor(i / entry.columns) / rows - 0.5) * height, width / entry.columns, height / rows);
+      } else {
+        const start = (entry.reverse ? i - group + 1 : i) / entry.count - 0.5, size = group / entry.count;
+        if (height > width) ctx.fillRect(-width * 0.4, start * height * 0.9, width * 0.8, size * height * 0.9 + 0.5);
+        else ctx.fillRect(start * width * 0.9, -height * 0.4, size * width * 0.9 + 0.5, height * 0.8);
+      }
+    }
+    ctx.restore();
   }
   function drawOutput() {
     const canvas = $('studio-leds'), ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -43,6 +66,7 @@
     const count = layout.reduce((sum, i) => sum + i.count, 0), stride = Math.max(1, Math.ceil(count / 4096)); let n = 0;
     for (const entry of layout) {
       const sent = output.get(entry.deviceId);
+      paintPiece(ctx, entry, sent?.bytes, stride);
       for (const point of NexusSpatial.points(entry)) {
         if (n++ % stride) continue;
         const offset = point.index * 3, known = sent && sent.bytes.length >= offset + 3;
@@ -51,11 +75,11 @@
         ctx.fill(); ctx.strokeStyle = known ? '#ffffff90' : '#79828c'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
-    $('studio-live-note').textContent = dirty ? 'Atualizando posições nas luzes. Pontos: últimas cores enviadas ao controlador.'
-      : !liveFrame.connected ? 'Controlador desconectado: saída dos LEDs indisponível. O fundo é somente a prévia do efeito.'
-      : liveFrame.error ? 'Efeito pausado. Pontos: últimas cores enviadas pelos ajustes comuns; o fundo está parado.'
-      : !liveFrame.power ? 'Luzes desligadas. Pontos: última cor enviada; o fundo continua mostrando a prévia do efeito.'
-      : 'Fundo: prévia do efeito. Pontos: últimas cores enviadas' + (liveFrame.enabled ? ' aos LEDs do mapa.' : '; o mapa está desativado.') + ' Modos nativos não fornecem leitura por LED.';
+    const spatial = liveFrame.playback?.spatial ?? (liveFrame.enabled && !liveFrame.error);
+    $('studio-current-effect').textContent = !liveFrame.connected ? 'Controlador desconectado' : !liveFrame.power ? 'Luzes apagadas' : spatial ? liveFrame.playback?.name || data?.effects.find(e => e.id === data.activeId)?.name || 'Efeito espacial' : effectNames[liveFrame.playback?.effect || state?.master.effect] || 'Ajustes dos componentes';
+    $('studio-live-note').textContent = (!liveFrame.connected ? 'Saída indisponível: controlador desconectado. ' : !liveFrame.power ? 'Luzes desligadas. ' : liveFrame.error ? 'Efeito espacial pausado; mostrando a saída dos ajustes comuns. ' : spatial ? 'Fundo: campo espacial ativo. ' : 'Iluminação e Perfis: saída atual de cada componente. ')
+      + 'Cores: últimos comandos enviados, sem leitura física. Modos nativos ficam sem cor por LED.'
+      + (dirty ? dragging ? ' Solte para salvar a posição.' : ' Salvando posição…' : '');
   }
   function error(e) { toast?.(e.message || String(e)); }
   async function request(route, body, method) { try { return await api(route, body, method); } catch (e) { error(e); return null; } }
@@ -111,7 +135,41 @@
     $('studio-toggle').textContent = data.enabled ? 'Voltar ao controle comum' : 'Usar este efeito';
     $('studio-error').hidden = !data.error; $('studio-error').textContent = data.error || '';
     $('studio-state').textContent = data.error ? 'Efeito pausado' : data.enabled ? 'Mapa ao vivo' : 'Controle comum';
+    sharedControls();
   }
+  let sharedSignature = '';
+  function sharedControls() {
+    if (!state) return;
+    const signature = JSON.stringify([state.presets, state.profiles]);
+    if (signature !== sharedSignature) {
+      sharedSignature = signature;
+      const select = $('studio-shared-profile'); select.replaceChildren(make('option', 'Escolher perfil ou cena…')); select.firstChild.value = '';
+      for (const [label, prefix, items] of [['Seus perfis', 'profile', state.profiles || []], ['Cenas prontas', 'preset', state.presets || []]]) {
+        if (!items.length) continue;
+        const group = make('optgroup'); group.label = label;
+        for (const entry of items) { const option = make('option', entry.name + (entry.spatial ? ' · espacial' : '')); option.value = prefix + ':' + entry.id; group.append(option); }
+        select.append(group);
+      }
+    }
+    $('studio-common-effect').value = (data?.enabled ?? state.studio?.enabled) ? '' : state.master.effect;
+  }
+  const common = $('studio-common-effect'); common.append(make('option', 'Escolher movimento…')); common.firstChild.value = '';
+  for (const [key, name] of Object.entries(effectNames)) { const option = make('option', name); option.value = key; common.append(option); }
+  async function sharedPlay(route, body) {
+    const next = await request(route, body, 'POST');
+    if (next) { state = next; await refresh(); sharedControls(); }
+  }
+  common.addEventListener('change', () => {
+    if (!common.value) return;
+    if (common.value === 'strobe') toast('Estrobo produz flashes. Evite em caso de sensibilidade à luz intermitente.');
+    sharedPlay('/api/control', { effect: common.value });
+  });
+  $('studio-shared-profile').addEventListener('change', async event => {
+    const [type, id] = event.target.value.split(':'); if (!id) return;
+    event.target.disabled = true;
+    try { await sharedPlay('/api/' + (type === 'profile' ? 'profiles/' : 'presets/') + id, {}); }
+    finally { event.target.disabled = false; event.target.value = ''; }
+  });
   function renderLibrary() {
     const select = $('studio-effect'); select.replaceChildren();
     for (const effect of data.effects) { const option = make('option', effect.name); option.value = effect.id; select.append(option); }
@@ -235,9 +293,14 @@
     refresh();
     poll = setInterval(refresh, 3000);
     if (name === 'studio') {
+      liveFrame = null; $('studio-preview').hidden = true; $('studio-preview').removeAttribute('src'); drawOutput();
+      $('studio-current-effect').textContent = 'Aguardando saída';
       stream = new EventSource('/api/studio/preview');
       stream.onmessage = event => { try {
-        const frame = JSON.parse(event.data); $('studio-preview').src = 'data:image/png;base64,' + frame.image; liveFrame = frame;
+        const frame = JSON.parse(event.data), image = $('studio-preview'); liveFrame = frame;
+        image.hidden = !frame.image || !frame.enabled || !frame.power || !frame.connected || Boolean(frame.error);
+        if (!image.hidden) image.src = 'data:image/png;base64,' + frame.image;
+        else image.removeAttribute('src');
         // A frame can still use the preceding geometry while a new edit is
         // being sampled. It describes sent colors, never editable positions.
         drawOutput();
@@ -250,6 +313,7 @@
     open,
     update(next, admin, requestApi, showToast, page) {
       const first = !api; state = next; isAdmin = admin; api = requestApi; toast = showToast;
+      sharedControls();
       document.querySelectorAll('.studio-admin').forEach(e => { if (!e.closest('#studio-formula-form')) e.hidden = !admin; }); $('settings-fps-save').disabled = !admin; $('settings-fps').disabled = !admin;
       document.querySelectorAll('[data-fps]').forEach(e => { e.disabled = !admin; }); $('settings-admin-note').hidden = admin;
       if (!fpsDirty && document.activeElement !== $('settings-fps')) { $('settings-fps').value = next.performance?.fps || 20; fpsLabel(); }

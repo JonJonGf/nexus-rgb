@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 test.use({ serviceWorkers: 'block' });
-test('mapa aplica o arraste antes de soltar e salva divisões automaticamente', async ({ page }) => {
+test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após as atualizações', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const devices = [0, 1, 2].map(i => ({ id: String(i + 1).padStart(24, '0'), name: i === 2 ? 'ARGB de teste' : 'RAM ' + (i + 1), vendor: 'Teste', type: i < 2 ? 1 : 0, kind: i === 2 ? 'argb' : 'device', ledCount: i === 2 ? 24 : 8, status: 'online', settings: { power: true, color: '#00f0ff', brightness: 80, speed: 40, effect: 'static' }, effects: ['static', 'wave'], modes: [], zones: [] }));
   await page.route('**/api/state', async route => { const response = await route.fetch(); const body = await response.json(); body.hardware = { connected: true, controllerCount: 3, devices }; await route.fulfill({ json: body }); });
@@ -9,13 +9,15 @@ test('mapa aplica o arraste antes de soltar e salva divisões automaticamente', 
   await expect(page.locator('#studio-effect option')).not.toHaveCount(0);
   // Use the same default layout helper as the product, with virtual fixture devices.
   const layout = await page.evaluate(ds => NexusSpatial.defaults(ds), devices);
-  await page.request.post('/api/studio', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { layout } });
+  await page.request.post('/api/studio', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { layout, enabled: true } });
   await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
   await expect(page.locator('.studio-item')).toHaveCount(3);
   const target = page.locator('.studio-item').last(); const box = await target.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 - 75, box.y + box.height / 2 + 30, { steps: 8 });
-  await expect.poll(async () => { const s = await (await page.request.get('/api/studio')).json(); return s.enabled && s.layout.at(-1).x < layout.at(-1).x - 0.01; }).toBe(true);
+  await expect(page.locator('#studio-dirty')).toHaveText('Solte para salvar a posição');
+  const during = (await (await page.request.get('/api/studio')).json()); expect(during.layout.at(-1).x).toBe(layout.at(-1).x);
   await page.mouse.up(); await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
+  await expect.poll(async () => { const s = await (await page.request.get('/api/studio')).json(); return s.enabled && s.layout.at(-1).x < layout.at(-1).x - 0.01; }).toBe(true);
   const moved = (await (await page.request.get('/api/studio')).json()).layout.at(-1).x;
   await target.press('ArrowRight');
   await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).layout.at(-1).x).toBeCloseTo(moved + 0.01, 5);
@@ -26,10 +28,10 @@ test('mapa aplica o arraste antes de soltar e salva divisões automaticamente', 
   await expect(page.locator('#studio-enabled')).toHaveCount(0); await expect(page.locator('#studio-save')).toHaveCount(0);
   await page.locator('#studio-fan-leds').fill('8'); await page.locator('#studio-fan-split').click(); await expect(page.locator('.studio-item')).toHaveCount(5);
   await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
-  await expect(page.locator('#studio-preview')).toHaveAttribute('src', /^data:image\/png;base64,/);
+  await expect(page.locator('#studio-preview')).toBeHidden(); // The SDK is disabled in this fixture.
   await expect(page.locator('#studio-leds')).toBeVisible();
   const savedMap = await (await page.request.get('/api/studio')).json();
-  const image = (await page.locator('#studio-preview').getAttribute('src')).split(',')[1];
+  const image = await page.locator('#studio-leds').evaluate(canvas => canvas.toDataURL('image/png').split(',')[1]);
   const packet = { image, layout: savedMap.layout, enabled: true, power: true, connected: true, output: devices.map(d => ({ id: d.id, source: 'map', rgb: Buffer.from(Array.from({ length: d.ledCount }, (_, n) => d.ledCount === 24 && n >= 12 ? [0, 255, 0] : [255, 0, 0]).flat()).toString('base64') })) };
   await page.route('**/api/studio/preview', route => route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 50000\ndata: ' + JSON.stringify(packet) + '\n\n' }));
   await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
@@ -75,4 +77,49 @@ test('configurações permitem escolher e persistir FPS sem reiniciar o servidor
   await page.reload(); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=settings]').click(); await expect(page.locator('#settings-fps')).toHaveValue('60');
   await page.locator('[data-fps="20"]').click(); await page.locator('#settings-fps-save').click();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).performance.fps).toBe(20);
+});
+
+test('mapa compartilha movimentos e perfis e mostra a saída comum sem um fundo espacial antigo', async ({ page }) => {
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  const headers = { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' };
+  await page.request.post('/api/control', { headers, data: { effect: 'rainbow', power: true } });
+  const device = { id: '9'.repeat(24), name: 'ARGB compartilhado', kind: 'argb', ledCount: 12, type: 2 };
+  const layout = await page.evaluate(ds => NexusSpatial.defaults(ds), [device]);
+  await page.request.post('/api/studio', { headers, data: { layout } });
+  const rgb = Buffer.from(Array.from({ length: 12 }, (_, n) => n < 6 ? [255, 0, 0] : [0, 255, 0]).flat()).toString('base64');
+  const packet = { image: null, layout, enabled: false, power: true, connected: true, playback: { spatial: false, effect: 'rainbow', name: null }, output: [{ id: device.id, source: 'software', rgb }] };
+  await page.route('**/api/studio/preview', route => route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 50000\ndata: ' + JSON.stringify(packet) + '\n\n' }));
+  await page.locator('.nav[data-page=studio]').click(); await expect(page.locator('#studio-current-effect')).toHaveText('Arco-íris');
+  await expect(page.locator('#studio-preview')).toBeHidden(); await expect(page.locator('#studio-preview')).not.toHaveAttribute('src');
+  await expect.poll(() => page.evaluate(entry => {
+    const ctx = document.getElementById('studio-leds').getContext('2d');
+    return [0, 6].map(index => { const point = NexusSpatial.points(entry)[index]; return Array.from(ctx.getImageData(Math.round(point.x * 3), Math.round(point.y * 3), 1, 1).data).slice(0, 3); });
+  }, layout[0])).toEqual([[255, 0, 0], [0, 255, 0]]);
+  const piece = page.locator('.studio-item'); await piece.press('ArrowLeft'); await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
+  expect((await (await page.request.get('/api/studio')).json()).enabled).toBe(false);
+  await page.unroute('**/api/studio/preview'); await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
+  await page.locator('#studio-common-effect').selectOption('scanner');
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.effect).toBe('scanner');
+  await page.request.post('/api/profiles', { headers, data: { name: 'Paleta compartilhada', settings: { effect: 'sequence', palette: ['#00ff00', '#ff0000'], brightness: 31, speed: 25 } } });
+  await expect(page.locator('#studio-shared-profile')).toContainText('Paleta compartilhada');
+  const profileId = (await (await page.request.get('/api/state')).json()).profiles.find(p => p.name === 'Paleta compartilhada').id;
+  await page.locator('#studio-shared-profile').selectOption('profile:' + profileId);
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.effect).toBe('sequence');
+  await expect(page.locator('#studio-common-effect')).toHaveValue('sequence');
+  await page.locator('#studio-shared-profile').selectOption('preset:nebulosa');
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.color).toBe('#b75cff');
+  const studio = await (await page.request.get('/api/studio')).json(), effect = studio.effects.find(e => e.builtin);
+  await page.request.post('/api/studio/profiles', { headers, data: { name: 'Espacial compartilhado', activeId: effect.id } });
+  await expect(page.locator('#studio-shared-profile')).toContainText('Espacial compartilhado');
+  const spatialId = (await (await page.request.get('/api/state')).json()).profiles.find(p => p.name === 'Espacial compartilhado').id;
+  await page.locator('#studio-shared-profile').selectOption('profile:' + spatialId);
+  await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).enabled).toBe(true);
+  await expect(page.locator('#studio-common-effect')).toHaveValue('');
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: width > 800 ? 900 : 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: 'test-results/mapa-compartilhado-' + width + '.png', fullPage: true });
+  }
+  expect(errors).toEqual([]);
 });

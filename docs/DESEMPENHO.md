@@ -1,5 +1,20 @@
 # Desempenho do Nexus RGB
 
+## Prévia compartilhada — v0.1.0-alpha.10
+
+Ensaio de 15/10/2026 com Arco-íris comum, limite solicitado de 60 FPS, SDK simulado de 3 controladoras/5 componentes/92 LEDs, Ryzen 5 3600 e Node 24.20.0. A soma inclui somente o servidor Node. Assistir ao controle comum não iniciou um processo Canvas.
+
+| Cenário | CPU média da máquina | RAM residente média | Pico de RAM residente | Tráfego da prévia |
+| --- | ---: | ---: | ---: | ---: |
+| Arco-íris sem prévia | 0,065% | 51,27 MiB | 51,38 MiB | — |
+| Arco-íris com prévia | 0,104% | 54,45 MiB | 55,75 MiB | 17,91 KiB/s |
+
+Cada linha teve aquecimento de 3 segundos e 21 amostras, com janela efetiva de aproximadamente 26 segundos. CPU é a diferença do contador cumulativo dividida pelo tempo efetivo e pelos 12 processadores lógicos. Os cenários ocorreram na ordem da tabela, no mesmo processo; retenção de memória e ruído de amostragem impedem atribuir toda diferença exclusivamente à prévia.
+
+O controlador simulado recebeu aproximadamente 37–39 atualizações por segundo por controladora, apesar do limite solicitado de 60. Isso mede chamadas de software, sem medir LEDs físicos. O motor espacial permaneceu sem quadros renderizados porque a visualização apenas transmitiu o cache das cores que o efeito comum já enviava.
+
+**OpenRGB, supervisores, bandeja, navegador e driver não estão incluídos.** Desenhar as peças no navegador acrescenta consumo, não medido aqui. Não é uma medição do aplicativo completo ou garantia para outros PCs. O [JSON do ensaio](benchmarks/2026-10-15-common-preview.json) registra os valores sem arredondamento.
+
 ## Motor espacial — medição de 15/10/2026
 
 Ensaio isolado do motor espacial em desenvolvimento em 15/10/2026, no Ryzen 5 3600 com 12 processadores lógicos, 31,89 GiB de RAM, Windows 11 build 26300 e Node 24.20.0. A coleta antecede as alterações de edição ao vivo da v0.1.0-alpha.9.
@@ -38,7 +53,7 @@ O [resumo em JSON](benchmarks/2026-10-15-studio.json) registra os valores e o es
 
 ### Edição ao vivo do mapa
 
-O arraste agrupa alterações em até uma requisição a cada 350 ms, evitando uma escrita em disco para cada evento do mouse. Cada envio aceito salva a configuração de forma atômica. Mudar a geometria preserva o processo e a fase do efeito e atualiza a amostragem no próximo quadro disponível; efeitos estáticos recalculam a amostra quando as posições mudam. O teste de regressão confirma a troca de cores sem recriar o processo. O custo de um arraste prolongado não foi aferido separadamente na tabela acima.
+O arraste move a peça apenas no navegador até soltar; nesse momento, envia e salva a posição. Edições por teclado e campos são agrupadas em até uma requisição a cada 350 ms. Cada envio aceito salva a configuração de forma atômica. Mudar a geometria preserva o processo e a fase do efeito espacial e atualiza a amostragem no próximo quadro disponível; efeitos estáticos recalculam a amostra quando as posições mudam. Os testes confirmam a troca de cores sem recriar o processo e a preservação do efeito comum ao editar posições. O custo de um arraste prolongado não foi aferido separadamente nas tabelas acima.
 
 ## Aplicativo completo — referência histórica de 13/10/2026
 
@@ -55,7 +70,7 @@ O Nexus usa serviços que iniciam antes do login, além de um ícone executado n
 | Serviço do painel | `NexusRGB.exe --service`, serviço `NexusRGB`, com um filho `runtime\node.exe` executando `server\index.js` |
 | Acesso ao RGB | `NexusRGB.exe --hardware-service`, serviço `NexusRGBHardware`, com um filho `openrgb\OpenRGB.exe` |
 | Ícone perto do relógio | `NexusRGB.exe --tray`, na sessão do usuário |
-| Motor espacial | Um filho Node executando `server\studio-worker.js`, enquanto há mapa ativo ou prévia aberta; uma validação de importação pode abrir outro processo temporário |
+| Motor espacial | Um filho Node executando `server\studio-worker.js`, enquanto um efeito espacial está ativo e há luzes ou clientes de prévia; observar efeitos comuns não abre esse processo. Uma validação de importação pode abrir outro processo temporário |
 | Janela do painel | Processos do navegador escolhido pelo Windows/Nexus |
 
 Na aba **Serviços**, localize `NexusRGB` e `NexusRGBHardware` e use **Ir para detalhes** para identificar seus PIDs. Na aba **Detalhes**, habilite as colunas **PID** e **Linha de comando**; alguns dados de serviços exigem abrir o Gerenciador como administrador. PIDs mudam ao reiniciar. Confira o caminho da instalação para distinguir esses filhos de outros programas que também usam Node.

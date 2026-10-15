@@ -81,7 +81,7 @@ try {
   $import=Invoke-RestMethod ($origin+'/api/studio/import') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{source=$effectSource} | ConvertTo-Json -Compress) -WebSession $session
   Check ($import.id -match '^[a-f0-9]{24}$') 'Installed LocalService loads QuickJS and native Canvas to validate an import'
   $effectFile=Join-Path $data ('app\effects\'+$import.id+'.json'); $effectHash=(Get-FileHash -LiteralPath $effectFile).Hash
-  Invoke-RestMethod ($origin+'/api/studio/play') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{activeId=$import.id;enabled=$false} | ConvertTo-Json -Compress) -WebSession $session | Out-Null
+  Invoke-RestMethod ($origin+'/api/studio/play') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{activeId=$import.id;enabled=$true} | ConvertTo-Json -Compress) -WebSession $session | Out-Null
   $previewRequest=[Net.HttpWebRequest]::Create($origin+'/api/studio/preview')
   $previewRequest.CookieContainer=$session.Cookies; $previewRequest.Timeout=15000; $previewResponse=$null
   try {

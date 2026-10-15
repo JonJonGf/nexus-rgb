@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-15",
+  "node": "v24.20.0",
+  "cpu": "AMD Ryzen 5 3600 6-Core Processor              ",
+  "logicalProcessors": 12,
+  "memoryGiB": 31.891910552978516,
+  "platform": "win32 10.0.26300",
+  "scope": "Isolated production API and real Hardware class with simulated SDK (3 controllers, 5 components, 92 LEDs), common rainbow at requested 60 FPS. No Canvas worker. Excludes OpenRGB, supervisors, tray, browser, driver and benchmark harness. Real SSE output colors; no physical LED rate measured.",
+  "scenarios": [
+    {
+      "name": "Arco-iris comum, sem previa",
+      "fps": 60,
+      "enabled": false,
+      "activeId": "7ee77a5d7cf9496d35a0109c",
+      "durationSeconds": 26.1593821,
+      "cpuPercentOfMachine": 0.06470750443808584,
+      "rssMeanMiB": 51.2734375,
+      "rssPeakMiB": 51.375,
+      "privateMeanMiB": 27.024925595238095,
+      "renderedFps": 0,
+      "simulatedLedWritesPerSecond": 112.15861249260931,
+      "renderMeanMs": 0,
+      "previewKiBPerSecond": 0
+    },
+    {
+      "name": "Arco-iris comum, com previa",
+      "fps": 60,
+      "enabled": false,
+      "activeId": "7ee77a5d7cf9496d35a0109c",
+      "preview": true,
+      "durationSeconds": 26.245039499999997,
+      "cpuPercentOfMachine": 0.10418635491099186,
+      "rssMeanMiB": 54.44735863095238,
+      "rssPeakMiB": 55.75,
+      "privateMeanMiB": 31.548549107142858,
+      "renderedFps": 0,
+      "simulatedLedWritesPerSecond": 115.90761751377819,
+      "renderMeanMs": 0,
+      "previewKiBPerSecond": 17.911978602185
+    }
+  ]
+}

@@ -93,7 +93,6 @@ class Studio {
     const effect = this.effects.get(next.activeId);
     if (!effect) throw Error('Efeito não encontrado.');
     next.values = schema.parameters(effect, Object.hasOwn(body, 'values') ? body.values : next.values);
-    if (Object.hasOwn(body, 'layout')) next.excluded = [];
     if (body.layout) {
       const devices = new Map(this.devices().map(d => [d.id, d.ledCount]));
       for (const item of next.layout) if (devices.has(item.deviceId) && item.start + item.count > devices.get(item.deviceId)) throw Error('A faixa ultrapassa a quantidade de LEDs do componente.');
@@ -101,7 +100,7 @@ class Studio {
     this.store.data.studio = next; this.store.save();
     // Geometry only changes where the next frame is sampled. Keep the worker
     // and animation clock alive while editing; failed effects can be retried.
-    if (previous.activeId !== next.activeId || JSON.stringify(previous.values) !== JSON.stringify(next.values) || this.error) this.reset();
+    if (previous.activeId !== next.activeId || JSON.stringify(previous.values) !== JSON.stringify(next.values) || (this.error && ['enabled', 'values', 'activeId'].some(key => Object.hasOwn(body, key)))) this.reset();
     this.hardware.changed(); this.changed();
   }
   remove(id) {
@@ -125,7 +124,9 @@ class Studio {
   }
   previewPacket() {
     const devices = this.devices();
-    return { image: this.preview.toString('base64'), layout: this.frameLayout || this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.connected, error: this.error,
+    const spatial = this.config.enabled && !this.error;
+    return { image: spatial && this.preview ? this.preview.toString('base64') : null, layout: spatial && this.frameLayout ? this.frameLayout : this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.connected, error: this.error,
+      playback: { spatial, effect: this.store.data.master.effect, name: spatial ? this.effects.get(this.config.activeId)?.name || null : null },
       output: devices.map(device => {
         const sent = this.hardware.outputFor?.(device.id);
         return { id: device.id, source: sent?.source || 'unavailable', at: sent?.at || null,
@@ -140,18 +141,21 @@ class Studio {
     if (this.clients.size >= 4) throw Error('Limite de prévias simultâneas atingido.');
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' }); res.write('retry: 2000\n\n');
     const client = { req, res, authorized }; this.clients.add(client); res.on('close', () => this.clients.delete(client));
-    if (this.preview) res.write('data: ' + JSON.stringify(this.previewPacket()) + '\n\n');
+    res.write('data: ' + JSON.stringify(this.previewPacket()) + '\n\n');
   }
   stopWorker() { clearTimeout(this.deadline); this.worker?.kill(); this.worker = null; this.busy = false; this.ready = false; this.frames = 0; this.windowAt = Date.now(); this.nextFrame = 0; this.metrics.fps = 0; this.metrics.memoryMB = 0; }
   fail(message) { this.stopWorker(); this.error = String(message).slice(0, 160); this.changed(); this.hardware.changed(); }
   pump() {
     for (const c of this.clients) if (c.res.destroyed || !c.authorized() || c.res.writableLength > 512 * 1024) { c.res.end(); this.clients.delete(c); }
     const running = this.config.enabled && this.store.data.master.power && this.hardware.connected && this.devices().some(d => d.settings?.power !== false && !(this.config.excluded || []).includes(d.id));
-    if (!running && !this.clients.size) { if (this.worker) this.stopWorker(); return; }
-    if (this.error) {
-      if (this.clients.size && this.preview && performance.now() - (this.lastPreview || 0) > 100) { this.lastPreview = performance.now(); this.publishPreview(); }
+    // Common effects already run in Hardware. Watching their output must not
+    // start a second animation clock or keep an unrelated Canvas worker alive.
+    if (!this.config.enabled || this.error) {
+      if (this.worker) this.stopWorker();
+      if (this.clients.size && performance.now() - (this.lastPreview || 0) >= 100) { this.lastPreview = performance.now(); this.publishPreview(); }
       return;
     }
+    if (!running && !this.clients.size) { if (this.worker) this.stopWorker(); return; }
     const effect = this.effects.get(this.config.activeId); if (!effect) { this.fail('O efeito salvo não está na biblioteca. Importe o arquivo novamente ou escolha outro efeito.'); return; }
     const layout = this.layout(), layoutSignature = JSON.stringify(layout), signature = JSON.stringify([effect.id, this.config.values]);
     if (signature !== this.signature || !this.worker) {

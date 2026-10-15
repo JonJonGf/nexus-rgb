@@ -161,7 +161,7 @@ test('nomes de perfil com HTML são exibidos como texto sem executar conteúdo',
   const response = await page.request.post('/api/profiles', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { name } });
   expect(response.status()).toBe(200);
   await page.locator('.nav[data-page=profiles]').click();
-  await expect(page.getByText(name, { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   expect(await page.locator('[onerror], [onload]').count()).toBe(0); expect(errors).toEqual([]); expect(dialogs).toEqual([]);
   const state = await (await page.request.get('/api/state')).json();
   const profile = state.profiles.find(p => p.name === name);
