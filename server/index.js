@@ -41,7 +41,7 @@ async function createApp(options = {}) {
   const localPort = options.localPort ?? Number(process.env.NEXUS_PORT || 5050);
   const clients = new Set(); const rate = new RateLimiter(240); const globalRate = new RateLimiter(2000);
   let local, heartbeat;
-  const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master }) => ({ id, name, color: master.color })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status } });
+  const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status } });
   const broadcast = () => {
     const message = `data: ${JSON.stringify(snapshot())}\n\n`;
     for (const client of clients) {
@@ -114,9 +114,10 @@ async function createApp(options = {}) {
         }
         broadcast(); return json(res, 200, snapshot());
       }
-      if (route === '/api/profiles' && req.method === 'POST') { admin(); const body = await readBody(req); store.profile(body.name); broadcast(); return json(res, 200, snapshot()); }
+      if (route === '/api/profiles' && req.method === 'POST') { admin(); const body = await readBody(req); store.profile(body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       const profileRoute = route.match(/^\/api\/profiles\/([a-f0-9-]{36})$/);
       if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
+      if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin(); store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
         admin(); return json(res, 200, { urls: getInterfaces().map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });

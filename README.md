@@ -137,7 +137,7 @@ O atalho no telefone abre o painel web. Esta versão não inclui um APK ou aplic
 | :--- | :--- |
 | **Iluminação** | Sincronizar o setup, escolher cor, brilho, ritmo e efeito. Um ajuste geral substitui as personalizações individuais. |
 | **Dispositivos** | Escolher configurações próprias para cada componente, incluindo ligar ou desligar individualmente. |
-| **Perfis** | Ativar cenas prontas ou clicar em **+ Salvar perfil atual** para guardar a combinação geral e os ajustes individuais. Criar e excluir perfis exige abrir o aplicativo no PC. |
+| **Perfis** | Usar cenas prontas, **+ Criar perfil** com sequência de cores e movimento, ou **Salvar perfil atual** para guardar também os ajustes individuais. Criar, editar e excluir exige abrir o painel no próprio PC (`127.0.0.1`); ativar funciona também pelo telefone. |
 | **Zonas**, em Dispositivos | No aplicativo do PC, informar a quantidade real de LEDs de uma zona redimensionável, quando o controlador permite. |
 
 ### Efeitos disponíveis
@@ -149,9 +149,21 @@ O atalho no telefone abre o painel web. Esta versão não inclui um APK ou aplic
 | **Onda** | Cores percorrendo os LEDs. |
 | **Respiração** | O brilho sobe e desce suavemente. |
 | **Pulso** | Pulsos de intensidade. |
-| **Modo nativo** | Os modos oferecidos pelo próprio dispositivo, quando disponíveis. |
+| **Estrobo** | Flashes de luz com ritmo ajustável entre 0,5 e 2 flashes por segundo. |
+| **Sequência** | Uma cor por vez, seguindo a ordem que você montou no perfil. |
+| **Cometa** | Uma luz atravessa os LEDs deixando uma cauda. |
+| **Vai e vem** | Um feixe percorre os LEDs e volta. |
+| **Cintilação** | Pontos de luz acendem e diminuem suavemente. |
 
 Os efeitos dependem das capacidades do componente. Em zonas independentes de uma mesma controladora, modos nativos que alterariam toda a placa não são oferecidos por zona.
+
+Na aba **Perfis**, clique em **+ Criar perfil**, dê um nome e escolha o movimento. Adicione de **1 a 8 cores**, ajuste cada uma no seletor e use as setas para mudar a ordem. Escolha intensidade e ritmo e clique em **Salvar**. Depois use **Ativar perfil** para aplicar às luzes. Salvar ou editar não altera a iluminação atual. Os perfis ficam no PC e são restaurados ao iniciar o serviço; você pode ativá-los pelo celular no mesmo link.
+
+O criador oferece os dez movimentos da tabela. A tela principal mantém seis atalhos; os quatro movimentos adicionais ficam no criador e também nos componentes compatíveis em **Dispositivos**. Os modos próprios do hardware continuam nessa aba. Não é preciso instalar outro plugin de efeitos.
+
+Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos animados, as cores se alternam a cada ciclo. Estático mantém a primeira cor. Cometa e Vai e vem precisam de LEDs individualmente endereçáveis para mostrar deslocamento; o percurso segue a ordem de LEDs informada pelo OpenRGB, sem um mapa físico do gabinete. Editar um perfil que guardava ajustes individuais substitui esses ajustes por uma sequência geral, como indicado no editor. Há um limite de 32 perfis salvos.
+
+**Estrobo produz luz intermitente.** Evite esse efeito se você ou alguém próximo tiver sensibilidade a flashes. A prévia no editor mostra apenas a paleta, sem piscar.
 
 ### Coleção Nexus — seis cenas para começar
 

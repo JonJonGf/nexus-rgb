@@ -24,3 +24,22 @@ test('cenas prontas persistem paletas e ajuste manual de cor sai da paleta', t =
   store.master({ color: '#ff0055' }); assert.equal(store.data.master.palette, undefined);
   assert.throws(() => applyPreset(store, 'missing')); assert.throws(() => validatePatch({ palette: ['not-a-color'] }));
 });
+
+test('perfis criados e editados guardam a sequência sem alterar a iluminação atual', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-profile-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const store = new Store(dir); store.device('ram', { color: '#abcdef', nativeMode: 7 });
+  const before = structuredClone({ master: store.data.master, devices: store.data.devices });
+  const settings = { palette: ['#ff0000', '#00ff00', '#0000ff'], effect: 'comet', brightness: 32, speed: 17 };
+  const profile = store.profile('Meu cometa', settings); settings.palette[0] = '#ffffff';
+  assert.deepEqual({ master: store.data.master, devices: store.data.devices }, before);
+  const restored = new Store(dir); assert.deepEqual(restored.data.profiles[0].master.palette, ['#ff0000', '#00ff00', '#0000ff']);
+  const edited = restored.updateProfile(profile.id, 'Vai e vem', { ...profile.master, palette: ['#0000ff', '#ff0000'], effect: 'scanner' });
+  assert.equal(edited.id, profile.id); assert.equal(restored.data.profiles.length, 1);
+  assert.deepEqual({ master: restored.data.master, devices: restored.data.devices }, before);
+  restored.applyProfile(profile.id); const applied = new Store(dir);
+  assert.equal(applied.data.master.color, '#0000ff'); assert.equal(applied.data.master.effect, 'scanner'); assert.deepEqual(applied.data.devices, {});
+  const saved = fs.readFileSync(restored.file, 'utf8');
+  for (const invalid of [{ palette: [] }, { palette: Array(9).fill('#000000') }, { palette: ['javascript:alert(1)'] }, { palette: ['#000000'], nativeMode: 1 }, { palette: ['#000000'], effect: 'shell' }]) {
+    assert.throws(() => restored.updateProfile(profile.id, 'Inválido', invalid)); assert.equal(fs.readFileSync(restored.file, 'utf8'), saved);
+  }
+});

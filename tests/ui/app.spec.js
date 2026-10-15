@@ -2,6 +2,46 @@
 const { test, expect } = require('@playwright/test');
 // Network mocks must reach the page rather than a local service-worker fetch.
 test.use({ serviceWorkers: 'block' });
+
+test('criador monta, reordena, edita e ativa uma sequência sem alterar luzes ao salvar', async ({ page }) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 1366, height: 768 }); await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  await expect(page.locator('#effects .effect')).toHaveCount(6); await expect(page.locator('#effects [data-effect=strobe]')).toBeVisible(); await expect(page.locator('#effects')).not.toContainText('Modo nativo');
+  const before = (await (await page.request.get('/api/state')).json()).master;
+  await page.locator('.nav[data-page=profiles]').click(); await page.locator('#create-profile').click();
+  await page.locator('#profile-name').fill('Meu movimento'); await page.locator('#profile-effect').selectOption('comet');
+  await expect(page.locator('#profile-effect option')).toHaveCount(10);
+  await page.locator('#profile-add-color').click(); await page.locator('#profile-add-color').click();
+  const colors = page.locator('#profile-colors input');
+  await colors.nth(0).fill('#ff0000'); await colors.nth(1).fill('#00ff00'); await colors.nth(2).fill('#0000ff');
+  await page.getByRole('button', { name: 'Mover cor 1 para direita', exact: true }).click();
+  await expect(colors.nth(0)).toHaveValue('#00ff00'); await expect(colors.nth(1)).toHaveValue('#ff0000');
+  for (let i = 0; i < 5; i++) await page.locator('#profile-add-color').click();
+  await expect(colors).toHaveCount(8); await expect(page.locator('#profile-add-color')).toBeDisabled();
+  for (let i = 8; i > 3; i--) await page.getByRole('button', { name: `Remover cor ${i}`, exact: true }).click();
+  for (const width of [1366, 390, 375]) {
+    await page.setViewportSize({ width, height: width > 800 ? 768 : 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.locator('.page[data-view=profiles]').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: `test-results/criador-perfis-${width}.png` });
+  }
+  await page.locator('#profile-submit').click(); await expect(page.locator('#profile-form')).toBeHidden();
+  const card = page.locator('#profiles .profile-card').filter({ has: page.getByRole('heading', { name: 'Meu movimento', exact: true }) });
+  await expect(card).toContainText('Cometa');
+  let snapshot = await (await page.request.get('/api/state')).json(); expect(snapshot.master).toEqual(before);
+  const profile = snapshot.profiles.find(p => p.name === 'Meu movimento'); expect(profile.settings.palette).toEqual(['#00ff00', '#ff0000', '#0000ff']);
+  await card.getByRole('button', { name: 'Editar', exact: true }).click(); await page.locator('#profile-effect').selectOption('strobe'); await expect(page.locator('#profile-strobe-note')).toBeVisible();
+  await page.locator('#profile-name').fill('Meu vai e vem'); await page.locator('#profile-effect').selectOption('scanner');
+  await page.reload(); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=profiles]').click();
+  await card.getByRole('button', { name: 'Editar', exact: true }).click(); await expect(page.locator('#profile-effect')).toHaveValue('comet');
+  await page.locator('#profile-name').fill('Meu vai e vem'); await page.locator('#profile-effect').selectOption('scanner'); await page.locator('#profile-submit').click();
+  const edited = page.locator('#profiles .profile-card').filter({ has: page.getByRole('heading', { name: 'Meu vai e vem', exact: true }) });
+  await edited.getByRole('button', { name: 'Ativar perfil', exact: true }).click();
+  snapshot = await (await page.request.get('/api/state')).json(); expect(snapshot.master.effect).toBe('scanner'); expect(snapshot.profiles.find(p => p.id === profile.id).name).toBe('Meu vai e vem');
+  await page.locator('.nav[data-page=control]').click(); await expect(page.locator('#preview-effect')).toHaveText('Vai e vem');
+  await page.request.delete(`/api/profiles/${profile.id}`, { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: {} });
+  expect(errors).toEqual([]);
+});
 test('controle local, perfis seguros e link permanente sem fluxo de pareamento', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();

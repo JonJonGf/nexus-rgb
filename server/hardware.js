@@ -36,11 +36,22 @@ function paletteColor(palette, position) {
 function frame(settings, count, seconds) {
   const factor = settings.power ? settings.brightness / 100 : 0;
   const phase = seconds * (0.03 + settings.speed / 100 * 0.7);
+  // Deliberate flashes have a separate, bounded rate; never animate the UI preview.
+  const flashPhase = seconds * (0.5 + settings.speed / 100 * 1.5);
   return Array.from({ length: count }, (_, index) => {
     const position = phase + (settings.effect === 'wave' ? index / Math.max(count, 1) : 0);
-    const color = ['wave', 'rainbow'].includes(settings.effect) ? settings.palette?.length ? paletteColor(settings.palette, position) : hue(position) : rgb(settings.color);
-    const pulse = settings.effect === 'breathe' ? 0.05 + 0.95 * (Math.sin(phase * Math.PI * 2) + 1) / 2 : settings.effect === 'pulse' ? 0.1 + 0.9 * Math.pow((Math.sin(phase * Math.PI * 2) + 1) / 2, 3) : 1;
-    return Object.fromEntries(Object.entries(color).map(([k, v]) => [k, Math.round(v * factor * pulse)]));
+    const palette = settings.palette;
+    const cycle = settings.effect === 'strobe' ? flashPhase : phase;
+    const selected = palette?.length ? palette[((Math.floor(cycle) % palette.length) + palette.length) % palette.length] : settings.color;
+    const color = ['wave', 'rainbow'].includes(settings.effect) ? palette?.length ? paletteColor(palette, position) : hue(position) : rgb(settings.effect === 'static' ? settings.color : selected);
+    const pulse = settings.effect === 'strobe' ? (flashPhase % 1 < 0.5 ? 1 : 0) : settings.effect === 'breathe' ? 0.05 + 0.95 * (Math.sin(phase * Math.PI * 2) + 1) / 2 : settings.effect === 'pulse' ? 0.1 + 0.9 * Math.pow((Math.sin(phase * Math.PI * 2) + 1) / 2, 3) : 1;
+    const progress = (phase % 1 + 1) % 1;
+    const distance = (progress - index / Math.max(count, 1) + 1) % 1;
+    const beam = 1 - Math.abs(progress * 2 - 1);
+    const motion = settings.effect === 'comet' && count > 1 ? Math.pow(Math.max(0, 1 - distance / 0.28), 2)
+      : settings.effect === 'scanner' && count > 1 ? Math.max(0, 1 - Math.abs(index / (count - 1) - beam) / Math.max(0.16, 1 / (count - 1)))
+        : settings.effect === 'sparkle' ? Math.pow((Math.sin((phase + index * 0.61803398875) * Math.PI * 2) + 1) / 2, 8) : 1;
+    return Object.fromEntries(Object.entries(color).map(([k, v]) => [k, Math.round(v * factor * pulse * motion)]));
   });
 }
 class Hardware extends EventEmitter {
@@ -50,7 +61,7 @@ class Hardware extends EventEmitter {
     // native modes, brightness, matrices and segments without that broken parser.
     this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
     this.devices = []; this.client = null; this.connected = false; this.busy = false; this.stopped = true;
-    this.modes = new Map(); this.applied = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.retry = 1000; this.dirty = true;
+    this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.retry = 1000; this.dirty = true;
   }
   async operation(promise, timeout = 4000) {
     let timer;
@@ -110,6 +121,8 @@ class Hardware extends EventEmitter {
     }
     const present = new Set(devices.map(device => device.id));
     for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
+    const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
+    for (const id of this.animations.keys()) if (!channels.has(id)) this.animations.delete(id);
     this.devices = devices; this.nextDiscovery = Date.now() + 30000; this.dirty = true; this.emit('change');
   }
   snapshot() {
@@ -125,6 +138,12 @@ class Hardware extends EventEmitter {
     return settings;
   }
   changed() { this.dirty = true; }
+  renderFrame(id, settings, count, seconds) {
+    const signature = JSON.stringify([settings.effect, settings.color, settings.palette, settings.power]);
+    let animation = this.animations.get(id);
+    if (!animation || animation.signature !== signature) { animation = { signature, startedAt: seconds }; this.animations.set(id, animation); }
+    return frame(settings, count, Math.max(0, seconds - animation.startedAt));
+  }
   async applyMode(device, mode, settings, perLedColors = false) {
     const config = { ...mode };
     if (mode.flagList.includes('brightness')) config.brightness = perLedColors ? mode.brightnessMax : Math.round(mode.brightnessMin + (mode.brightnessMax - mode.brightnessMin) * (settings.power ? settings.brightness / 100 : 0));
@@ -147,6 +166,7 @@ class Hardware extends EventEmitter {
       if ((this.client.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
       if (Date.now() >= this.nextDiscovery) await this.discover();
       this.dirty = false;
+      const seconds = performance.now() / 1000;
       for (const d of this.devices) {
         const channels = d.components || [d];
         const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components) })));
@@ -158,9 +178,8 @@ class Hardware extends EventEmitter {
           // One Direct mode; independent brightness stays in each zone's colors.
           await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
           const colors = Array(d.ledCount);
-          const seconds = performance.now() / 1000;
           for (const component of d.components) {
-            const zoneColors = frame(this.settings(component.id, true), component.ledCount, seconds);
+            const zoneColors = this.renderFrame(component.id, this.settings(component.id, true), component.ledCount, seconds);
             for (let index = 0; index < zoneColors.length; index++) colors[component.offset + index] = zoneColors[index];
           }
           this.client.updateLeds(d.sdkId, colors); d.error = null; this.applied.set(d.id, signature);
@@ -174,7 +193,7 @@ class Hardware extends EventEmitter {
         else if (settings.power && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
         else {
           await this.applyMode(d, mode, settings, mode.flagList.includes('perLedColor') && (!settings.power || settings.nativeMode === undefined));
-          if ((!settings.power || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) this.client.updateLeds(d.sdkId, frame(settings, d.ledCount, performance.now() / 1000));
+          if ((!settings.power || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) this.client.updateLeds(d.sdkId, this.renderFrame(d.id, settings, d.ledCount, seconds));
           d.error = null; this.applied.set(d.id, signature);
         }
         if (oldError !== d.error) changedErrors = true;

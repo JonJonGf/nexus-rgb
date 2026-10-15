@@ -16,7 +16,7 @@ function readJson(file, fallback) {
   catch { throw new Error(`Configuração inválida: ${path.basename(file)}. Restaure um backup antes de iniciar.`); }
 }
 const defaults = { power: true, color: '#00f0ff', brightness: 80, effect: 'static', speed: 40 };
-const effects = ['static', 'rainbow', 'wave', 'breathe', 'pulse'];
+const effects = ['static', 'rainbow', 'wave', 'breathe', 'pulse', 'strobe', 'sequence', 'comet', 'scanner', 'sparkle'];
 function validatePatch(body, allowNative = false) {
   if (!body || Array.isArray(body) || typeof body !== 'object') throw new Error('Configuração inválida.');
   const valid = new Set(['power', 'color', 'brightness', 'effect', 'speed', 'palette', ...(allowNative ? ['nativeMode'] : [])]);
@@ -52,11 +52,25 @@ class Store {
     this.data.devices[id] = { ...previous, ...valid }; this.save();
   }
   zone(id, zoneId, count) { this.data.zones[id] ??= {}; this.data.zones[id][zoneId] = count; this.save(); }
-  profile(name) {
+  profileSettings(name, settings) {
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 48) throw new Error('Nome: 1 a 48 caracteres.');
+    if (settings === undefined) return { name: name.trim(), master: structuredClone(this.data.master), devices: structuredClone(this.data.devices) };
+    const valid = validatePatch(settings);
+    if (!valid.palette?.length) throw new Error('Escolha de 1 a 8 cores para a sequência.');
+    return { name: name.trim(), master: { ...defaults, ...structuredClone(valid), color: valid.palette[0].toLowerCase() }, devices: {} };
+  }
+  profile(name, settings) {
+    const configuration = this.profileSettings(name, settings);
     if (this.data.profiles.length >= 32) throw new Error('Limite de 32 perfis.');
-    const item = { id: crypto.randomUUID(), name: name.trim(), master: structuredClone(this.data.master), devices: structuredClone(this.data.devices) };
+    const item = { id: crypto.randomUUID(), ...configuration };
     this.data.profiles.push(item); this.save(); return item;
+  }
+  updateProfile(id, name, settings) {
+    const index = this.data.profiles.findIndex(p => p.id === id);
+    if (index < 0) throw new Error('Perfil não encontrado.');
+    if (settings === undefined) throw new Error('Informe os ajustes do perfil.');
+    const item = { id, ...this.profileSettings(name, settings) };
+    this.data.profiles[index] = item; this.save(); return item;
   }
   applyProfile(id) {
     const p = this.data.profiles.find(p => p.id === id);

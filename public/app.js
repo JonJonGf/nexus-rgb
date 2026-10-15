@@ -1,8 +1,9 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const labels = { static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso' };
-  const descriptions = { static: 'Uma cor contínua', rainbow: 'Cores em movimento', wave: 'Cor percorre os LEDs', breathe: 'Brilho sobe e desce', pulse: 'Pulsos de luz' };
+  const labels = { static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso', strobe: 'Estrobo', sequence: 'Sequência', comet: 'Cometa', scanner: 'Vai e vem', sparkle: 'Cintilação' };
+  const descriptions = { static: 'Uma cor contínua', rainbow: 'Cores em movimento', wave: 'Cor percorre os LEDs', breathe: 'Brilho sobe e desce', pulse: 'Pulsos de luz', strobe: 'Flashes de luz', sequence: 'Uma cor por vez, na ordem escolhida', comet: 'Uma luz percorre os LEDs deixando uma cauda', scanner: 'Um feixe de luz percorre os LEDs e volta', sparkle: 'Pontos de luz cintilam pela sequência de LEDs' };
+  const mainEffects = ['static', 'rainbow', 'wave', 'breathe', 'pulse', 'strobe'];
   let state = null, admin = false, currentPage = 'control', events = null, networkInfo = null, mobileLink = '', loading = false, toastTimer;
   let sessionRefresh = null, initializing = false, reconnectTimer = null, reconnectDelay = 3000;
   const onThisPC = ['127.0.0.1', 'localhost'].includes(location.hostname);
@@ -11,6 +12,7 @@
   function icon(name) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('aria-hidden', 'true');
     const paths = { static: ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 10a6 6 0 1 0 0 12 6 6 0 1 0 0-12'], wave: ['M2 11c5-9 9-9 14 0s9 9 14 0', 'M2 21c5-9 9-9 14 0s9 9 14 0'], rainbow: ['M3 25a13 13 0 0 1 26 0', 'M8 25a8 8 0 0 1 16 0', 'M13 25a3 3 0 0 1 6 0'], breathe: ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 9a7 7 0 1 0 0 14 7 7 0 1 0 0-14', 'M16 14a2 2 0 1 0 0 4 2 2 0 1 0 0-4'], pulse: ['M2 16h6l4-11 7 22 5-11h6'], native: ['M4 5h24v18H4Z', 'M11 28h10m-5-5v5'], ram: ['M2 8h28v15H2Z', 'M6 12h4v6H6Zm8 0h4v6h-4Zm8 0h4v6h-4Z', 'M5 23v4m4-4v4m4-4v4m6-4v4m4-4v4m4-4v4'], board: ['M3 3h26v26H3Z', 'M8 7h10v10H8Z', 'M22 6v12m3-12v12M8 22h17M8 26h13'], rgb: ['M16 4a12 12 0 1 0 0 24 12 12 0 1 0 0-24', 'M16 11a5 5 0 1 0 0 10 5 5 0 1 0 0-10', 'M16 4v7m12 5h-7m-5 12v-7M4 16h7'] };
+    paths.strobe = ['m18 2-13 17h10l-1 11 13-17H17Z'];
     for (const d of paths[name] || paths.rgb) { const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', d); svg.append(path); } return svg;
   }
   function channels(hex) { return [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16)); }
@@ -76,11 +78,11 @@
   }
   document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => page(button.dataset.page)));
   $('open-connect').addEventListener('click', () => page('connect'));
-  for (const [effect, name] of Object.entries(labels)) {
+  for (const effect of mainEffects) {
+    const name = labels[effect];
     const button = el('button', 'effect'); button.dataset.effect = effect; button.setAttribute('aria-pressed', 'false'); const symbol = el('span', 'symbol'); symbol.append(icon(effect)); button.append(symbol, el('span', 'effect-name', name), el('small', '', descriptions[effect]));
-    button.addEventListener('click', () => action('/api/control', { effect })); $('effects').append(button);
+    button.addEventListener('click', () => { if (effect === 'strobe') toast('Estrobo produz flashes. Evite em caso de sensibilidade à luz intermitente.'); action('/api/control', { effect }); }); $('effects').append(button);
   }
-  const native = el('button', 'mode-shortcut'); native.append(icon('native'), el('span', '', 'Modo nativo'), el('small', '', 'Por componente ↗')); native.addEventListener('click', () => page('devices')); $('effects').append(native);
   for (const color of ['#00f0ff', '#0094ff', '#7954ff', '#bd00ff', '#ff0055', '#ff8000', '#ffdf00', '#00ff88', '#ffffff']) {
     const button = el('button', 'swatch'); button.dataset.color = color; button.style.setProperty('--swatch', color); button.setAttribute('aria-label', `Usar cor ${color}`);
     button.addEventListener('click', () => action('/api/control', { color, effect: 'static' })); $('swatches').append(button);
@@ -114,7 +116,8 @@
     const notice = !online ? 'O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ' + (state.hardware.error || '') : !devices.length ? 'Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.' : failures.length ? `${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
     $('notice').textContent = notice; $('notice').hidden = !notice;
     renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
-    $('save-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
+    $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
+    if (!admin) $('profile-form').hidden = true;
     $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';
     $('alexa-enabled').checked = state.alexa.enabled; $('alexa-status').textContent = state.alexa.status;
   }
@@ -144,13 +147,22 @@
     }
   }
   function renderProfiles() {
-    const container = $('profiles'); container.replaceChildren();
-    if (!state.profiles.length) return empty(container, admin ? 'Salve sua primeira configuração usando o botão acima.' : 'Os perfis salvos no PC aparecem aqui.');
+    const container = $('profiles'); const signature = JSON.stringify([admin, state.profiles]);
+    if (container.dataset.signature === signature) return;
+    container.dataset.signature = signature; container.replaceChildren();
+    if (!state.profiles.length) return empty(container, admin ? 'Sua próxima combinação começa em + Criar perfil.' : 'Os perfis salvos no PC aparecem aqui.');
     for (const p of state.profiles) {
       const card = el('article', 'profile-card'); if (/^#[a-f0-9]{6}$/i.test(p.color)) card.style.setProperty('--profile-color', p.color);
-      card.append(el('h2', '', p.name), el('p', '', 'Cores e ajustes salvos para o seu setup'));
+      const colors = p.settings?.palette?.length ? p.settings.palette : [p.color];
+      const artwork = el('div', 'scene-art'); artwork.style.setProperty('--scene-palette', paletteGradient(colors));
+      card.append(artwork, el('span', 'scene-tag', 'CRIADO POR VOCÊ'), el('h2', '', p.name));
+      const meta = el('div', 'scene-meta'); meta.append(el('span', '', labels[p.settings?.effect] || 'Ajustes salvos'), el('span', '', `${colors.length} ${colors.length === 1 ? 'cor' : 'cores'}`)); card.append(meta);
+      card.append(el('p', '', p.deviceCount ? `${p.deviceCount} componente(s) com ajustes individuais salvos.` : `${p.settings?.brightness ?? 80}% de brilho · ${p.settings?.speed ?? 40}% de ritmo`));
       const apply = el('button', 'button primary', 'Ativar perfil'); apply.addEventListener('click', () => action(`/api/profiles/${p.id}`, {})); card.append(apply);
-      if (admin) { const remove = el('button', 'button subtle', 'Excluir'); remove.addEventListener('click', () => action(`/api/profiles/${p.id}`, {}, 'DELETE')); card.append(remove); }
+      if (admin) {
+        const edit = el('button', 'button subtle', 'Editar'); edit.addEventListener('click', () => openProfile('custom', p)); card.append(edit);
+        const remove = el('button', 'button subtle', 'Excluir'); remove.addEventListener('click', async () => { if (await action(`/api/profiles/${p.id}`, {}, 'DELETE')) { if (profileEditId === p.id) closeProfile(); } }); card.append(remove);
+      }
       container.append(card);
     }
   }
@@ -165,9 +177,67 @@
       const card = el('article', 'profile-card'); card.style.setProperty('--scene-palette', gradient); card.append(el('div', 'scene-art'), el('span', 'scene-tag', preset.tag), el('h2', '', preset.name), el('p', '', preset.description)); const meta = el('div', 'scene-meta'); meta.append(el('span', '', labels[preset.settings.effect]), el('span', '', `${preset.settings.brightness}% brilho`)); card.append(meta); const button = el('button', 'button primary', 'Ativar cena'); button.setAttribute('aria-label', `Ativar ${preset.name}`); button.addEventListener('click', apply); card.append(button); gallery.append(card);
     }
   }
-  $('save-profile').addEventListener('click', () => { $('profile-form').hidden = false; $('profile-name').focus(); });
-  $('cancel-profile').addEventListener('click', () => { $('profile-form').hidden = true; });
-  $('profile-form').addEventListener('submit', async event => { event.preventDefault(); if (await action('/api/profiles', { name: $('profile-name').value })) { $('profile-form').hidden = true; $('profile-name').value = ''; } });
+  let profileEditId = null, profileSnapshot = false, profileColors = [], profileSaving = false;
+  function paletteGradient(colors) {
+    const valid = colors.filter(color => /^#[a-f0-9]{6}$/i.test(color));
+    return `linear-gradient(110deg,${(valid.length > 1 ? valid : [valid[0] || '#00f0ff', valid[0] || '#00f0ff']).join(',')})`;
+  }
+  for (const [value, name] of Object.entries(labels)) { const option = el('option', '', name); option.value = value; $('profile-effect').append(option); }
+  function updateProfilePreview() {
+    $('profile-preview').style.setProperty('--scene-palette', paletteGradient(profileColors));
+    $('profile-preview').setAttribute('aria-label', `Sequência: ${profileColors.join(', ')}`);
+    const effect = $('profile-effect').value;
+    $('profile-sequence-help').textContent = effect === 'static' ? 'Estático mantém a primeira cor. As outras ficam salvas para quando você mudar o movimento.' : `${descriptions[effect]}. ${['wave', 'rainbow'].includes(effect) ? 'As cores se misturam na ordem escolhida.' : 'As cores se alternam na ordem escolhida.'}`;
+    $('profile-strobe-note').hidden = effect !== 'strobe';
+    $('profile-speed').disabled = effect === 'static';
+    for (const field of ['brightness', 'speed']) $(`profile-${field}-label`).textContent = `${$(`profile-${field}`).value}%`;
+  }
+  function renderProfileColors(focusIndex) {
+    const container = $('profile-colors'); container.replaceChildren();
+    profileColors.forEach((value, index) => {
+      const item = el('div', 'sequence-color');
+      const label = el('label', '', String(index + 1).padStart(2, '0')); const input = el('input'); input.type = 'color'; input.value = value; input.setAttribute('aria-label', `Cor ${index + 1} da sequência`);
+      input.addEventListener('input', () => { profileColors[index] = input.value; updateProfilePreview(); }); label.append(input);
+      const actions = el('div', 'sequence-tools');
+      for (const [delta, text] of [[-1, '←'], [1, '→']]) {
+        const move = el('button', '', text); move.type = 'button'; move.disabled = index + delta < 0 || index + delta >= profileColors.length; move.setAttribute('aria-label', `Mover cor ${index + 1} para ${delta < 0 ? 'esquerda' : 'direita'}`);
+        move.addEventListener('click', () => { [profileColors[index], profileColors[index + delta]] = [profileColors[index + delta], profileColors[index]]; renderProfileColors(index + delta); }); actions.append(move);
+      }
+      const remove = el('button', '', '×'); remove.type = 'button'; remove.disabled = profileColors.length === 1; remove.setAttribute('aria-label', `Remover cor ${index + 1}`); remove.addEventListener('click', () => { profileColors.splice(index, 1); renderProfileColors(Math.min(index, profileColors.length - 1)); }); actions.append(remove); item.append(label, actions); container.append(item);
+    });
+    $('profile-add-color').disabled = profileColors.length >= 8;
+    updateProfilePreview();
+    if (focusIndex !== undefined) container.querySelectorAll('input')[focusIndex]?.focus({ preventScroll: true });
+  }
+  function openProfile(type, profile) {
+    if (!admin || profileSaving) return;
+    profileEditId = profile?.id || null; profileSnapshot = type === 'snapshot';
+    const settings = profile?.settings || state.master;
+    profileColors = settings.palette?.length ? [...settings.palette] : [settings.color];
+    $('profile-name').value = profile?.name || '';
+    $('profile-effect').value = settings.effect;
+    for (const field of ['brightness', 'speed']) $(`profile-${field}`).value = settings[field];
+    $('profile-builder').hidden = profileSnapshot; $('profile-effect-field').hidden = profileSnapshot; $('profile-snapshot-note').hidden = !profileSnapshot;
+    $('profile-editor-title').textContent = profile ? 'SEU ESTÚDIO / EDITAR PERFIL' : profileSnapshot ? 'GUARDAR / AJUSTES ATUAIS' : 'SEU ESTÚDIO / NOVO PERFIL';
+    $('profile-edit-note').textContent = profile?.deviceCount ? 'Esta edição substitui os ajustes individuais salvos por uma sequência para todos os componentes compatíveis.' : 'Ao ativar, todos os componentes compatíveis seguem este perfil.';
+    renderProfileColors(); $('profile-form').hidden = false; $('profile-name').focus();
+  }
+  function closeProfile() { $('profile-form').hidden = true; profileEditId = null; }
+  $('create-profile').addEventListener('click', () => openProfile('custom'));
+  $('save-profile').addEventListener('click', () => openProfile('snapshot'));
+  $('cancel-profile').addEventListener('click', () => { if (!profileSaving) closeProfile(); });
+  $('profile-add-color').addEventListener('click', () => { if (profileColors.length < 8) { profileColors.push('#ffffff'); renderProfileColors(profileColors.length - 1); } });
+  $('profile-effect').addEventListener('change', updateProfilePreview);
+  for (const field of ['brightness', 'speed']) $(`profile-${field}`).addEventListener('input', updateProfilePreview);
+  $('profile-form').addEventListener('submit', async event => {
+    event.preventDefault(); if (profileSaving || !admin) return;
+    const body = { name: $('profile-name').value };
+    if (!profileSnapshot) body.settings = { power: true, color: profileColors[0], palette: [...profileColors], effect: $('profile-effect').value, brightness: Number($('profile-brightness').value), speed: Number($('profile-speed').value) };
+    profileSaving = true; $('profile-submit').disabled = true; $('cancel-profile').disabled = true;
+    const result = await action(profileEditId ? `/api/profiles/${profileEditId}` : '/api/profiles', body, profileEditId ? 'PUT' : 'POST');
+    profileSaving = false; $('profile-submit').disabled = false; $('cancel-profile').disabled = false;
+    if (result) { closeProfile(); toast('Perfil salvo. Use Ativar perfil quando quiser aplicar nas luzes.'); }
+  });
   function peerRow(text, subtitle, buttonText, callback) { const row = el('div', 'peer-row'); const title = el('div', '', text); if (subtitle) title.append(el('small', '', subtitle)); const button = el('button', 'button subtle', buttonText); button.addEventListener('click', callback); row.append(title, button); return row; }
   async function loadNetwork() {
     if (!admin || loading) return; loading = true;
