@@ -2,13 +2,13 @@
 
 **Status: os executáveis próprios do Nexus RGB ainda não são assinados.** Não há aprovação nem certificado concedido pela SignPath Foundation. A licença MIT permite distribuir o código; ela não autentica o editor de um executável.
 
-A candidatura foi enviada em **14/10/2026** e aguarda avaliação; a página confirmou o recebimento do formulário. [Code signing policy in English](SIGNING.md) reúne os dados para avaliação. O [workflow de artefatos Windows](../.github/workflows/build-release.yml) gera arquivos sem assinatura a partir do commit executado no GitHub; a integração com a assinatura ainda depende da aprovação e configuração da conta.
+A candidatura foi enviada em **14/10/2026**. A SignPath Foundation informou que não pode aprová-la neste momento por falta de sinais suficientes de adoção, visibilidade pública e atividade sustentada do projeto. O programa permite uma nova candidatura quando houver maior reconhecimento, sem garantia de aprovação. O Nexus continua gratuito e de código aberto, com executáveis próprios sem assinatura. [Code signing policy in English](SIGNING.md) reúne os dados do projeto. O [workflow de artefatos Windows](../.github/workflows/build-release.yml) gera arquivos sem assinatura a partir do commit executado no GitHub; não há integração de assinatura configurada.
 
 ## Responsabilidade
 
 [JonJonGf](https://github.com/JonJonGf) mantém o projeto e é o responsável pelo código, revisão e aprovação de versões. Contribuições externas precisam ser revisadas antes de integrar uma versão. Se um serviço de assinatura for aprovado, o mantenedor deverá confirmar a autenticação multifator no GitHub e no provedor e aprovar manualmente cada solicitação de assinatura.
 
-## Caminho gratuito em avaliação
+## Elegibilidade do programa gratuito
 
 A [SignPath Foundation](https://signpath.org/terms.html) oferece assinatura para projetos de código aberto elegíveis. A aceitação depende da análise do projeto, de sua reputação verificável e do cumprimento das condições; publicar sob MIT não garante aprovação. Nesse programa, o certificado identifica **SignPath Foundation** como editor, não o nome pessoal do autor.
 

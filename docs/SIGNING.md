@@ -1,6 +1,6 @@
 # Code signing policy
 
-**Current status: unsigned; SignPath Foundation approval has not been granted.** An application for the free open-source program was submitted on **14 October 2026**; the application page confirmed receipt. A decision is pending. No signing account, certificate or API token is configured in this repository.
+**Current status: unsigned; the SignPath Foundation application was declined for now.** An application for the free open-source program was submitted on **14 October 2026**. The Foundation reported insufficient public adoption, visibility and sustained community activity, and invited a future application once the project has broader recognition. Reapplication does not guarantee approval. No signing account, certificate or API token is configured in this repository. The project remains free and open source.
 
 ## Project and responsibility
 

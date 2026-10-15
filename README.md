@@ -277,6 +277,16 @@ O suporte depende do dispositivo, e não apenas da marca. Fans ligados à mesma 
 
 ---
 
+## 🧪 Ajude a testar
+
+O Nexus precisa de testes reais em diferentes PCs, controladoras e modelos de Echo. Relatos positivos também ajudam a documentar a compatibilidade. Siga o [roteiro de testes da comunidade](docs/TESTAR.md) e abra **Issues → New issue** no GitHub para escolher um modelo:
+
+- [Relatar um problema](https://github.com/JonJonGf/nexus-rgb/issues/new?template=problema.md)
+- [Sugerir uma melhoria](https://github.com/JonJonGf/nexus-rgb/issues/new?template=sugestao.md)
+- [Contar o resultado de um teste de compatibilidade](https://github.com/JonJonGf/nexus-rgb/issues/new?template=teste-de-compatibilidade.md)
+
+O feedback acontece **somente no GitHub**. O mantenedor responde nos comentários da própria issue; as notificações seguem as preferências da conta de cada participante. É necessário ter uma conta GitHub para publicar. Relatos e comentários são públicos: revise capturas e mensagens antes de enviar e não inclua senhas, tokens ou dados pessoais. Não há coleta ou envio de feedback pelo aplicativo.
+
 ## 📄 Código aberto e licença
 
 O código original do Nexus RGB e sua documentação são públicos sob a [licença MIT](LICENSE.md), com autoria de **JonJonGf**. Você pode usar, estudar, modificar e redistribuir, inclusive comercialmente, mantendo o aviso de autoria e a licença. OpenRGB, PawnIO e os demais componentes preservam suas próprias licenças; consulte os [avisos de terceiros](THIRD-PARTY-NOTICES.md).
