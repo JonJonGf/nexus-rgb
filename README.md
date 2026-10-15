@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.10/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.10">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.11/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.11">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.10 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.11 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -45,6 +45,7 @@
 - **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada.
 - **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
 - **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
+- **Recuperação pelo próprio app:** reinicie Nexus e OpenRGB pelas Configurações no PC, pelo ícone da bandeja ou pelo menu Iniciar. Os perfis e configurações são preservados; o Windows pede administrador.
 - **Controle na LAN:** o painel e os efeitos funcionam na rede local, sem depender de uma conta ou servidor externo do Nexus.
 
 <a id="instalacao"></a>
@@ -69,7 +70,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.10/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.10) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.11/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.11) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -248,6 +249,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 - **Abrir o painel:** use o atalho, o menu Iniciar ou dê dois cliques no ícone do Nexus ao lado do relógio.
 - **Usar a bandeja:** clique com o botão direito para abrir o painel, copiar o link do celular ou abrir a pasta de diagnósticos.
+- **Se o controlador travar:** use **Reiniciar Nexus e OpenRGB…** na bandeja ou no menu Iniciar. Em **Configurações**, no PC, **Reiniciar no Windows…** abre a mesma ação. Autorize abrir o aplicativo e o pedido de administrador. A janela confere o painel e o OpenRGB; recarregue o navegador ao terminar. Esse comando reinicia os serviços, sem apagar os ajustes nem reiniciar o computador. No celular, faça essa recuperação pelo PC.
 - **Fechar a janela:** os serviços continuam funcionando. A opção **Fechar ícone (manter as luzes)** também mantém o controle ativo.
 - **Iniciar com o Windows:** o instalador configura os serviços e a restauração dos ajustes. Não é necessário abrir o painel para ativar os serviços.
 - **Atualizar:** no ícone ao lado do relógio, escolha **Fechar ícone (manter as luzes)** e execute o instalador da nova versão. Fechar apenas a aba do navegador não encerra esse ícone. Seus dados locais são mantidos. Reabra pelo atalho e recarregue páginas que já estavam abertas.
@@ -258,7 +260,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.10/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.11/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -350,3 +352,5 @@ O instalador inclui a licença do Nexus e os avisos de terceiros. Os executávei
   <b>MAKE LIGHT YOURS.</b><br>
   Nexus RGB · Desenvolvido por <a href="https://github.com/JonJonGf">JonJonGf</a>
 </p>
+
+As funcionalidades ainda planejadas e os problemas conhecidos estão nas [prioridades do projeto](docs/ROADMAP.md).

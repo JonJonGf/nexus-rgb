@@ -82,7 +82,7 @@ async function createApp(options = {}) {
     const url = new URL(req.url, origin); const route = url.pathname;
     const budget = ['GET', 'HEAD'].includes(req.method) && assets.has(route) ? assetRate : rate;
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
-    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION });
+    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length } });
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
       if (req.headers.origin !== origin || req.headers['x-nexus-client'] !== 'web') return json(res, 403, { error: 'Requisição sem proteção de origem.' });

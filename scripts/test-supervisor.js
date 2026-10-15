@@ -18,6 +18,9 @@ try {
 internal static class WorkerFixture {
     internal static readonly string DataRoot = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "data");
     private static void Main() {
+        if (Program.RecoveryInstalled()) throw new System.Exception("Recovery accepted an executable outside Program Files.");
+        if (!Program.RecoveryLink("nexusrgb://restart") || !Program.RecoveryLink("nexusrgb://restart/")) throw new System.Exception("Recovery URL rejected.");
+        foreach (string input in new string[] { "nexusrgb://restart?file=x", "nexusrgb://restart/--service", "nexusrgb://restart\" --service", "https://example.com", "nexusrgb://delete" }) if (Program.RecoveryLink(input)) throw new System.Exception("Arbitrary recovery URL accepted.");
         string data = System.IO.Path.Combine(DataRoot, "NexusRGB", "app");
         System.IO.Directory.CreateDirectory(data);
         var worker = new Worker(false);

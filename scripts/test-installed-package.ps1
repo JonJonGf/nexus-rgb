@@ -68,6 +68,7 @@ function Uninstall([string]$Phase) {
   Check (@(Get-Service NexusRGB,NexusRGBHardware -ErrorAction SilentlyContinue).Count -eq 0) 'Nexus services removed'
   Check (@(Get-NetFirewallRule -Group 'Nexus RGB' -ErrorAction SilentlyContinue).Count -eq 0) 'Only Nexus firewall group removed'
   Check (-not (Test-Path -LiteralPath (Join-Path $root 'NexusRGB.exe'))) 'Nexus executable removed'
+  Check (-not (Test-Path -LiteralPath 'HKLM:\SOFTWARE\Classes\nexusrgb')) 'Local recovery URL registration removed'
 }
 $sentinel='Nexus installation test sentinel'
 try {
@@ -110,6 +111,17 @@ try {
   Stop-Service NexusRGB; (Get-Service NexusRGB).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(30))
   Start-Service NexusRGB; Wait-Panel; Session
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Service restart preserves data'
+  $hardwareBefore=Get-CimInstance Win32_Service -Filter "Name='NexusRGBHardware'"
+  $oldOpenRGB=@(Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq $hardwareBefore.ProcessId -and $_.Name -eq 'OpenRGB.exe'})
+  $command=(Get-Item -LiteralPath 'HKLM:\SOFTWARE\Classes\nexusrgb\shell\open\command').GetValue('')
+  Check ($command -eq ('"'+(Join-Path $root 'NexusRGB.exe')+'" --restart-rgb "%1"')) 'Recovery URL uses the installed native application with quoted arguments'
+  & (Join-Path $root 'scripts\restart-services.ps1')
+  Check ($LASTEXITCODE -eq 0) 'Installed recovery restarts Nexus and OpenRGB and verifies controller connection'
+  Wait-Panel; Session; VerifyServices
+  $hardwareAfter=Get-CimInstance Win32_Service -Filter "Name='NexusRGBHardware'"
+  $newOpenRGB=@(Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq $hardwareAfter.ProcessId -and $_.Name -eq 'OpenRGB.exe'})
+  Check ($oldOpenRGB.Count -eq 1 -and $newOpenRGB.Count -eq 1 -and $oldOpenRGB[0].ProcessId -ne $newOpenRGB[0].ProcessId) 'Recovery replaces the supervised OpenRGB process'
+  Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before -and (Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Recovery preserves settings and effect imports byte for byte'
   $helper=Start-Process -FilePath (Join-Path $root 'NexusRGB-Uninstall.exe') -ArgumentList '--check' -WindowStyle Hidden -Wait -PassThru
   Check ($helper.ExitCode -eq 0) 'Standalone uninstall helper validates installed registration'
   Uninstall 'first-removal'

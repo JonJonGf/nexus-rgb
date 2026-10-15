@@ -46,8 +46,13 @@ Source: "service-preflight.ps1"; Flags: dontcopy
 [Icons]
 Name: "{group}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"
 Name: "{group}\Desinstalar Nexus RGB"; Filename: "{uninstallexe}"
+Name: "{group}\Reiniciar Nexus e OpenRGB"; Filename: "{app}\NexusRGB.exe"; Parameters: "--restart-rgb"
 Name: "{commondesktop}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"; Tasks: desktopicon
 Name: "{commonstartup}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"; Parameters: "--tray"; Tasks: traystartup
+[Registry]
+Root: HKLM; Subkey: "Software\Classes\nexusrgb"; ValueType: string; ValueData: "URL:Nexus RGB"; Flags: uninsdeletekey
+Root: HKLM; Subkey: "Software\Classes\nexusrgb"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
+Root: HKLM; Subkey: "Software\Classes\nexusrgb\shell\open\command"; ValueType: string; ValueData: """{app}\NexusRGB.exe"" --restart-rgb ""%1"""
 [Run]
 Filename: "{app}\NexusRGB.exe"; Description: "Abrir Nexus RGB"; Flags: nowait postinstall skipifsilent runasoriginaluser
 [Code]

@@ -71,6 +71,7 @@ test('criador visual fica sobre o mapa no desktop e celular e guarda um perfil s
 });
 test('configurações permitem escolher e persistir FPS sem reiniciar o servidor', async ({ page }) => {
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=settings]').click();
+  await expect(page.locator('#settings-restart')).toBeVisible(); await expect(page.locator('#settings-restart')).toHaveAttribute('href', 'nexusrgb://restart');
   await page.locator('[data-fps="60"]').click(); await expect(page.locator('#settings-fps-label')).toHaveText('60 FPS');
   await page.locator('#settings-fps-save').click();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).performance.fps).toBe(60);

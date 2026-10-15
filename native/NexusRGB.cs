@@ -17,6 +17,13 @@ internal static class Program {
     internal static string Panel { get { return "http://127.0.0.1:" + PortSettings.Load().Panel + "/"; } }
     [STAThread]
     private static void Main(string[] args) {
+        if (Array.IndexOf(args, "--restart-rgb") >= 0) {
+            Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
+            if (args[0] != "--restart-rgb" || !(args.Length == 1 || (args.Length == 2 && RecoveryLink(args[1])))) { MessageBox.Show("Comando de recuperação inválido.", "Nexus RGB"); return; }
+            if (!RecoveryInstalled()) { MessageBox.Show("Use o Nexus instalado em Program Files\\Nexus RGB para recuperar os serviços.", "Nexus RGB"); return; }
+            if (!new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator)) { RestartServices(); return; }
+            Application.Run(new RecoveryDialog()); return;
+        }
         if (Array.IndexOf(args, "--configure-ports") >= 0) { Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new PortDialog()); return; }
         if (Array.IndexOf(args, "--service") >= 0) { ServiceBase.Run(new Worker(false)); return; }
         if (Array.IndexOf(args, "--hardware-service") >= 0) { ServiceBase.Run(new Worker(true)); return; }
@@ -45,11 +52,48 @@ internal static class Program {
         try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "NexusRGB.exe"), "--configure-ports") { UseShellExecute = true, Verb = "runas" }); }
         catch (System.ComponentModel.Win32Exception error) { if (error.NativeErrorCode != 1223) MessageBox.Show(error.Message, "Nexus RGB"); }
     }
+    internal static bool RecoveryLink(string value) { return string.Equals(value, "nexusrgb://restart", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "nexusrgb://restart/", StringComparison.OrdinalIgnoreCase); }
+    internal static bool RecoveryInstalled() {
+        string root = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar);
+        return string.Equals(root, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Nexus RGB"), StringComparison.OrdinalIgnoreCase) && (File.GetAttributes(root) & FileAttributes.ReparsePoint) == 0 && File.Exists(Path.Combine(root, @"scripts\restart-services.ps1"));
+    }
+    internal static void RestartServices() {
+        if (!RecoveryInstalled()) { MessageBox.Show("Instale ou atualize o Nexus para recuperar os serviços.", "Nexus RGB"); return; }
+        try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "NexusRGB.exe"), "--restart-rgb") { UseShellExecute = true, Verb = "runas" }); }
+        catch (System.ComponentModel.Win32Exception error) { if (error.NativeErrorCode != 1223) MessageBox.Show(error.Message, "Nexus RGB"); }
+    }
     internal static bool PanelReady() {
         try {
             var request = (HttpWebRequest)WebRequest.Create(Panel + "api/health"); request.Proxy = null; request.Timeout = 1000; request.ReadWriteTimeout = 1000;
             using (var response = request.GetResponse()) using (var reader = new StreamReader(response.GetResponseStream())) { char[] buffer = new char[1024]; int count = reader.Read(buffer, 0, buffer.Length); return new string(buffer, 0, count).Contains("\"application\":\"nexus-rgb\""); }
         } catch { return false; }
+    }
+}
+internal sealed class RecoveryDialog : Form {
+    private readonly Label status;
+    private readonly Button close;
+    private bool busy = true;
+    internal RecoveryDialog() {
+        Text = "Nexus RGB — Reiniciar controlador"; ClientSize = new Size(520, 260); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen; Font = new Font("Segoe UI", 10F);
+        Controls.Add(new Label { Left = 22, Top = 20, Width = 475, Height = 30, Text = "Reiniciando Nexus e OpenRGB", Font = new Font("Segoe UI", 14F, FontStyle.Bold) });
+        status = new Label { Left = 22, Top = 65, Width = 475, Height = 125, Text = "Aguarde. As luzes podem parar por alguns segundos.\nPerfis, posições, efeitos importados e configurações serão preservados." }; Controls.Add(status);
+        close = new Button { Left = 367, Top = 210, Width = 130, Height = 30, Text = "Fechar", Enabled = false }; close.Click += (s,e) => Close(); Controls.Add(close);
+        FormClosing += (s,e) => { if (busy) e.Cancel = true; };
+        Shown += async (s,e) => {
+            try {
+                var result = await Task.Run(() => {
+                    string shell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
+                    var info = new ProcessStartInfo(shell, "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + Path.Combine(Program.Root, @"scripts\restart-services.ps1") + "\"") { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                    using (var process = Process.Start(info)) {
+                        var output = process.StandardOutput.ReadToEndAsync(); var errors = process.StandardError.ReadToEndAsync();
+                        if (!process.WaitForExit(180000)) { process.Kill(); throw new InvalidOperationException("A recuperação demorou além do limite. Confira os serviços e diagnósticos."); }
+                        return new { Code = process.ExitCode, Message = output.Result + errors.Result };
+                    }
+                });
+                status.Text = (result.Code == 0 ? "Concluído.\n" : "Não foi possível concluir.\n") + result.Message.Trim() + "\nRecarregue o painel para conferir o estado atual.";
+            } catch (Exception error) { status.Text = "Não foi possível concluir.\n" + error.Message; }
+            finally { busy = false; close.Enabled = true; }
+        };
     }
 }
 internal sealed class PortSettings {
@@ -128,6 +172,7 @@ internal sealed class Tray : ApplicationContext {
         menu.Items.Add("Abrir Nexus RGB", null, (s, e) => Program.OpenPanel());
         menu.Items.Add("Copiar link para o celular", null, (s, e) => CopyLink());
         menu.Items.Add("Configurar portas…", null, (s, e) => Program.ConfigurePorts());
+        menu.Items.Add("Reiniciar Nexus e OpenRGB…", null, (s, e) => Program.RestartServices());
         menu.Items.Add("Abrir pasta de diagnósticos", null, (s, e) => Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", "app")) { UseShellExecute = true }));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Fechar ícone (manter as luzes)", null, (s, e) => ExitThread());
