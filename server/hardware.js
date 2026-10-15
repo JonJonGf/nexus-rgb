@@ -156,7 +156,7 @@ class Hardware extends EventEmitter {
       await this.operation(this.client.updateMode(device.sdkId, config)); this.modes.set(device.id, signature);
     }
   }
-  async tick() {
+  async tick(spatialFrame = false) {
     if (this.stopped || this.busy || !this.connected) return;
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
@@ -173,7 +173,7 @@ class Hardware extends EventEmitter {
         const channels = d.components || [d];
         const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components), spatial: this.studio?.hasDevice(component.id) ? this.studio.revision : null })));
         const changed = this.applied.get(d.id) !== signature;
-        const animation = channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && d.direct && !this.studio?.hasDevice(component.id) && s.nativeMode === undefined && s.effect !== 'static'; });
+        const animation = !spatialFrame && channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && d.direct && !this.studio?.hasDevice(component.id) && s.nativeMode === undefined && s.effect !== 'static'; });
         if (!changed && !animation) continue;
         if (d.components) {
           const oldError = d.error;

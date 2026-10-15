@@ -18,6 +18,17 @@ test('mapa atualiza LEDs uma vez por quadro e restaura estático ou modo nativo 
   active = true; hardware.changed(); await hardware.tick(); assert.equal(mock.calls.at(-1)[2][0].green, 255);
   active = false; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1), ['mode', 0, 0]);
 });
+
+test('envio imediato do mapa não duplica a taxa de efeitos comuns de outros dispositivos', async t => {
+  const store = { data: { master: { ...defaults, effect: 'wave' }, devices: {} } };
+  const mock = new Mock([controller('Mapa', 'USB:spatial'), controller('Onda individual', 'USB:wave')]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
+  hardware.stopped = false; await hardware.connect(); const target = hardware.devices[0].id;
+  hardware.studio = { revision: 1, hasDevice: id => id === target, colorsFor: () => null };
+  await hardware.tick(); mock.calls = []; hardware.studio.revision++; hardware.changed();
+  await hardware.tick(true); assert.deepEqual(mock.calls.filter(c => c[0] === 'leds').map(c => c[1]), [0]);
+  mock.calls = []; await hardware.tick(); assert.deepEqual(mock.calls.filter(c => c[0] === 'leds').map(c => c[1]), [1]);
+});
 test('detecta marcas e quantidades arbitrárias e escolhe Direct pelo modo real', async () => {
   const store = { data: { master: { ...defaults }, devices: {} } }; const mock = new Mock([controller('Teclado genérico', 'USB:1'), controller('GPU genérica', 'PCI:2')]);
   const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();

@@ -2,7 +2,7 @@
 
 ## Motor espacial — medição de 15/10/2026
 
-Ensaio isolado da implementação destinada à **v0.1.0-alpha.6**, no Ryzen 5 3600 com 12 processadores lógicos, 31,89 GiB de RAM, Windows 11 build 26300 e Node 24.20.0.
+Ensaio isolado da implementação destinada à **v0.1.0-alpha.7**, no Ryzen 5 3600 com 12 processadores lógicos, 31,89 GiB de RAM, Windows 11 build 26300 e Node 24.20.0.
 
 Esta tabela inclui **servidor Node e processo de efeitos**. A classe de hardware é a mesma da aplicação, conectada a um SDK simulado com 3 controladoras, 5 componentes e 92 LEDs. **OpenRGB, serviços, bandeja, navegador e driver ficam fora da soma.** Portanto, os valores não representam o consumo total do aplicativo instalado.
 

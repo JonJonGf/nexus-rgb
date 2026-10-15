@@ -83,7 +83,7 @@ Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e os [critérios de dis
 
 ## Publicar uma versão
 
-Cada versão deve reunir código, documentação e instalador correspondentes. O workflow [Publicar versão Windows](../.github/workflows/publish-release.yml) é acionado ao enviar uma tag de versão, como `v0.1.0-alpha.6`.
+Cada versão deve reunir código, documentação e instalador correspondentes. O workflow [Publicar versão Windows](../.github/workflows/publish-release.yml) é acionado ao enviar uma tag de versão, como `v0.1.0-alpha.7`.
 
 Antes de criar a tag:
 

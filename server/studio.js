@@ -148,7 +148,7 @@ class Studio {
           this.hardware.changed();
           // Submit a completed spatial frame without waiting for a second timer.
           // Hardware's busy guard and SDK backpressure still serialize writes.
-          if (this.config.enabled && this.hardware.tick) this.hardware.tick().catch(error => this.fail(error.message));
+          if (this.config.enabled && this.hardware.tick) this.hardware.tick(true).catch(error => this.fail(error.message));
           this.metrics.renderMs = Math.round(message.renderMs * 100) / 100; this.metrics.memoryMB = Math.round(message.memoryMB);
           this.frames++; const elapsed = Date.now() - this.windowAt;
           if (elapsed >= 1000) { this.metrics.fps = Math.round(this.frames * 1000 / elapsed); this.frames = 0; this.windowAt = Date.now(); }
