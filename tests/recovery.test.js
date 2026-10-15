@@ -29,7 +29,8 @@ function Get-Service([string]$Name) {if($Name -notin 'NexusRGB','NexusRGBHardwar
 function Stop-Service([string]$Name) {if($Name -notin 'NexusRGB','NexusRGBHardware'){throw 'Foreign service'}; $trace.Add('stop:'+ $Name); $states[$Name]='Stopped'}
 function Start-Service([string]$Name) {if($Name -notin 'NexusRGB','NexusRGBHardware'){throw 'Foreign service'}; $trace.Add('start:'+ $Name); if($env:NEXUS_TEST_CASE -eq 'start-failure' -and $Name -eq 'NexusRGBHardware'){throw 'Simulated startup failure'}; $states[$Name]='Running'}
 function Start-Sleep {}
-function Invoke-RestMethod([string]$Uri) {if($Uri -ne 'http://127.0.0.1:5151/api/health'){throw 'Unexpected destination'}; return @{ready=$true;application='nexus-rgb';hardware=@{connected=($env:NEXUS_TEST_CASE -ne 'sdk-failure');devices=7}}}
+$script:healthCalls=0
+function Invoke-RestMethod([string]$Uri) {if($Uri -ne 'http://127.0.0.1:5151/api/health'){throw 'Unexpected destination'}; $script:healthCalls++; return @{ready=$true;application='nexus-rgb';hardware=@{connected=($env:NEXUS_TEST_CASE -ne 'sdk-failure');devices=$(if($env:NEXUS_TEST_CASE -eq 'delayed' -and $script:healthCalls -lt 4){0}else{7})}}}
 `;
   const script = setup + source
     .replace(". (Join-Path $PSScriptRoot 'ports.ps1')", '')
@@ -39,13 +40,13 @@ function Invoke-RestMethod([string]$Uri) {if($Uri -ne 'http://127.0.0.1:5151/api
     .replace('Global\\NexusRGB.RestartServices', 'Local\\NexusRGB.RecoveryFixture.' + path.basename(directory))
     .replace('if($mutex){$mutex.Dispose()}', "if($mutex){$mutex.Dispose()}; [IO.File]::WriteAllLines((Join-Path $env:NEXUS_TEST_ROOT 'trace.txt'),$trace)");
   const sentinel = path.join(directory, 'settings.json'); fs.writeFileSync(sentinel, '{"profiles":["preserve"]}');
-  for (const scenario of ['success', 'foreign', 'sdk-failure', 'start-failure']) {
+  for (const scenario of ['success', 'delayed', 'foreign', 'sdk-failure', 'start-failure']) {
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { encoding: 'utf8', timeout: 15000, windowsHide: true, env: { ...process.env, NEXUS_TEST_ROOT: directory, NEXUS_TEST_CASE: scenario } });
-    assert.equal(result.status, scenario === 'success' ? 0 : 1, result.stderr + result.stdout);
+    assert.equal(result.status, ['success', 'delayed'].includes(scenario) ? 0 : 1, result.stderr + result.stdout);
     const trace = fs.readFileSync(path.join(directory, 'trace.txt'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
     if (scenario === 'foreign') assert.deepEqual(trace, []);
     else assert.deepEqual(trace.slice(0, 3), ['stop:NexusRGB', 'stop:NexusRGBHardware', 'start:NexusRGBHardware']);
-    if (scenario === 'success') { assert.equal(trace.at(-1), 'start:NexusRGB'); assert.match(result.stdout, /detectados: 7/); }
+    if (['success', 'delayed'].includes(scenario)) { assert.equal(trace.at(-1), 'start:NexusRGB'); assert.match(result.stdout, /detectados: 7/); }
     if (scenario === 'sdk-failure') assert.match(result.stdout, /OpenRGB ainda nao confirmou/);
     if (scenario === 'start-failure') assert.ok(trace.includes('start:NexusRGB'), 'Tenta recuperar o painel mesmo se OpenRGB falha.');
     assert.equal(fs.readFileSync(sentinel, 'utf8'), '{"profiles":["preserve"]}');

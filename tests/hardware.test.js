@@ -4,6 +4,19 @@ const { Hardware, frame } = require('../server/hardware'); const { defaults } = 
 function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
 class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
 
+test('conexao so fica pronta apos ler os componentes e lista vazia tenta novamente rapidamente', async t => {
+  const store = { data: { master: defaults, devices: {} } }, mock = new Mock([]), hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
+  hardware.stopped = false; await hardware.connect();
+  assert.equal(hardware.connected, true); assert.ok(hardware.nextDiscovery - Date.now() <= 1500);
+  let resume; const pending = new Promise(resolve => { resume = resolve; });
+  mock.devices.push(controller('Detectado depois', 'USB:late')); mock.getControllerData = () => pending;
+  hardware.connected = false; const connecting = hardware.connect();
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(hardware.connected, false);
+  resume(mock.devices[0]); await connecting;
+  assert.equal(hardware.connected, true); assert.equal(hardware.snapshot().devices.length, 1);
+  assert.ok(hardware.nextDiscovery - Date.now() > 25000);
+});
+
 test('mapa atualiza LEDs uma vez por quadro e restaura estático ou modo nativo ao sair', async t => {
   const store = { data: { master: { ...defaults, brightness: 100, color: '#ff0000' }, devices: {} } };
   const mock = new Mock([controller('RAM', 'USB:map')]), hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());

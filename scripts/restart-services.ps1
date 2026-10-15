@@ -28,7 +28,10 @@ try {
   for($attempt=0;$attempt -lt 45;$attempt++) {
     try {
       $value=Invoke-RestMethod ('http://127.0.0.1:'+$ports.PanelPort+'/api/health') -TimeoutSec 1
-      if($value.ready -is [bool] -and $value.ready -eq $true -and $value.application -eq 'nexus-rgb'){$health=$value; if($value.hardware.connected -is [bool] -and $value.hardware.connected -eq $true){break}}
+      if($value.ready -is [bool] -and $value.ready -eq $true -and $value.application -eq 'nexus-rgb'){
+        $health=$value
+        if($value.hardware.connected -is [bool] -and $value.hardware.connected -eq $true -and ($value.hardware.devices -gt 0 -or $attempt -ge 10)){break}
+      }
     } catch {}
     Start-Sleep -Milliseconds 500
   }

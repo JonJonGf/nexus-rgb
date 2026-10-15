@@ -77,7 +77,7 @@ class Hardware extends EventEmitter {
     try {
       await this.operation(client.connect(2500));
       if (this.stopped) { client.socket?.destroy(); return; }
-      this.connected = true; this.modes.clear(); this.applied.clear(); await this.discover();
+      this.modes.clear(); this.applied.clear(); await this.discover(); this.connected = true;
       this.retry = 1000; this.error = null; this.dirty = true;
     } catch (error) { this.connected = false; this.error = error.message; client.socket?.destroy(); }
     finally {
@@ -124,7 +124,9 @@ class Hardware extends EventEmitter {
     const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
     for (const id of this.animations.keys()) if (!channels.has(id)) this.animations.delete(id);
     for (const id of this.output.keys()) if (!channels.has(id)) this.output.delete(id);
-    this.devices = devices; this.nextDiscovery = Date.now() + 30000; this.dirty = true; this.emit('change');
+    // The SDK can open before OpenRGB finishes scanning. Retry an empty list
+    // promptly instead of hiding newly detected components for 30 seconds.
+    this.devices = devices; this.nextDiscovery = Date.now() + (devices.length ? 30000 : 1500); this.dirty = true; this.emit('change');
   }
   snapshot() {
     return { connected: this.connected, error: this.error, controllerCount: this.devices.length, devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
