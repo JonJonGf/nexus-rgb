@@ -18,8 +18,10 @@
     "test:offline": "node scripts/test-offline-firewall.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "1.0.11",
     "openrgb-sdk": "0.6.0",
-    "qrcode": "1.5.4"
+    "qrcode": "1.5.4",
+    "quickjs-emscripten": "0.32.0"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0"

@@ -17,7 +17,7 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   const request = async (ip, route, method = 'GET', body) => {
     const req = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
     Object.assign(req, { socket: { remoteAddress: ip, localAddress: '192.168.20.5' }, headers: { host: '192.168.20.5' }, url: route, method });
-    const res = { writeHead(status) { this.status = status; }, end(value) { this.body = value; } };
+    const res = { writeHead(status, headers) { this.status = status; this.headers = headers; }, end(value) { this.body = value; } };
     await alexa.request(req, res); return res;
   };
   alexa.openDiscovery();
@@ -43,13 +43,16 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   store.device('argb', { power: false, brightness: 12, effect: 'breathe' });
   store.profile('Meu setup');
   const before = structuredClone(store.data);
-  const off = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false, bri: 0, effect: 'colorloop', hue: 0, sat: 254 });
+  const off = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false, bri: 0, transitiontime: 4, effect: 'colorloop', hue: 0, sat: 254 });
   assert.equal(off.status, 200); assert.equal(store.data.master.power, false);
-  assert.equal(JSON.parse(off.body).filter(item => item.success).length, 1);
-  assert.ok(JSON.parse(off.body).filter(item => item.error).every(item => item.error.type === 6));
+  assert.deepEqual(JSON.parse(off.body), [{ success: { '/lights/1/state/on': false } }]);
+  assert.equal(off.headers['Content-Length'], Buffer.byteLength(off.body));
+  assert.equal(off.headers['Content-Type'], 'application/json; charset=utf-8');
   assert.equal(writes, 1); assert.equal(broadcasts, 1);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.name, 'Iluminação Nexus');
   assert.equal(alexa.snapshot().diagnostics.lastCommand.power, false);
+  assert.deepEqual(alexa.snapshot().diagnostics.lastCommand.fields, ['on', 'bri', 'hue', 'sat', 'effect', 'transitiontime']);
+  assert.equal(alexa.snapshot().diagnostics.lastCommand.otherFieldCount, 0);
   assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false })).status, 200);
   assert.equal(writes, 1); assert.equal(broadcasts, 1);
   assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: 'true' })).status, 400); assert.equal(store.data.master.power, false);
@@ -60,7 +63,11 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
     assert.equal((await request('192.168.20.8', `/api/nexus/lights/${id}`)).status, 404);
     assert.equal((await request('192.168.20.8', `/api/nexus/lights/${id}/state`, 'PUT', { on: true })).status, 404);
   }
-  assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: true, xy: [0.3, 0.3] })).status, 200);
+  const on = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: true, bri: 254, transitiontime: 0, xy: [0.3, 0.3], privateUsername: 'do-not-log-this' });
+  assert.equal(on.status, 200);
+  assert.deepEqual(JSON.parse(on.body), [{ success: { '/lights/1/state/on': true } }]);
+  assert.equal(alexa.snapshot().diagnostics.lastCommand.otherFieldCount, 1);
+  assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('do-not-log-this'));
   assert.deepEqual(store.data, before); assert.deepEqual(new Store(directory).data, before);
   assert.equal(writes, 2); assert.equal(broadcasts, 2);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('/api/nexus'));

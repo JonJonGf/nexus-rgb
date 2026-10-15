@@ -11,6 +11,7 @@ const network = require('./network');
 const QRCode = require('qrcode');
 const VERSION = require('../package.json').version;
 const { ports } = require('./ports');
+const { Studio } = require('./studio');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -43,7 +44,7 @@ async function createApp(options = {}) {
   const localPort = configuredPorts.panel;
   const clients = new Set(); const rate = new RateLimiter(240); const globalRate = new RateLimiter(2000);
   let local, heartbeat;
-  const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status } });
+  const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices, studio: savedStudio }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length, spatial: Boolean(savedStudio?.enabled) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
   const broadcast = () => {
     const message = `data: ${JSON.stringify(snapshot())}\n\n`;
     for (const client of clients) {
@@ -52,6 +53,7 @@ async function createApp(options = {}) {
     }
   };
   const alexa = new Alexa(store, hardware, directory, broadcast, { port: configuredPorts.alexa, getInterfaces });
+  const studio = new Studio(store, hardware, directory, broadcast); hardware.studio = studio;
   hardware.on('change', broadcast);
   function headers(res) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
@@ -63,6 +65,7 @@ async function createApp(options = {}) {
   const assets = new Map([
     ['/', ['index.html', 'text/html; charset=utf-8']], ['/index.html', ['index.html', 'text/html; charset=utf-8']],
     ['/app.js', ['app.js', 'application/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']],
+    ['/studio.js', ['studio.js', 'application/javascript; charset=utf-8']], ['/studio.css', ['studio.css', 'text/css; charset=utf-8']], ['/spatial.js', ['spatial.js', 'application/javascript; charset=utf-8']],
     ['/manifest.json', ['manifest.json', 'application/manifest+json']], ['/sw.js', ['sw.js', 'application/javascript; charset=utf-8']],
     ['/icon-192.png', ['icon-192.png', 'image/png']], ['/icon-512.png', ['icon-512.png', 'image/png']]
   ]);
@@ -92,6 +95,14 @@ async function createApp(options = {}) {
     if (route.startsWith('/api/')) {
       if (!session) return json(res, 401, { error: 'Abra o painel neste computador para iniciar a sessão local.' });
       const admin = () => { if (!session.admin || !isLocal) throw Object.assign(new Error('Este ajuste só pode ser feito no PC.'), { status: 403 }); };
+      if (route === '/api/settings' && req.method === 'POST') { admin(); store.performance(await readBody(req)); hardware.setFps?.(); broadcast(); return json(res, 200, snapshot()); }
+      if (route === '/api/studio' && req.method === 'GET') return json(res, 200, studio.snapshot(true));
+      if (route === '/api/studio/play' && req.method === 'POST') { const body = await readBody(req); if (!body || Object.keys(body).some(k => !['activeId', 'values', 'enabled'].includes(k))) throw Error('Comando de efeito inválido.'); studio.configure(body); return json(res, 200, studio.snapshot(true)); }
+      if (route === '/api/studio' && req.method === 'POST') { admin(); studio.configure(await readBody(req, 128 * 1024)); return json(res, 200, studio.snapshot(true)); }
+      if (route === '/api/studio/preview' && req.method === 'GET') { studio.watch(req, res, () => security.session(req)); return; }
+      if (route === '/api/studio/import' && req.method === 'POST') { admin(); const body = await readBody(req, 256 * 1024); const id = await studio.import(body.source); return json(res, 200, { id, ...studio.snapshot(true) }); }
+      const effectRoute = route.match(/^\/api\/studio\/effects\/([a-f0-9]{24})$/);
+      if (effectRoute && req.method === 'DELETE') { admin(); studio.remove(effectRoute[1]); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/session' && req.method === 'GET') return json(res, 200, { admin: session.admin });
       if (route === '/api/state' && req.method === 'GET') return json(res, 200, snapshot());
       if (route === '/api/events' && req.method === 'GET') {
@@ -112,13 +123,13 @@ async function createApp(options = {}) {
         else {
           if (body.effect !== undefined && !device.effects.includes(body.effect)) throw new Error('Efeito não disponível neste dispositivo.');
           if (body.nativeMode !== undefined && !device.modes.some(m => m.id === body.nativeMode)) throw new Error('Modo não disponível neste dispositivo.');
-          store.device(device.id, body); hardware.changed();
+          store.device(device.id, body, hardware.snapshot().devices.map(item => item.id)); hardware.changed();
         }
         broadcast(); return json(res, 200, snapshot());
       }
       if (route === '/api/profiles' && req.method === 'POST') { admin(); const body = await readBody(req); store.profile(body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       const profileRoute = route.match(/^\/api\/profiles\/([a-f0-9-]{36})$/);
-      if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
+      if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); studio.reset(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin(); store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
@@ -163,11 +174,11 @@ async function createApp(options = {}) {
     return { localPort: local.address().port };
   }
   async function stop() {
-    clearInterval(heartbeat); hardware.stop(); alexa.stop();
+    clearInterval(heartbeat); studio.stop(); hardware.stop(); alexa.stop();
     for (const client of clients) client.res.end(); clients.clear();
     local.closeAllConnections(); if (local.listening) await new Promise(resolve => local.close(resolve));
   }
-  return { start, stop, local, store, security, hardware, alexa, snapshot };
+  return { start, stop, local, store, security, hardware, alexa, studio, snapshot };
 }
 if (require.main === module) {
   let app;

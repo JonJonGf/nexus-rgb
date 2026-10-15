@@ -139,6 +139,8 @@ class Hardware extends EventEmitter {
   }
   changed() { this.dirty = true; }
   renderFrame(id, settings, count, seconds) {
+    const spatial = this.studio?.colorsFor(id, settings, count);
+    if (spatial) return spatial;
     const signature = JSON.stringify([settings.effect, settings.color, settings.palette, settings.power]);
     let animation = this.animations.get(id);
     if (!animation || animation.signature !== signature) { animation = { signature, startedAt: seconds }; this.animations.set(id, animation); }
@@ -158,7 +160,7 @@ class Hardware extends EventEmitter {
     if (this.stopped || this.busy || !this.connected) return;
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
-      return s.power && !('nativeMode' in s) && s.effect !== 'static' && d.direct;
+      return s.power && d.direct && !this.studio?.hasDevice(component.id) && !('nativeMode' in s) && s.effect !== 'static';
     }));
     if (!this.dirty && !animated && Date.now() < this.nextDiscovery) return;
     this.busy = true; let changedErrors = false;
@@ -169,9 +171,9 @@ class Hardware extends EventEmitter {
       const seconds = performance.now() / 1000;
       for (const d of this.devices) {
         const channels = d.components || [d];
-        const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components) })));
+        const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components), spatial: this.studio?.hasDevice(component.id) ? this.studio.revision : null })));
         const changed = this.applied.get(d.id) !== signature;
-        const animation = channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && s.nativeMode === undefined && s.effect !== 'static' && d.direct; });
+        const animation = channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && d.direct && !this.studio?.hasDevice(component.id) && s.nativeMode === undefined && s.effect !== 'static'; });
         if (!changed && !animation) continue;
         if (d.components) {
           const oldError = d.error;
@@ -186,7 +188,8 @@ class Hardware extends EventEmitter {
           if (oldError !== d.error) changedErrors = true;
           continue;
         }
-        const settings = this.settings(d.id);
+        const settings = { ...this.settings(d.id) };
+        if (this.studio?.hasDevice(d.id)) delete settings.nativeMode;
         const oldError = d.error;
         const mode = !settings.power ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
         if (!mode) { d.error = 'Este dispositivo não oferece controle de cor compatível.'; }
@@ -223,7 +226,8 @@ class Hardware extends EventEmitter {
     catch (error) { if (previous !== undefined) this.store.data.zones[d.id][zoneId] = previous; throw error; }
     finally { this.busy = false; if (!this.connected) this.scheduleReconnect(); }
   }
-  start() { this.stopped = false; this.connect(); this.timer = setInterval(() => { this.tick().catch(error => this.lost(error)); }, 50); }
+  setFps() { clearInterval(this.timer); if (!this.stopped) this.timer = setInterval(() => { this.tick().catch(error => this.lost(error)); }, 1000 / (this.store.data.performance?.fps || 20)); }
+  start() { this.stopped = false; this.connect(); this.setFps(); }
   stop() { this.stopped = true; clearInterval(this.timer); clearTimeout(this.reconnect); this.client?.socket?.destroy(); this.client?.disconnect(); }
 }
 module.exports = { Hardware, identity, frame, hue, paletteColor };

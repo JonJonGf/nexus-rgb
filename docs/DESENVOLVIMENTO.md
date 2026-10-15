@@ -14,6 +14,8 @@ npm ci --ignore-scripts
 
 O código original é licenciado sob [MIT](../LICENSE.md). Dados locais, dependências, binários e credenciais ficam fora do versionamento. O campo `private: true` no `package.json` impede publicação acidental no registro npm.
 
+O mapa usa QuickJS em WASM e o pacote nativo `@napi-rs/canvas`. Instale as dependências opcionais da plataforma com `npm ci --ignore-scripts`; não use `--omit=optional`. Os binários Windows x64 vêm do pacote npm fixado no lockfile, sem compilar ou instalar um novo driver.
+
 ## Executar sem disputar o hardware da instalação
 
 Para trabalhar na interface, use outra porta e uma pasta de dados de desenvolvimento:
@@ -81,7 +83,7 @@ Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e os [critérios de dis
 
 ## Publicar uma versão
 
-Cada versão deve reunir código, documentação e instalador correspondentes. O workflow [Publicar versão Windows](../.github/workflows/publish-release.yml) é acionado ao enviar uma tag de versão, como `v0.1.0-alpha.5`.
+Cada versão deve reunir código, documentação e instalador correspondentes. O workflow [Publicar versão Windows](../.github/workflows/publish-release.yml) é acionado ao enviar uma tag de versão, como `v0.1.0-alpha.6`.
 
 Antes de criar a tag:
 
@@ -106,7 +108,11 @@ nexus-rgb/
 │   ├── hardware.js           # Detecção, zonas e escrita nos LEDs
 │   ├── alexa.js              # Descoberta Hue e comandos de energia
 │   ├── store.js              # Persistência e validação dos ajustes
-│   └── presets.js            # As seis cenas da Coleção Nexus
+│   ├── presets.js            # As seis cenas da Coleção Nexus
+│   ├── studio.js             # Biblioteca local, supervisão e prévia do mapa
+│   ├── studio-schema.js      # Formatos e limites de importação/layout
+│   ├── studio-worker.js      # Processo filho que renderiza os efeitos
+│   └── studio-render.js      # QuickJS WASM e ponte restrita para Canvas
 ├── native/                   # Executável C#, bandeja e serviços Windows
 ├── installer/                # Configuração do instalador Inno Setup
 ├── scripts/                  # Dependências, build, serviços e licenças
@@ -127,6 +133,8 @@ nexus-rgb/
 | TCP `80` por padrão e UDP `1900` · LAN | HTTP da ponte Hue configurável; descoberta SSDP permanece em 1900. |
 
 Os serviços são instalados em `Program Files\Nexus RGB`, com permissões protegidas. Os dados do painel ficam em `%ProgramData%\NexusRGB\app`, e os dados privilegiados do controlador em `%ProgramData%\NexusRGB\hardware`. As ACLs separam essas pastas.
+
+O arquivo `settings.json` guarda também FPS, posições e perfis espaciais; `app\effects` guarda as importações originais. O processo de renderização herda a conta limitada do servidor e pertence à árvore supervisionada pelo serviço. Código importado é avaliado somente em QuickJS WASM, com a ponte de desenho permitida; nunca use `eval`, `vm` do Node ou inserção de HTML na página para esses arquivos. O [guia do mapa](STUDIO.md) descreve formato, orçamento e limites de compatibilidade.
 
 O executável instalado lê `PanelPort`, `SDKPort` e `AlexaPort` como DWORDs de `HKLM\SOFTWARE\NexusRGB`, com padrões 5050/6743/80 se os valores estiverem ausentes. O serviço passa os três números validados ao Node e o SDK ao OpenRGB. A janela **Configurar portas…** roda elevada e chama o script protegido `scripts/configure-ports.ps1`; o serviço limitado e a interface web não podem gravar essa configuração. Em desenvolvimento, `NEXUS_PORT`, `NEXUS_RGB_PORT` e `NEXUS_ALEXA_PORT` configuram os listeners. Valores inválidos ou portas TCP repetidas causam erro explícito.
 

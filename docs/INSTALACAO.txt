@@ -20,6 +20,12 @@ Para atualizar o Nexus, feche também seu ícone ao lado do relógio usando
 "Fechar ícone (manter as luzes)". Fechar apenas o navegador não encerra o ícone.
 Os perfis e ajustes ficam em %ProgramData%\NexusRGB\app\settings.json e são
 mantidos na atualização, desinstalação e reinstalação.
+A biblioteca importada fica na subpasta effects desse mesmo diretório. Ao fazer
+backup, preserve settings.json e effects juntos. No Mapa do setup, organize as
+peças e escolha um efeito compartilhado. A importação de HTML Canvas é parcial;
+áudio e integrações específicas do SignalRGB não são suportados.
+Em Configurações, escolha de 5 a 60 FPS (padrão 20). A taxa física depende do
+hardware e do efeito; a prévia do navegador usa até 10 FPS.
 
 Para RGB de RAM e algumas placas-mãe, deixe selecionada a instalação do PawnIO
 e siga a janela do instalador oficial. Use a edição oficial assinada.

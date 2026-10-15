@@ -3,6 +3,21 @@ const test = require('node:test'); const assert = require('node:assert/strict');
 const { Hardware, frame } = require('../server/hardware'); const { defaults } = require('../server/store');
 function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
 class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
+
+test('mapa atualiza LEDs uma vez por quadro e restaura estático ou modo nativo ao sair', async t => {
+  const store = { data: { master: { ...defaults, brightness: 100, color: '#ff0000' }, devices: {} } };
+  const mock = new Mock([controller('RAM', 'USB:map')]), hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
+  hardware.stopped = false; await hardware.connect(); await hardware.tick(); const id = hardware.devices[0].id;
+  let active = true;
+  hardware.studio = { revision: 1, hasDevice: target => active && target === id, colorsFor(target, settings, count) { return active ? Array(count).fill({ red: 0, green: settings.power ? 255 : 0, blue: 0 }) : null; } };
+  hardware.changed(); await hardware.tick(); assert.equal(mock.calls.at(-1)[2][0].green, 255);
+  mock.calls = []; await hardware.tick(); assert.equal(mock.calls.length, 0, 'Não reenviar um quadro que não mudou.');
+  hardware.studio.revision++; hardware.changed(); await hardware.tick(); assert.equal(mock.calls.length, 1); assert.equal(mock.calls[0][0], 'leds');
+  active = false; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1)[2][0], { red: 255, green: 0, blue: 0 });
+  store.data.devices[id] = { nativeMode: 0 }; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1), ['mode', 0, 0]);
+  active = true; hardware.changed(); await hardware.tick(); assert.equal(mock.calls.at(-1)[2][0].green, 255);
+  active = false; hardware.changed(); await hardware.tick(); assert.deepEqual(mock.calls.at(-1), ['mode', 0, 0]);
+});
 test('detecta marcas e quantidades arbitrárias e escolhe Direct pelo modo real', async () => {
   const store = { data: { master: { ...defaults }, devices: {} } }; const mock = new Mock([controller('Teclado genérico', 'USB:1'), controller('GPU genérica', 'PCI:2')]);
   const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect(); await hardware.tick();

@@ -84,8 +84,14 @@ class Alexa {
     return changed;
   }
   async request(req, res) {
+    const started = performance.now();
     let recordHttp = () => {};
-    const send = (status, value) => { recordHttp(status); res.writeHead(status, { 'Content-Type': 'application/json', 'Connection': 'close', 'X-Content-Type-Options': 'nosniff' }); res.end(JSON.stringify(value)); };
+    const send = (status, value) => {
+      const payload = Buffer.from(JSON.stringify(value));
+      recordHttp(status);
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': payload.length, 'Connection': 'close', 'X-Content-Type-Options': 'nosniff' });
+      res.end(payload);
+    };
     const ip = net.normalize(req.socket.remoteAddress);
     if (!net.sameSubnet(ip, this.getInterfaces()) || req.headers.origin || !this.rate.take(ip)) return send(403, { error: 'Acesso negado.' });
     const localIp = net.normalize(req.socket.localAddress);
@@ -122,9 +128,14 @@ class Alexa {
         const patch = huePatch(body);
         if ('power' in patch) {
           if (this.store.power(patch.power)) { this.hardware.changed(); this.onChange(); }
-          this.diagnostics.lastCommand = { at: Date.now(), ip, name: LIGHT_NAME, power: this.store.data.master.power };
+          const known = ['on', 'bri', 'hue', 'sat', 'ct', 'xy', 'effect', 'alert', 'transitiontime'];
+          this.diagnostics.lastCommand = { at: Date.now(), ip, name: LIGHT_NAME, power: this.store.data.master.power, fields: known.filter(key => Object.hasOwn(body, key)), otherFieldCount: Object.keys(body).filter(key => !known.includes(key)).length, responseMs: Math.round(performance.now() - started) };
+          // Echo requests may bundle on/off with unsupported Hue attributes.
+          // Confirm the accepted power command without mixed success/errors;
+          // extra attributes never change RGB settings or advertised capabilities.
+          return send(200, [{ success: { [`/lights/${light}/state/on`]: this.store.data.master.power } }]);
         }
-        return send(200, Object.keys(body).map(k => k === 'on' ? { success: { [`/lights/${light}/state/on`]: body.on } } : { error: { type: 6, address: `/lights/${light}/state/${k}`, description: 'Only on/off is supported.' } }));
+        return send(200, Object.keys(body).map(k => ({ error: { type: 6, address: `/lights/${light}/state/${k}`, description: 'Only on/off is supported.' } })));
       } catch { return send(400, [{ error: { type: 7, description: 'Invalid state' } }]); }
     }
     return send(405, {});

@@ -1,5 +1,43 @@
 # Desempenho do Nexus RGB
 
+## Motor espacial — medição de 15/10/2026
+
+Ensaio isolado da implementação destinada à **v0.1.0-alpha.6**, no Ryzen 5 3600 com 12 processadores lógicos, 31,89 GiB de RAM, Windows 11 build 26300 e Node 24.20.0.
+
+Esta tabela inclui **servidor Node e processo de efeitos**. A classe de hardware é a mesma da aplicação, conectada a um SDK simulado com 3 controladoras, 5 componentes e 92 LEDs. **OpenRGB, serviços, bandeja, navegador e driver ficam fora da soma.** Portanto, os valores não representam o consumo total do aplicativo instalado.
+
+| Cenário | FPS solicitados | FPS renderizados¹ | CPU média² | RAM residente média³ | Pico de RAM residente³ | Renderização média |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Mapa desativado, cor estática | 20 | 0 | 0,030% | 50,99 MiB | 52,75 MiB | — |
+| Aurora espacial, sem prévia | 20 | 20,04 | 0,364% | 136,70 MiB | 144,06 MiB | 0,34 ms |
+| Aurora espacial, sem prévia | 60 | 60,06 | 0,803% | 161,25 MiB | 187,78 MiB | 0,32 ms |
+| Aurora espacial, com prévia | 60 | 60,01 | 1,031% | 189,47 MiB | 190,73 MiB | 0,32 ms |
+| HTML próprio de barras, sem prévia | 20 | 20,03 | 0,324% | 204,67 MiB | 223,32 MiB | 0,77 ms |
+| HTML próprio de barras, sem prévia | 60 | 60,06 | 0,809% | 253,80 MiB | 258,85 MiB | 0,69 ms |
+| HTML próprio de barras, com prévia | 60 | 59,90 | 1,048% | 255,49 MiB | 260,00 MiB | 0,73 ms |
+
+¹ Quadros concluídos divididos pelo tempo medido; pequenas diferenças acima de 60 decorrem dos limites da janela e dos relógios de amostragem. A taxa física dos LEDs **não foi medida**. O SDK simulado não reproduz atrasos USB/SMBus, congestionamento ou limites do OpenRGB.
+
+² Percentual da capacidade total dos 12 processadores lógicos. Não é a porcentagem de um único núcleo.
+
+³ Soma dos conjuntos residentes do servidor e do filho. Pode contar páginas compartilhadas mais de uma vez; a memória privada é outra métrica, disponível no relatório JSON.
+
+### Método e interpretação
+
+Cada cenário teve aquecimento de 3 segundos e 21 amostras, com espera solicitada de 1 segundo entre elas. A consulta de processos acrescentou tempo: as janelas efetivas ficaram entre 26,06 e 26,33 segundos. A CPU usa a diferença do contador cumulativo de CPU dos processos dividida pelo tempo efetivo e por 12. RAM média e pico usam as mesmas amostras; o tempo de renderização é a média dos últimos quadros observados em cada consulta.
+
+Os cenários foram executados na ordem da tabela, no mesmo servidor; o processo de efeitos foi recriado ao trocar o efeito/configuração. O servidor pode reter memória alocada, e o coletor de lixo pode agir em momentos diferentes. A diferença entre linhas não isola somente o custo do efeito. Estes números não demonstram ausência de vazamentos.
+
+O HTML usado no ensaio é um exemplo próprio, com 64 barras coloridas desenhadas a cada quadro, sem arquivos externos ou áudio. A prévia usa PNG 320 × 200 por SSE, com limite de 10 FPS; nesses cenários, o tráfego medido ficou em aproximadamente 10–11 KiB/s. O navegador que apresenta a imagem acrescenta seu próprio consumo, não medido aqui.
+
+O processamento de 60 FPS foi viável nesses dois efeitos e nesse ambiente. O envio ao SDK simulado acompanhou a renderização: cerca de 60 chamadas de LEDs por segundo no total a 20 FPS, e 180 a 60 FPS, distribuídas pelas três controladoras. Isso não comprova que um controlador físico processe essa taxa. Efeitos mais complexos podem atingir o orçamento de execução, e controladoras reais podem entregar menos atualizações. O padrão permanece **20 FPS**. Aumentar FPS implica mais CPU e comandos; reduza-o se o equipamento apresentar atraso.
+
+Uma sondagem local separada verificou 28 arquivos HTML fornecidos para compatibilidade: 25 renderizaram 20 quadros sem erro; 2 exigiam áudio do SignalRGB, não suportado, e 1 excedeu o orçamento de desenho. Esse ensaio curto não comprova equivalência visual, funcionamento de todas as opções ou estabilidade prolongada. Os arquivos desses criadores não foram redistribuídos.
+
+O [resumo em JSON](benchmarks/2026-10-15-studio.json) registra os valores e o escopo. A coleta usa o envio imediato dos quadros concluídos ao SDK; antecede apenas pequenos ajustes posteriores de validação e distribuição inicial das posições. Não é uma nova aferição de cada linha do código final. GPU, energia elétrica, temperatura, inicialização e horas/dias de uso não foram medidos.
+
+## Aplicativo completo — referência histórica de 13/10/2026
+
 Medição real realizada em **13/10/2026**, na versão instalada **0.1.0**, com os serviços do Nexus RGB, OpenRGB e ícone da bandeja em execução. Os números abaixo representam este equipamento e estas configurações; não são requisitos mínimos nem uma garantia para todos os PCs.
 
 A medição é de 13/10/2026 e antecede as alterações posteriores de recuperação de conexão, instalação, perfis e portas. Os valores não representam uma nova aferição de cada prévia publicada.
@@ -74,6 +112,6 @@ Para repetir a análise em outro PC, identifique os processos instalados por ser
 - CPU e memória do navegador, ferramentas de compilação/medição e alocações do driver no kernel não foram contabilizadas.
 - GPU, consumo elétrico em watts, temperatura e duração de bateria não foram medidos.
 - Os picos dependem da frequência e da resolução das amostras. A análise não comprova ausência de vazamento de memória nem estabilidade por horas ou dias.
-- A agenda dos efeitos de software usa intervalos de 50 ms, mas a taxa efetiva de quadros do hardware não foi medida.
+- Na versão histórica medida, a agenda usava intervalos de 50 ms. A versão atual permite 5–60 FPS; a taxa efetiva do hardware não foi medida neste ensaio histórico.
 
 O [resumo em JSON](benchmarks/2026-10-13.json) contém os valores sem arredondamento para consulta e comparação.

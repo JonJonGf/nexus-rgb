@@ -1,6 +1,41 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict'); const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
 const { Store, validatePatch } = require('../server/store');
+
+test('perfil guarda efeito espacial e parâmetros sem substituir o mapa compartilhado', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-spatial-profile-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const store = new Store(directory), layout = [{ key: 'position' }];
+  store.data.studio = { enabled: true, activeId: 'a'.repeat(24), values: { ink: '#1234ab' }, excluded: ['b'.repeat(24)], layout };
+  store.save(); const saved = store.profile('Mapa azul');
+  store.master({ color: '#fe7621' }); assert.equal(store.data.studio.enabled, false);
+  store.data.studio.layout = [{ key: 'moved' }]; store.applyProfile(saved.id);
+  assert.equal(store.data.studio.enabled, true); assert.equal(store.data.studio.activeId, saved.studio.activeId);
+  assert.deepEqual(store.data.studio.layout, [{ key: 'moved' }]); assert.deepEqual(store.data.studio.values, { ink: '#1234ab' });
+  assert.deepEqual(new Store(directory).data.studio, store.data.studio);
+  const sequence = store.profile('Outra sequência', { palette: ['#ff0000'], effect: 'comet' });
+  store.applyProfile(sequence.id); assert.equal(store.data.studio.enabled, false);
+});
+test('ligar um componente libera o geral mantendo todos os outros apagados', t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-individual-power-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const store = new Store(directory);
+  store.master({ power: true, color: '#1234ab', effect: 'wave', brightness: 37 });
+  store.device('ram-two', { color: '#fe7621', nativeMode: 7, power: true });
+  store.device('argb', { power: false, effect: 'breathe' });
+  store.power(false);
+  store.device('ram-one', { power: true }, ['ram-one', 'ram-two', 'argb', 'board']);
+  assert.equal(store.data.master.power, true);
+  assert.equal(store.data.master.color, '#1234ab');
+  assert.equal(store.data.devices['ram-one'].power, true);
+  for (const id of ['ram-two', 'argb', 'board']) assert.equal(store.data.devices[id].power, false);
+  assert.equal(store.data.devices['ram-two'].nativeMode, 7);
+  assert.equal(store.data.devices['ram-two'].color, '#fe7621');
+  assert.deepEqual(new Store(directory).data, store.data);
+  const before = structuredClone(store.data);
+  store.power(false); store.power(true);
+  assert.deepEqual(store.data, before);
+});
 test('restaura cores, desligamento, modos individuais e perfis de um novo processo', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-state-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const store = new Store(dir); store.master({ color: '#ff0055', power: false, brightness: 33 }); store.device('device-real', { nativeMode: 7 }); const profile = store.profile('Minha luz');

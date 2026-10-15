@@ -1,0 +1,49 @@
+(function() {
+  'use strict';
+  var queues = [], timers = new Map(), nextId = 0, now = 0, commands = [];
+  var flush = function() { if (commands.length) { var pending = commands; commands = []; _nexusDraw('batch', JSON.stringify(pending)); } };
+  var enqueue = function(op, args) { if (commands.length >= 30000) throw Error('Muitas operações no quadro.'); commands.push([op, args]); };
+  var call = function(op, args) { flush(); return JSON.parse(_nexusDraw(op, JSON.stringify(args || []))); };
+  var gradient = function(kind, coords) {
+    var stops = [];
+    return { kind: kind, coords: coords, stops: stops, addColorStop: function(offset, color) { if (stops.length >= 64) throw Error('Muitas cores no gradiente.'); stops.push([offset, color]); } };
+  };
+  var context = {}, canvas = { id: 'exCanvas', style: {}, addEventListener: function() {}, getBoundingClientRect: function() { return { x: 0, y: 0, left: 0, top: 0, width: canvas.width, height: canvas.height }; }, getContext: function(kind) { if (kind !== '2d') throw Error('Somente Canvas 2D.'); return context; } };
+  ['width', 'height'].forEach(function(key) { Object.defineProperty(canvas, key, { get: function() { return call('dimension', [key]); }, set: function(value) { call('dimension', [key, value]); } }); });
+  context.canvas = canvas;
+  ['fillRect', 'clearRect', 'strokeRect', 'beginPath', 'closePath', 'rect', 'arc', 'ellipse', 'moveTo', 'lineTo', 'bezierCurveTo', 'quadraticCurveTo', 'fill', 'stroke', 'clip', 'save', 'restore', 'translate', 'rotate', 'scale', 'transform', 'setTransform', 'resetTransform', 'getTransform'].forEach(function(name) {
+    context[name] = function() { var args = Array.prototype.slice.call(arguments); return name === 'getTransform' ? call(name, args) : enqueue(name, args); };
+  });
+  ['fillStyle', 'strokeStyle', 'globalAlpha', 'lineWidth', 'lineJoin', 'lineCap', 'globalCompositeOperation'].forEach(function(name) {
+    var value = name.indexOf('Style') >= 0 ? '#000000' : name === 'globalAlpha' || name === 'lineWidth' ? 1 : name === 'globalCompositeOperation' ? 'source-over' : name === 'lineJoin' ? 'miter' : 'butt';
+    Object.defineProperty(context, name, { get: function() { return value; }, set: function(v) { enqueue('style', [name, v]); value = v; } });
+  });
+  context.createLinearGradient = function() { return gradient('linear', Array.prototype.slice.call(arguments)); };
+  context.createRadialGradient = function() { return gradient('radial', Array.prototype.slice.call(arguments)); };
+  globalThis.window = globalThis;
+  globalThis.innerWidth = 320; globalThis.innerHeight = 200;
+  globalThis.document = { getElementById: function() { return canvas; }, addEventListener: function() {} };
+  globalThis.addEventListener = function() {};
+  globalThis.performance = { now: function() { return now; } };
+  globalThis.requestAnimationFrame = function(callback) { if (typeof callback !== 'function' || queues.length >= 64) throw Error('Fila de animação inválida.'); queues.push([++nextId, callback]); return nextId; };
+  globalThis.cancelAnimationFrame = function(id) { queues = queues.filter(function(item) { return item[0] !== id; }); };
+  globalThis.webkitRequestAnimationFrame = globalThis.mozRequestAnimationFrame = globalThis.msRequestAnimationFrame = globalThis.requestAnimationFrame;
+  globalThis.setTimeout = function(callback, delay) { if (typeof callback !== 'function' || timers.size >= 64) throw Error('Timer inválido.'); var id = ++nextId; timers.set(id, { callback: callback, delay: Math.max(1, Number(delay) || 1), at: now + Math.max(1, Number(delay) || 1), repeat: false }); return id; };
+  globalThis.setInterval = function(callback, delay) { var id = setTimeout(callback, delay); timers.get(id).repeat = true; return id; };
+  globalThis.clearTimeout = globalThis.clearInterval = function(id) { timers.delete(id); };
+  globalThis.console = { log: function() {}, warn: function() {}, error: function() {}, clear: function() {} };
+  globalThis.DOMPoint = function(x, y, z, w) { this.x = Number(x || 0); this.y = Number(y || 0); this.z = Number(z || 0); this.w = w === undefined ? 1 : Number(w); };
+  DOMPoint.prototype.matrixTransform = function(m) { return new DOMPoint(m.a * this.x + m.c * this.y + m.e, m.b * this.x + m.d * this.y + m.f); };
+  globalThis.DOMMatrix = function(m) { m = m || [1,0,0,1,0,0]; this.a=m[0];this.b=m[1];this.c=m[2];this.d=m[3];this.e=m[4];this.f=m[5]; };
+  DOMMatrix.prototype.transformPoint = function(p) { return new DOMPoint(p.x, p.y).matrixTransform(this); };
+  return function(time) {
+    now = time;
+    var pending = queues; queues = [];
+    for (var item of pending) item[1](now);
+    for (var pair of Array.from(timers)) {
+      var timer = pair[1];
+      if (now >= timer.at) { if (timer.repeat) timer.at = now + timer.delay; else timers.delete(pair[0]); timer.callback(); }
+    }
+    flush();
+  };
+})()

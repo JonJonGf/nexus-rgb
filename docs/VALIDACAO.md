@@ -4,6 +4,7 @@ Os relatórios registram os cenários testados, seus resultados e limitações. 
 
 | Data | Escopo | Relatório |
 | --- | --- | --- |
+| 15/10/2026 | Mapa espacial, importação isolada, FPS, perfis e respostas Alexa; lógica e interface | [Mapa e motor de efeitos](validation/2026-10-15-studio.md) |
 | 15/10/2026 | Perfis com cores ordenadas, editor, interface e persistência após reiniciar o serviço | [Perfis e movimentos](validation/2026-10-15-profiles.md) |
 | 15/10/2026 | Portas configuráveis, recuperação de falhas e atualização do instalador; 62 testes de lógica/integração e 10 de interface | [Portas e confiabilidade](validation/2026-10-15-ports-and-reliability.md) |
 | 14/10/2026 | API, supervisor, instalação em VM, ensaio de 15 minutos e configuração instalada | Resultados detalhados abaixo |

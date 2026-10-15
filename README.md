@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.5/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.5">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.6/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.6">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.5 · Gratuito e de código aberto.** Esta prévia inclui o criador de perfis e a configuração de portas. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo de hardware e do suporte do OpenRGB.
+> **v0.1.0-alpha.6 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -40,6 +40,9 @@
 - **Cada componente, do seu jeito:** RAM, placa-mãe, controladoras e periféricos compatíveis aparecem a partir da detecção real do OpenRGB.
 - **RGB e ARGB separados:** quando o hardware informa um mapa completo de zonas e permite cor por LED, as portas e a iluminação interna aparecem como componentes independentes.
 - **O layout acompanha sua cor:** a cor estática escolhida também muda a identidade visual do painel.
+- **Um efeito atravessando o setup:** organize as peças no mapa, divida faixas de LEDs e ajuste rotação, tamanho e ordem.
+- **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada.
+- **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
 - **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
 - **Controle na LAN:** o painel e os efeitos funcionam na rede local, sem depender de uma conta ou servidor externo do Nexus.
 
@@ -65,7 +68,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.5/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.5) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.6/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.6) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -179,7 +182,19 @@ Na aba **Perfis**, clique em **+ Criar perfil**, dê um nome e escolha o movimen
 
 O criador oferece os dez movimentos da tabela. A tela principal mantém seis atalhos; os quatro movimentos adicionais ficam no criador e também nos componentes compatíveis em **Dispositivos**. Os modos próprios do hardware continuam nessa aba. Não é preciso instalar outro plugin de efeitos.
 
-Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos animados, as cores se alternam a cada ciclo. Estático mantém a primeira cor. Cometa e Vai e vem precisam de LEDs individualmente endereçáveis para mostrar deslocamento; o percurso segue a ordem de LEDs informada pelo OpenRGB, sem um mapa físico do gabinete. Editar um perfil que guardava ajustes individuais substitui esses ajustes por uma sequência geral, como indicado no editor. Há um limite de 32 perfis salvos.
+Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos animados, as cores se alternam a cada ciclo. Estático mantém a primeira cor. Cometa e Vai e vem precisam de LEDs individualmente endereçáveis; esses movimentos comuns seguem a ordem de LEDs informada pelo OpenRGB. Editar um perfil que guardava ajustes individuais ou um efeito espacial substitui esses ajustes por uma sequência geral, como indicado no editor. Há um limite de 32 perfis salvos.
+
+### Organizar os dispositivos no espaço
+
+Abra **Mapa do setup**, arraste as peças para representar seu gabinete e clique em **Salvar mapa**. Escolha um efeito da biblioteca e marque **Aplicar mapa às luzes**. Assim, a posição de cada LED determina a cor recebida de uma única imagem em movimento. Há formatos de fita, anel e matriz, com rotação e inversão da ordem.
+
+O mapa inclui **Aurora espacial**, **Cometa no setup** e **Anéis de luz**. No PC, **Importar efeito** adiciona HTML Canvas compatível à biblioteca local; **Criar fórmula** abre o formato JSON `nexus-effect/1`. A importação não ativa as luzes automaticamente.
+
+A compatibilidade com efeitos do SignalRGB é parcial: áudio, integrações, arquivos externos e APIs avançadas não são suportados. Efeitos de outros criadores não acompanham o pacote. Consulte o [tutorial do mapa, importação, fórmulas e limites](docs/STUDIO.md).
+
+### Ajustar a fluidez
+
+Em **Configurações → Atualização do RGB**, escolha de **5 a 60 FPS** e salve. O padrão é 20. A mudança dispensa reiniciar o controlador; a prévia do mapa usa até 10 FPS para economizar tráfego. A taxa física dos LEDs depende também da controladora e do OpenRGB. O painel mostra os FPS renderizados pelo motor do mapa.
 
 **Estrobo produz luz intermitente.** Evite esse efeito se você ou alguém próximo tiver sensibilidade a flashes. A prévia no editor mostra apenas a paleta, sem piscar.
 
@@ -229,14 +244,14 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 - **Fechar a janela:** os serviços continuam funcionando. A opção **Fechar ícone (manter as luzes)** também mantém o controle ativo.
 - **Iniciar com o Windows:** o instalador configura os serviços e a restauração dos ajustes. Não é necessário abrir o painel para ativar os serviços.
 - **Atualizar:** no ícone ao lado do relógio, escolha **Fechar ícone (manter as luzes)** e execute o instalador da nova versão. Fechar apenas a aba do navegador não encerra esse ícone. Seus dados locais são mantidos. Reabra pelo atalho e recarregue páginas que já estavam abertas.
-- **Guardar seus perfis:** eles ficam em `%ProgramData%\NexusRGB\app\settings.json`, junto com os ajustes de iluminação. Recarregar a página não apaga esses dados. Atualização e reinstalação reutilizam o arquivo existente; a desinstalação também o preserva. Para manter uma cópia de segurança, copie esse arquivo para outra pasta.
+- **Guardar seus perfis:** copie `%ProgramData%\NexusRGB\app\settings.json` e a subpasta `effects` para outro local. O arquivo guarda os ajustes, mapa, FPS e perfis; a subpasta guarda os efeitos importados referenciados por eles. Recarregar a página não apaga esses dados. Atualização, reinstalação e desinstalação padrão os preservam.
 - **Desinstalar:** use o [assistente de desinstalação](#desinstalar), o atalho **Desinstalar Nexus RGB** no menu Iniciar ou as configurações de aplicativos do Windows.
 
 <a id="desinstalar"></a>
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.5/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.6/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -258,9 +273,11 @@ Medição real em **13/10/2026**, em um PC com **Ryzen 5 3600 (6 núcleos / 12 t
 
 **Como ler:** CPU é a porcentagem da capacidade total das 12 threads, calculada a partir do tempo de CPU dos processos. RAM é a soma dos conjuntos residentes (*Working Set*), que pode contar páginas compartilhadas mais de uma vez. **1 MiB = 1.048.576 bytes.** As pequenas diferenças entre apagado e estático são variações normais de uma amostragem curta.
 
-Efeitos animados geram cores em até 20 atualizações por segundo. Na cor estática, o Nexus mantém a configuração aplicada e evita reescrever os LEDs enquanto nada muda. Hardware, quantidade de LEDs, modo e velocidade podem alterar o consumo.
+Efeitos animados usam a taxa escolhida em Configurações, de 5 a 60 FPS (padrão 20). Na cor estática, o Nexus mantém a configuração aplicada e evita reescrever os LEDs enquanto nada muda. Hardware, quantidade de LEDs, modo e velocidade podem alterar o consumo.
 
 Os números são uma referência da configuração medida em 13/10/2026, anterior a esta prévia; o consumo pode variar em outras versões e máquinas. O navegador acrescenta seu próprio consumo quando o painel está aberto. GPU, energia em watts, inicialização e comportamento durante horas de uso não foram medidos. Consulte o [relatório completo e o método](docs/DESEMPENHO.md).
+
+**Novo motor espacial — ensaio isolado de 15/10/2026:** no mesmo PC, servidor e processo de efeitos somaram **0,364% de CPU / 136,70 MiB** com Aurora a 20 FPS e **0,803% / 161,25 MiB** a 60 FPS, sem prévia aberta. Com prévia a 60 FPS, foram **1,031% / 189,47 MiB**. Um HTML próprio de barras a 60 FPS, sem prévia, usou **0,809% / 253,80 MiB**. São médias de janelas de aproximadamente 26 segundos, com SDK simulado e 92 LEDs; **não incluem OpenRGB, serviços, bandeja ou navegador**, e não medem a taxa física dos LEDs. Os dois efeitos renderizaram cerca de 20/60 FPS conforme solicitado. Veja todos os cenários e limites no [relatório do motor espacial](docs/DESEMPENHO.md#motor-espacial--medição-de-15102026).
 
 Os testes de lógica, interface, instalação e recuperação estão descritos no [relatório de validação](docs/VALIDACAO.md), com data, ambiente e limites de cada ensaio. Os testes da API isolada medem somente o servidor Node; os números acima representam o conjunto instalado com OpenRGB e serviços.
 

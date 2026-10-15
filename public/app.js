@@ -73,7 +73,8 @@
     currentPage = name;
     document.querySelectorAll('[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === name));
     document.querySelectorAll('.nav').forEach(button => button.classList.toggle('active', button.dataset.page === name));
-    $('page-title').textContent = { control: 'Iluminação', devices: 'Dispositivos', profiles: 'Perfis', connect: 'Conexões' }[name];
+    $('page-title').textContent = { control: 'Iluminação', devices: 'Dispositivos', profiles: 'Perfis', connect: 'Conexões', studio: 'Mapa do setup', settings: 'Configurações' }[name];
+    window.NexusStudio?.open(name);
     if (name === 'connect' && admin) loadNetwork();
   }
   document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => page(button.dataset.page)));
@@ -116,6 +117,7 @@
     const notice = !online ? 'O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ' + (state.hardware.error || '') : !devices.length ? 'Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.' : failures.length ? `${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
     $('notice').textContent = notice; $('notice').hidden = !notice;
     renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
+    window.NexusStudio?.update(state, admin, api, toast, currentPage);
     $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
     if (!admin) $('profile-form').hidden = true;
     $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';
@@ -156,7 +158,7 @@
       const colors = p.settings?.palette?.length ? p.settings.palette : [p.color];
       const artwork = el('div', 'scene-art'); artwork.style.setProperty('--scene-palette', paletteGradient(colors));
       card.append(artwork, el('span', 'scene-tag', 'CRIADO POR VOCÊ'), el('h2', '', p.name));
-      const meta = el('div', 'scene-meta'); meta.append(el('span', '', labels[p.settings?.effect] || 'Ajustes salvos'), el('span', '', `${colors.length} ${colors.length === 1 ? 'cor' : 'cores'}`)); card.append(meta);
+      const meta = el('div', 'scene-meta'); meta.append(el('span', '', p.spatial ? 'Efeito no mapa' : labels[p.settings?.effect] || 'Ajustes salvos'), el('span', '', `${colors.length} ${colors.length === 1 ? 'cor' : 'cores'}`)); card.append(meta);
       card.append(el('p', '', p.deviceCount ? `${p.deviceCount} componente(s) com ajustes individuais salvos.` : `${p.settings?.brightness ?? 80}% de brilho · ${p.settings?.speed ?? 40}% de ritmo`));
       const apply = el('button', 'button primary', 'Ativar perfil'); apply.addEventListener('click', () => action(`/api/profiles/${p.id}`, {})); card.append(apply);
       if (admin) {
@@ -219,7 +221,7 @@
     for (const field of ['brightness', 'speed']) $(`profile-${field}`).value = settings[field];
     $('profile-builder').hidden = profileSnapshot; $('profile-effect-field').hidden = profileSnapshot; $('profile-snapshot-note').hidden = !profileSnapshot;
     $('profile-editor-title').textContent = profile ? 'SEU ESTÚDIO / EDITAR PERFIL' : profileSnapshot ? 'GUARDAR / AJUSTES ATUAIS' : 'SEU ESTÚDIO / NOVO PERFIL';
-    $('profile-edit-note').textContent = profile?.deviceCount ? 'Esta edição substitui os ajustes individuais salvos por uma sequência para todos os componentes compatíveis.' : 'Ao ativar, todos os componentes compatíveis seguem este perfil.';
+    $('profile-edit-note').textContent = profile?.deviceCount || profile?.spatial ? 'Esta edição substitui o efeito do mapa e os ajustes individuais salvos por uma sequência para todos os componentes compatíveis.' : 'Ao ativar, todos os componentes compatíveis seguem este perfil.';
     renderProfileColors(); $('profile-form').hidden = false; $('profile-name').focus();
   }
   function closeProfile() { $('profile-form').hidden = true; profileEditId = null; }

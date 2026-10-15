@@ -35,6 +35,7 @@ class Store {
     this.data = readJson(this.file, { version: 1, master: defaults, devices: {}, profiles: [], alexaEnabled: false });
     if (this.data.version !== 1) throw new Error('Versão de configuração incompatível.');
     validatePatch(this.data.master);
+    if (this.data.performance && (!Number.isInteger(this.data.performance.fps) || this.data.performance.fps < 5 || this.data.performance.fps > 60)) throw Error('Configuração de FPS inválida.');
     this.data.devices ??= {};
     this.data.profiles ??= [];
     this.data.zones ??= {};
@@ -49,16 +50,29 @@ class Store {
     if (this.data.master.power === value) return false;
     this.data.master.power = value; this.save(); return true;
   }
-  master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; this.data.devices = {}; this.save(); }
-  device(id, patch) {
+  master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; if (this.data.studio && ('color' in valid || 'effect' in valid)) this.data.studio = { ...this.data.studio, enabled: false }; this.data.devices = {}; this.save(); }
+  performance(patch) {
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some(k => k !== 'fps') || !Number.isInteger(patch.fps) || patch.fps < 5 || patch.fps > 60) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
+    this.data.performance = { fps: patch.fps }; this.save();
+  }
+  device(id, patch, knownIds = []) {
     const valid = validatePatch(patch, true), previous = { ...(this.data.devices[id] || {}) };
     if ('effect' in valid) delete previous.nativeMode;
+    if (this.data.studio && ('color' in valid || 'effect' in valid || 'nativeMode' in valid)) this.data.studio = { ...this.data.studio, excluded: [...new Set([...(this.data.studio.excluded || []), id])] };
+    if (valid.power === true && !this.data.master.power) {
+      // Release the global gate for this component without waking its peers.
+      // Preserve their colors, effects and native modes while keeping them off.
+      for (const other of new Set([...knownIds, ...Object.keys(this.data.devices)])) {
+        if (other !== id) this.data.devices[other] = { ...(this.data.devices[other] || {}), power: false };
+      }
+      this.data.master = { ...this.data.master, power: true };
+    }
     this.data.devices[id] = { ...previous, ...valid }; this.save();
   }
   zone(id, zoneId, count) { this.data.zones[id] ??= {}; this.data.zones[id][zoneId] = count; this.save(); }
   profileSettings(name, settings) {
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 48) throw new Error('Nome: 1 a 48 caracteres.');
-    if (settings === undefined) return { name: name.trim(), master: structuredClone(this.data.master), devices: structuredClone(this.data.devices) };
+    if (settings === undefined) return { name: name.trim(), master: structuredClone(this.data.master), devices: structuredClone(this.data.devices), ...(this.data.studio?.enabled ? { studio: structuredClone({ enabled: true, activeId: this.data.studio.activeId, values: this.data.studio.values || {}, excluded: this.data.studio.excluded || [] }) } : {}) };
     const valid = validatePatch(settings);
     if (!valid.palette?.length) throw new Error('Escolha de 1 a 8 cores para a sequência.');
     return { name: name.trim(), master: { ...defaults, ...structuredClone(valid), color: valid.palette[0].toLowerCase() }, devices: {} };
@@ -79,7 +93,9 @@ class Store {
   applyProfile(id) {
     const p = this.data.profiles.find(p => p.id === id);
     if (!p) throw new Error('Perfil não encontrado.');
-    this.data.master = structuredClone(p.master); this.data.devices = structuredClone(p.devices); this.save();
+    this.data.master = structuredClone(p.master); this.data.devices = structuredClone(p.devices);
+    if (this.data.studio) this.data.studio = { ...this.data.studio, enabled: false, ...(p.studio ? structuredClone(p.studio) : {}) };
+    this.save();
   }
 }
 module.exports = { Store, defaults, effects, validatePatch, readJson, writeJson };
