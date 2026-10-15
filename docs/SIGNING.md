@@ -1,16 +1,18 @@
 # Code signing policy
 
-**Current status: unsigned; the SignPath Foundation application was declined for now.** An application for the free open-source program was submitted on **14 October 2026**. The Foundation reported insufficient public adoption, visibility and sustained community activity, and invited a future application once the project has broader recognition. Reapplication does not guarantee approval. No signing account, certificate or API token is configured in this repository. The project remains free and open source.
+**Current status: Nexus RGB binaries are unsigned.** The project has no SignPath Foundation certificate or configured signing integration. No signing certificate, private key or API token is included in this repository. Nexus RGB is free and open source.
 
 ## Project and responsibility
 
-Nexus RGB is a free local RGB controller for compatible Windows PCs, with a browser panel and optional Alexa on/off control. The original code and documentation are [MIT-licensed](../LICENSE.md). This is a newly public early-stage project; no established adoption or independent endorsements are claimed.
+Nexus RGB is a local RGB controller for compatible Windows PCs, with a browser panel and optional Alexa on/off control. The original code and documentation are [MIT-licensed](../LICENSE.md). Releases are early previews; their test coverage and limitations are documented in the [validation reports](VALIDACAO.md).
 
-Committer, reviewer and intended release-signing approver: [JonJonGf](https://github.com/JonJonGf). External contributions must be reviewed. The maintainer has confirmed GitHub two-factor authentication; it must also be enabled for the future SignPath account. Signing requests will require manual approval if the project is accepted.
+Project maintainer and intended release-signing approver: [JonJonGf](https://github.com/JonJonGf). External contributions require review. Any future signing integration must use multifactor authentication for the maintainer's GitHub and signing-provider accounts, with manual approval of signing requests.
 
 ## Build and signing scope
 
 The manual [Windows artifact workflow](../.github/workflows/build-release.yml) builds on a GitHub-hosted Windows runner, verifies vendor hashes and expected upstream signatures, audits dependencies, and uploads unsigned Nexus binaries with their hashes and source commit. `BUILD-INFO.json` is a build record, not an independent cryptographic attestation. SignPath origin verification is not configured yet.
+
+The [release workflow](../.github/workflows/publish-release.yml) publishes installers, uninstall helpers and checksums from version tags after its build and installation checks. Published artifacts remain unsigned; this workflow does not implement code signing.
 
 Only binaries maintained by Nexus are intended for signing: the application, uninstall helper, setup and generated uninstaller. Dependencies keep their original signatures and licenses; they must not be signed as Nexus code. The current setup contains unsigned Nexus binaries. After approval, packaging must incorporate signed application/helper binaries and sign the generated uninstaller and final setup. A signature on the setup alone would not sign its installed contents.
 
@@ -24,4 +26,4 @@ The installer explains the Windows services, hardware driver and firewall change
 
 ## Downloads
 
-[Official releases](https://github.com/JonJonGf/nexus-rgb/releases) provide unsigned previews and SHA256 checksums. No claim of SignPath-provided signing is made before approval. The Foundation's [conditions](https://signpath.org/terms.html) apply; if accepted, its certificate would identify SignPath Foundation as publisher. Portuguese details are available in [ASSINATURA.md](ASSINATURA.md).
+[Official releases](https://github.com/JonJonGf/nexus-rgb/releases) provide unsigned previews and SHA256 checksums. Checksums confirm that a download matches the published file; they do not authenticate its publisher. Keep Windows security protections enabled. Portuguese verification instructions are available in [ASSINATURA.md](ASSINATURA.md).

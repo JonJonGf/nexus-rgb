@@ -1,18 +1,16 @@
-# Code signing policy — assinatura digital
+# Assinatura digital e verificação de downloads
 
-**Status: os executáveis próprios do Nexus RGB ainda não são assinados.** Não há aprovação nem certificado concedido pela SignPath Foundation. A licença MIT permite distribuir o código; ela não autentica o editor de um executável.
+**Os executáveis próprios do Nexus RGB ainda não são assinados.** Por isso, o Windows pode mostrar “Editor desconhecido” ou um aviso do SmartScreen ao abrir o instalador. A licença MIT não autentica o editor de um executável.
 
-A candidatura foi enviada em **14/10/2026**. A SignPath Foundation informou que não pode aprová-la neste momento por falta de sinais suficientes de adoção, visibilidade pública e atividade sustentada do projeto. O programa permite uma nova candidatura quando houver maior reconhecimento, sem garantia de aprovação. O Nexus continua gratuito e de código aberto, com executáveis próprios sem assinatura. [Code signing policy in English](SIGNING.md) reúne os dados do projeto. O [workflow de artefatos Windows](../.github/workflows/build-release.yml) gera arquivos sem assinatura a partir do commit executado no GitHub; não há integração de assinatura configurada.
+O projeto não possui certificado da SignPath Foundation nem integração de assinatura configurada. A [política em inglês](SIGNING.md) descreve o escopo previsto para assinatura. A [publicação de versões](DESENVOLVIMENTO.md#publicar-versao) compila os executáveis no GitHub Actions a partir da tag da versão e publica seus hashes junto aos downloads.
 
 ## Responsabilidade
 
 [JonJonGf](https://github.com/JonJonGf) mantém o projeto e é o responsável pelo código, revisão e aprovação de versões. Contribuições externas precisam ser revisadas antes de integrar uma versão. Se um serviço de assinatura for aprovado, o mantenedor deverá confirmar a autenticação multifator no GitHub e no provedor e aprovar manualmente cada solicitação de assinatura.
 
-## Elegibilidade do programa gratuito
+## Escopo de uma futura assinatura
 
-A [SignPath Foundation](https://signpath.org/terms.html) oferece assinatura para projetos de código aberto elegíveis. A aceitação depende da análise do projeto, de sua reputação verificável e do cumprimento das condições; publicar sob MIT não garante aprovação. Nesse programa, o certificado identifica **SignPath Foundation** como editor, não o nome pessoal do autor.
-
-Antes de solicitar o serviço, é necessário conferir a elegibilidade do pacote completo, incluindo bibliotecas e runtimes de terceiros; validar a procedência dos binários em um build automatizado; configurar as restrições de metadados e a aprovação de assinaturas. O nome do produto e a versão dos executáveis próprios e do instalador são definidos no código e no build. Nenhum certificado, chave privada ou segredo de assinatura está incluído no repositório ou no instalador.
+A integração com um provedor de assinatura depende de aprovação e da revisão do pacote completo, incluindo bibliotecas e runtimes de terceiros. O processo deve validar a procedência dos binários, restringir os metadados esperados e exigir aprovação manual do mantenedor. Nenhum certificado, chave privada ou segredo de assinatura está incluído no repositório ou no instalador.
 
 Uma eventual assinatura será aplicada somente aos artefatos próprios construídos a partir do código versionado do Nexus: aplicativo, assistente de remoção, instalador e desinstalador gerado. Node.js, OpenRGB, PawnIO, Qt e runtime Microsoft conservam as licenças e assinaturas fornecidas pelos respectivos fornecedores. O manifesto de dependências fixa origens e hashes; o build verifica esses hashes e as assinaturas previstas. A revisão das obrigações de redistribuição está documentada nos [avisos de terceiros](../THIRD-PARTY-NOTICES.md).
 
@@ -22,7 +20,7 @@ O Nexus não tem telemetria nem atualizador remoto. O painel permite controle da
 
 O instalador informa os serviços, o acesso ao hardware/driver e as regras locais que serão criadas. A [desinstalação](../README.md#desinstalar) remove os serviços e regras do Nexus e preserva dados e dependências compartilhadas. Os scripts de desenvolvimento precisam de internet para baixar ferramentas e dependências; isso é separado do uso local do aplicativo instalado.
 
-## Conferir um download hoje
+## Conferir um download
 
 Baixe os executáveis pela [página oficial de versões](https://github.com/JonJonGf/nexus-rgb/releases) e compare seu SHA256 com o arquivo `SHA256SUMS.txt` da mesma versão:
 

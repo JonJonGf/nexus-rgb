@@ -1,6 +1,7 @@
 name: Validar instalador em VM descartável
 on:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
@@ -19,6 +20,13 @@ jobs:
           node-version: '24.20.0'
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Conferir versão, documentação e notas
+        if: github.ref_type == 'tag'
+        run: node scripts/check-release.cjs
+      - run: npm audit --audit-level=moderate
+      - run: npm test
+      - run: npm run test:ui
+      - run: npm run test:supervisor
       - name: Verificar e preparar dependências oficiais
         shell: powershell
         run: ./scripts/download-vendor.ps1
@@ -27,6 +35,27 @@ jobs:
       - name: Instalar, atualizar, recuperar, remover e reinstalar
         shell: powershell
         run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }}
+      - name: Registrar origem do pacote
+        if: github.ref_type == 'tag' && matrix.ports.panel == 5050
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $records=@(foreach($file in @('dist\NexusRGB-Setup-0.1.0.exe','dist\NexusRGB-Uninstall-0.1.0.exe')){
+            $item=Get-Item -LiteralPath $file
+            [pscustomobject]@{name=$item.Name;sha256=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant();size=$item.Length}
+          })
+          $info=[ordered]@{repository=$env:GITHUB_REPOSITORY;tag=$env:GITHUB_REF_NAME;commit=$env:GITHUB_SHA;runId=$env:GITHUB_RUN_ID;runAttempt=$env:GITHUB_RUN_ATTEMPT;signed=$false;files=$records}
+          [IO.File]::WriteAllText((Join-Path $PWD 'dist\BUILD-INFO.json'),($info | ConvertTo-Json -Depth 5),[Text.UTF8Encoding]::new($false))
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: github.ref_type == 'tag' && matrix.ports.panel == 5050
+        with:
+          name: nexus-windows-release
+          path: |
+            dist/NexusRGB-Setup-0.1.0.exe
+            dist/NexusRGB-Uninstall-0.1.0.exe
+            dist/SHA256SUMS.txt
+            dist/BUILD-INFO.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

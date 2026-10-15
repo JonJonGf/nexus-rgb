@@ -2,7 +2,7 @@
 
 Medição real realizada em **13/10/2026**, na versão instalada **0.1.0**, com os serviços do Nexus RGB, OpenRGB e ícone da bandeja em execução. Os números abaixo representam este equipamento e estas configurações; não são requisitos mínimos nem uma garantia para todos os PCs.
 
-A coleta ocorreu durante a revisão, antes das últimas correções de recuperação de conexão e instalação. O núcleo dos efeitos permaneceu igual; esta medição não é uma nova aferição do pacote final publicado.
+A medição é de 13/10/2026 e antecede as alterações posteriores de recuperação de conexão, instalação, perfis e portas. Os valores não representam uma nova aferição de cada prévia publicada.
 
 ## Equipamento e configuração
 
@@ -55,10 +55,10 @@ Valores médios durante cada cenário ligado. A CPU está expressa como porcenta
 ## Como foi medido
 
 1. Os processos foram identificados pelo registro dos serviços do Windows, pela relação entre processos pai e filho e pelo executável da bandeja. Processos de compilação, ferramentas de medição e outros programas ficaram fora do grupo.
-2. Em cada amostra, `Win32_Process` forneceu `KernelModeTime`, `UserModeTime`, `WorkingSetSize` e `PrivatePageCount`. O token usado não permitia consultar `TotalProcessorTime` dos serviços protegidos; a soma dos tempos de kernel e usuário fornecida pelo CIM é o contador cumulativo equivalente.
+2. Em cada amostra, `Win32_Process` forneceu `KernelModeTime`, `UserModeTime`, `WorkingSetSize` e `PrivatePageCount`. O tempo cumulativo de CPU foi obtido pela soma dos tempos de kernel e usuário fornecidos pelo CIM.
 3. A CPU foi calculada pela diferença desse tempo cumulativo entre amostras. A média usa a janela inteira; o pico usa cada intervalo observado.
 4. O cenário desligado teve 41 amostras em 40 segundos. Estático e onda tiveram aquecimento de 3 segundos, seguido por 31 amostras em 30 segundos. O intervalo solicitado foi de 1 segundo e o tempo efetivamente decorrido foi usado no cálculo.
-5. Um perfil temporário preservou a configuração principal e todos os ajustes individuais. Nenhum serviço foi reiniciado; zonas e aprovações da Alexa foram preservadas. O perfil foi restaurado e removido ao terminar. Por pedido do usuário, as luzes ficaram ligadas com a cor e o efeito originais.
+5. A configuração principal e os ajustes individuais foram guardados em um perfil temporário e restaurados ao terminar a coleta. O perfil temporário foi removido. Os serviços, as zonas e as autorizações da Alexa permaneceram inalterados.
 
 ```text
 tempo_CPU = (KernelModeTime + UserModeTime) / 10.000.000

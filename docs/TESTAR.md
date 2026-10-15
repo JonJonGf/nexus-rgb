@@ -1,6 +1,6 @@
 # Testar o Nexus RGB e compartilhar o resultado
 
-Testes da comunidade ajudam a descobrir diferenças entre PCs e a registrar quais configurações funcionaram. Nenhum relato individual garante compatibilidade com toda uma marca. Use a [página oficial de versões](https://github.com/JonJonGf/nexus-rgb/releases) e informe exatamente qual versão ou commit você testou. O instalador publicado pode estar atrás do código da branch principal; não suponha que todo recurso novo já está no instalador.
+Testes da comunidade ajudam a registrar quais configurações funcionam e a reproduzir problemas em diferentes PCs. Use um instalador da [página oficial de versões](https://github.com/JonJonGf/nexus-rgb/releases) e informe a identificação completa da prévia, como `v0.1.0-alpha.5`. Se executou o código diretamente, informe o commit. As notas de cada versão descrevem os recursos do respectivo pacote.
 
 ## Roteiro
 
@@ -20,6 +20,6 @@ Não desative o antivírus nem crie exclusões para conseguir testar. Pare diant
 
 Abra [Issues → New issue](https://github.com/JonJonGf/nexus-rgb/issues/new/choose) e escolha **Teste de compatibilidade**, **Relatar um problema** ou **Sugestão**. É necessário ter uma conta GitHub para publicar. Preencha o modelo e revise o texto antes de clicar em **Submit new issue**. Issues e anexos são públicos; não inclua senhas, tokens, números de série ou outros dados pessoais. O aplicativo não coleta nem envia feedback.
 
-O mantenedor e outros participantes podem responder nos comentários da própria issue. Responda no mesmo relato para manter o histórico junto. Consulte relatos existentes antes de abrir outro e acrescente detalhes ao existente se for o mesmo problema. As notificações são controladas pela conta de cada participante; o mantenedor não precisa fornecer nem coletar e-mails pelo aplicativo. Não há prazo garantido de resposta.
+O acompanhamento acontece nos comentários da própria issue. Consulte relatos existentes antes de abrir outro e acrescente detalhes ao existente se for o mesmo problema. As notificações seguem as preferências da sua conta GitHub. Não há prazo garantido de resposta.
 
-Também é possível usar diretamente o [modelo de teste de compatibilidade](https://github.com/JonJonGf/nexus-rgb/issues/new?template=teste-de-compatibilidade.md). Marque apenas os itens realmente testados. Relatos positivos e negativos são úteis; não é necessário deixar estrela para participar e não há promessa de aprovação de certificado em troca de feedback.
+Também é possível usar diretamente o [modelo de teste de compatibilidade](https://github.com/JonJonGf/nexus-rgb/issues/new?template=teste-de-compatibilidade.md). Marque apenas os itens realmente testados e indique o que ficou pendente. Relatos de configurações que funcionaram também ajudam a documentar a compatibilidade.

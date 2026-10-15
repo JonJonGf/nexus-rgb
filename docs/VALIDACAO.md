@@ -1,6 +1,16 @@
-# Validação de segurança e estabilidade — 14/10/2026
+# Testes e validação do Nexus RGB
 
-Esta revisão amplia os testes do Nexus RGB e registra evidências reproduzíveis. Ela é uma revisão técnica do próprio projeto; não é uma auditoria independente ou uma certificação de compatibilidade com todo PC.
+Os relatórios registram os cenários testados, seus resultados e limitações. Os testes são mantidos pelo próprio projeto e não equivalem a uma auditoria independente ou certificação de compatibilidade com todo PC.
+
+| Data | Escopo | Relatório |
+| --- | --- | --- |
+| 15/10/2026 | Perfis com cores ordenadas, editor, interface e persistência após reiniciar o serviço | [Perfis e movimentos](validation/2026-10-15-profiles.md) |
+| 15/10/2026 | Portas configuráveis, recuperação de falhas e atualização do instalador; 62 testes de lógica/integração e 10 de interface | [Portas e confiabilidade](validation/2026-10-15-ports-and-reliability.md) |
+| 14/10/2026 | API, supervisor, instalação em VM, ensaio de 15 minutos e configuração instalada | Resultados detalhados abaixo |
+
+Os números de cada relatório correspondem à execução documentada. Para uma versão publicada, consulte também as verificações e os artefatos da execução do GitHub Actions indicada nas notas da versão.
+
+## Resultados de 14/10/2026
 
 ## Resultado por área
 
@@ -87,6 +97,6 @@ Esse último comando apenas consulta a configuração instalada e grava o relat�
 
 ## Trabalho ainda necessário para distribuição ampla
 
-O projeto agora tem como objetivo distribuição gratuita. Permanecem assinatura pública dos executáveis, revisão externa de segurança, testes limpos de Windows 10/11 com contas comuns, driver com integridade de memória, uma matriz física de fabricantes/modelos, celulares Android/iOS, múltiplos Echos, suspensão/retomada, mudanças reais de rede e sustentação por horas/dias. Consulte os [critérios de distribuição](COMERCIAL.md).
+Permanecem pendentes assinatura pública dos executáveis, revisão externa de segurança, testes limpos de Windows 10/11 com contas comuns, driver com integridade de memória, uma matriz física de fabricantes/modelos, celulares Android/iOS, múltiplos Echos, suspensão/retomada, mudanças reais de rede e sustentação por horas/dias. Consulte os [critérios de distribuição](COMERCIAL.md).
 
-O acesso RGB pela LAN continua sendo HTTP sem autenticação, conforme a decisão do proprietário. Os testes confirmam esse comportamento e a separação dos ajustes administrativos; não acrescentam senha ou criptografia à rede.
+O controle RGB pela LAN usa HTTP sem autenticação. Os testes verificam os limites de sub-rede e a separação dos ajustes administrativos. A conexão local não possui senha nem criptografia.

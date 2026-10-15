@@ -1,0 +1,48 @@
+name: Publicar versão Windows
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/installer.yml
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Baixar pacote validado e conferir hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name nexus-windows-release --dir dist/release
+          (cd dist/release && sha256sum --check SHA256SUMS.txt)
+          cp "docs/releases/$RELEASE_TAG.md" dist/release-notes.md
+          printf '\n\nCódigo: `%s`. [Build e testes](https://github.com/%s/actions/runs/%s).\n' "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> dist/release-notes.md
+      - name: Publicar executáveis e notas da mesma versão
+        shell: bash
+        run: |
+          set -euo pipefail
+          if state=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft'); then
+            if [ "$state" != true ]; then
+              echo "::error::A versão já está pública; os arquivos existentes não serão substituídos."
+              exit 1
+            fi
+          else
+            flags=()
+            if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "Nexus RGB $RELEASE_TAG" --notes-file dist/release-notes.md "${flags[@]}"
+          fi
+          gh release upload "$RELEASE_TAG" dist/release/* --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes-file dist/release-notes.md --draft=false

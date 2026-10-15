@@ -12,7 +12,7 @@ cd nexus-rgb
 npm ci --ignore-scripts
 ```
 
-O repositório é público e o clone não exige conta GitHub. O código original é licenciado sob [MIT](../LICENSE.md). Dados, binários, dependências, logs e credenciais são excluídos pelo `.gitignore`. O campo `private: true` no `package.json` apenas impede publicação acidental no registro npm; não limita o acesso ao GitHub.
+O código original é licenciado sob [MIT](../LICENSE.md). Dados locais, dependências, binários e credenciais ficam fora do versionamento. O campo `private: true` no `package.json` impede publicação acidental no registro npm.
 
 ## Executar sem disputar o hardware da instalação
 
@@ -73,9 +73,28 @@ O instalador inclui os arquivos necessários para a instalação offline: runtim
 
 O assistente de desinstalação é um executável separado e também integra o pacote. Ele consulta o registro oficial do produto e abre o desinstalador Inno existente, que remove os serviços e as regras próprias. O argumento `--check` verifica a instalação sem abrir UAC ou remover nada; retorno `0` indica validação bem-sucedida. Na execução normal, retorno `0` indica que o desinstalador foi aberto, não que a remoção já terminou. O arquivo `SHA256SUMS.txt` permite conferir os dois executáveis distribuídos.
 
-Na [prévia do GitHub](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.4), esses arquivos ficam em **Assets**. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página. Os arquivos e o código são públicos e podem ser baixados sem login.
+Nas [versões do GitHub](https://github.com/JonJonGf/nexus-rgb/releases), esses arquivos ficam em **Assets**, junto com os hashes e o registro do build. O ZIP do código-fonte é oferecido pelo próprio GitHub na mesma página.
 
 Leia os [avisos de terceiros](../THIRD-PARTY-NOTICES.md) e os [critérios de distribuição](COMERCIAL.md) antes de distribuir. O build não assina os executáveis Nexus com um certificado próprio. Veja a [Code signing policy](ASSINATURA.md).
+
+<a id="publicar-versao"></a>
+
+## Publicar uma versão
+
+Cada versão deve reunir código, documentação e instalador correspondentes. O workflow [Publicar versão Windows](../.github/workflows/publish-release.yml) é acionado ao enviar uma tag de versão, como `v0.1.0-alpha.5`.
+
+Antes de criar a tag:
+
+1. Confira a versão base em `package.json`, `native/AppInfo.cs` e `installer/NexusRGB.iss`. O sufixo da prévia aparece na tag; os executáveis desta série usam a versão numérica `0.1.0`.
+2. Atualize os links de download do README para a mesma tag e crie as notas em `docs/releases/TAG.md`, descrevendo recursos, correções e limitações.
+3. Execute `node scripts/check-release.cjs TAG` e revise o commit completo.
+4. Envie o commit e a tag para o repositório.
+
+O workflow verifica essa correspondência, compila o pacote e executa as suítes de lógica, interface, supervisor e instalação. O instalador é exercitado em VMs descartáveis com portas padrão e alternativas. Somente após as duas configurações passarem, o pacote testado nas portas padrão é anexado à versão com o assistente de remoção, `SHA256SUMS.txt` e `BUILD-INFO.json`.
+
+Os arquivos são enviados primeiro a um rascunho. A versão torna-se pública após o upload e a conferência dos hashes. Tags com sufixo são publicadas como prévias. Uma execução com falha não deve ser anunciada como versão disponível; consulte os logs, corrija o problema e confira a publicação antes de divulgar o download. Arquivos de versões públicas anteriores não são substituídos.
+
+Esse processo não assina os executáveis nem comprova compatibilidade com hardware físico. O workflow manual [Preparar artefatos Windows para assinatura](../.github/workflows/build-release.yml) permanece separado da publicação.
 
 ## Estrutura do repositório
 

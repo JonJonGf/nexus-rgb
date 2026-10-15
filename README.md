@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.4/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.4">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.5/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.5">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **Versão 0.1.0 · Prévia gratuita para validação.** O objetivo do Nexus é oferecer controle RGB local gratuitamente. Os executáveis ainda não têm assinatura digital própria, e a compatibilidade depende do hardware suportado pelo OpenRGB.
+> **v0.1.0-alpha.5 · Gratuito e de código aberto.** Esta prévia inclui o criador de perfis e a configuração de portas. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo de hardware e do suporte do OpenRGB.
 
 ---
 
@@ -65,7 +65,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.4/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.4) para ver os executáveis e seus hashes SHA256. Com esse arquivo em mãos, siga os próximos passos.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.5/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.5) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -82,8 +82,9 @@ Se você prefere instalar a partir do código, clone o repositório e siga [como
 1. Dê dois cliques em **NexusRGB-Setup-0.1.0.exe**.
 2. Autorize o pedido de administrador do Windows para iniciar a instalação.
 3. Escolha se deseja criar o atalho na área de trabalho e mostrar o ícone ao entrar no Windows.
-4. Para controlar RAM e placas-mãe que precisam do driver, mantenha selecionada a opção **Abrir instalador do driver assinado PawnIO** e conclua a janela do instalador oficial.
-5. Aguarde a conclusão e selecione **Abrir Nexus RGB**.
+4. Em **Portas da rede**, mantenha os padrões ou escolha portas disponíveis. Consulte [como resolver conflitos de porta](#portas).
+5. Para controlar RAM e placas-mãe que precisam do driver, mantenha selecionada a opção **Abrir instalador do driver assinado PawnIO** e conclua a janela do instalador oficial.
+6. Aguarde a conclusão e selecione **Abrir Nexus RGB**.
 
 O pacote já inclui **Node.js, OpenRGB 1.0, Microsoft Visual C++ e o instalador oficial do PawnIO**. Essas dependências são preparadas pelo instalador; não é necessário baixá-las separadamente. O Nexus não pede que você desative o antivírus ou as proteções do Windows.
 
@@ -92,7 +93,7 @@ O pacote já inclui **Node.js, OpenRGB 1.0, Microsoft Visual C++ e o instalador 
 1. Abra **Nexus RGB** pelo menu Iniciar ou pelo atalho.
 2. Confira o indicador **Controlador conectado** e os componentes detectados.
 3. Em **Iluminação**, clique ou arraste a bolinha da roda de cores, ajuste **Intensidade** e escolha um efeito.
-4. Quer começar com uma combinação pronta? Clique em **Aurora**, **Brasa** ou outra cena na barra inferior.
+4. Para começar com uma combinação pronta, clique em **Aurora**, **Brasa** ou outra cena na barra inferior.
 5. Para personalizar separadamente a RAM, a placa-mãe ou uma porta ARGB, abra **Dispositivos**.
 
 Os ajustes são salvos automaticamente. Quando o controlador está desconectado, o Nexus guarda a configuração para aplicar assim que a conexão voltar.
@@ -126,6 +127,8 @@ Use o endereço mostrado pelo seu Nexus; o IP acima é apenas um exemplo e **505
 **Não precisa ler o QR Code toda vez.** O favorito ou atalho abre o mesmo link, sem login ou pareamento. Para manter o endereço mesmo após reiniciar o roteador ou o computador, reserve o IP do PC nas configurações DHCP do roteador.
 
 O atalho no telefone abre o painel web. Esta versão não inclui um APK ou aplicativo iOS nativo. Wi-Fi de convidados e redes com isolamento entre aparelhos podem impedir o acesso.
+
+<a id="portas"></a>
 
 ### Trocar portas e resolver conflitos
 
@@ -213,11 +216,11 @@ A integração é opcional e vem desativada. Você precisa de um Echo compatíve
 
 A Alexa controla **somente ligar e desligar**. Cores, brilho, efeitos e perfis ficam no painel Nexus. Ao religar pela Alexa, seus ajustes individuais são preservados; componentes que estavam apagados continuam apagados.
 
-Use o nome **Iluminação Nexus** para distinguir a luz de dispositivos que desligam o computador, como os do Simple WOL. Se você usou a versão que anunciava cinco dispositivos de efeitos, exclua essas entradas antigas no aplicativo Alexa e mantenha a luz principal.
+Use o nome completo **Iluminação Nexus** para evitar confusão com outros dispositivos cadastrados na Alexa. Caso existam entradas antigas de versões anteriores do Nexus, remova-as no aplicativo Alexa e faça a descoberta novamente.
 
 Reserve os IPs do PC e do Echo no roteador. A descoberta pode variar com o modelo e firmware do Echo; a [documentação da emulação Hue](https://www.home-assistant.io/integrations/emulated_hue/) explica as limitações desse protocolo. A integração não é certificada pela Amazon ou Philips.
 
-**E fora de casa?** O painel Nexus atende somente a rede local. Comandos remotos pelo aplicativo Alexa dependem do Echo, da infraestrutura da Amazon e da compatibilidade da integração; precisam ser validados no aparelho.
+O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativo Alexa dependem do Echo, dos serviços da Amazon e da compatibilidade da integração com o aparelho.
 
 ## 🪟 No dia a dia
 
@@ -226,13 +229,14 @@ Reserve os IPs do PC e do Echo no roteador. A descoberta pode variar com o model
 - **Fechar a janela:** os serviços continuam funcionando. A opção **Fechar ícone (manter as luzes)** também mantém o controle ativo.
 - **Iniciar com o Windows:** o instalador configura os serviços e a restauração dos ajustes. Não é necessário abrir o painel para ativar os serviços.
 - **Atualizar:** no ícone ao lado do relógio, escolha **Fechar ícone (manter as luzes)** e execute o instalador da nova versão. Fechar apenas a aba do navegador não encerra esse ícone. Seus dados locais são mantidos. Reabra pelo atalho e recarregue páginas que já estavam abertas.
+- **Guardar seus perfis:** eles ficam em `%ProgramData%\NexusRGB\app\settings.json`, junto com os ajustes de iluminação. Recarregar a página não apaga esses dados. Atualização e reinstalação reutilizam o arquivo existente; a desinstalação também o preserva. Para manter uma cópia de segurança, copie esse arquivo para outra pasta.
 - **Desinstalar:** use o [assistente de desinstalação](#desinstalar), o atalho **Desinstalar Nexus RGB** no menu Iniciar ou as configurações de aplicativos do Windows.
 
 <a id="desinstalar"></a>
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.4/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.5/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -256,9 +260,9 @@ Medição real em **13/10/2026**, em um PC com **Ryzen 5 3600 (6 núcleos / 12 t
 
 Efeitos animados geram cores em até 20 atualizações por segundo. Na cor estática, o Nexus mantém a configuração aplicada e evita reescrever os LEDs enquanto nada muda. Hardware, quantidade de LEDs, modo e velocidade podem alterar o consumo.
 
-Esses resultados foram coletados durante a revisão, antes das últimas correções de recuperação de conexão e instalação. São uma referência desse PC, não uma garantia para todas as máquinas. O navegador acrescenta seu próprio consumo quando o painel está aberto. GPU, energia em watts, inicialização e comportamento durante horas de uso não foram medidos. Consulte o [relatório completo e o método](docs/DESEMPENHO.md).
+Os números são uma referência da configuração medida em 13/10/2026, anterior a esta prévia; o consumo pode variar em outras versões e máquinas. O navegador acrescenta seu próprio consumo quando o painel está aberto. GPU, energia em watts, inicialização e comportamento durante horas de uso não foram medidos. Consulte o [relatório completo e o método](docs/DESEMPENHO.md).
 
-Em **14/10/2026**, a revisão adicional passou em **48 testes de lógica/integração, 9 de interface e 45 verificações do instalador completo numa VM Windows Server 2025**. Uma amostra de **15 minutos da API isolada** completou 2.066 requisições e dez recuperações após encerramento forçado. Esse ensaio mede apenas o Node, sem hardware/Alexa, e não substitui os números do aplicativo completo acima. Veja os [resultados e limitações da validação](docs/VALIDACAO.md).
+Os testes de lógica, interface, instalação e recuperação estão descritos no [relatório de validação](docs/VALIDACAO.md), com data, ambiente e limites de cada ensaio. Os testes da API isolada medem somente o servidor Node; os números acima representam o conjunto instalado com OpenRGB e serviços.
 
 <a id="ajuda"></a>
 
@@ -275,7 +279,7 @@ Em **14/10/2026**, a revisão adicional passou em **48 testes de lógica/integra
 | **Aparece “O Windows protegeu o computador” ou “Editor desconhecido”** | Os executáveis Nexus desta prévia ainda não têm assinatura digital própria. Confira a origem na página oficial da versão e o hash em `SHA256SUMS.txt`. Não desative o SmartScreen ou o antivírus. A assinatura e a reputação de distribuição continuam pendentes. |
 | **A ponte Alexa informa porta ocupada** | Outro programa está usando a porta HTTP configurada. Consulte **Configurar portas…** pelo ícone. Alguns Echos exigem a porta 80; o painel continua independente da ponte. |
 | **A Alexa não encontrou a luz** | Use a busca **Philips Hue Bridge V1 (redonda)**, abra a janela de descoberta no Nexus e confira a autorização do IP do Echo. Em **Conexões**, veja a última busca e consulta recebidas. |
-| **A Alexa oferece desligar o computador** | Confira se **Iluminação Nexus** existe no app Alexa e use esse nome nos comandos, para evitar confusão com Simple WOL ou outro dispositivo. |
+| **A Alexa oferece desligar o computador** | Confira se **Iluminação Nexus** existe no app Alexa e use o nome completo nos comandos para distinguir a luz de outros dispositivos. |
 | **A roda de cores parece arrastar a página** | Atualize para a versão mais recente e recarregue o painel com **Ctrl + F5**. A roda deve acompanhar o arraste sem selecionar o conteúdo da página. |
 
 Ainda precisa investigar? Pelo ícone da bandeja, abra **Abrir pasta de diagnósticos**. Os dados do painel ficam em `%ProgramData%\NexusRGB\app`; erros de instalação ficam em `%ProgramData%\NexusRGB\installation-error.log`. Para relatar um problema, informe a versão do Nexus, o modelo do componente e a mensagem apresentada.
@@ -306,7 +310,7 @@ O feedback acontece **somente no GitHub**. O mantenedor responde nos comentário
 
 O código original do Nexus RGB e sua documentação são públicos sob a [licença MIT](LICENSE.md), com autoria de **JonJonGf**. Você pode usar, estudar, modificar e redistribuir, inclusive comercialmente, mantendo o aviso de autoria e a licença. OpenRGB, PawnIO e os demais componentes preservam suas próprias licenças; consulte os [avisos de terceiros](THIRD-PARTY-NOTICES.md).
 
-O instalador inclui a MIT do Nexus e os avisos de terceiros. **MIT não é assinatura digital:** os executáveis próprios desta prévia continuam sem assinatura. Consulte a [Code signing policy — assinatura digital](docs/ASSINATURA.md) para o status e o caminho gratuito em avaliação.
+O instalador inclui a licença do Nexus e os avisos de terceiros. Os executáveis próprios desta prévia ainda não são assinados; consulte [assinatura digital e verificação de downloads](docs/ASSINATURA.md).
 
 ## 📚 Para quem desenvolve ou distribui
 

@@ -18,6 +18,8 @@ Feche o aplicativo Nexus antigo, outro OpenRGB e os programas RGB do fabricante
 antes de instalar. Não execute dois controladores ao mesmo tempo.
 Para atualizar o Nexus, feche também seu ícone ao lado do relógio usando
 "Fechar ícone (manter as luzes)". Fechar apenas o navegador não encerra o ícone.
+Os perfis e ajustes ficam em %ProgramData%\NexusRGB\app\settings.json e são
+mantidos na atualização, desinstalação e reinstalação.
 
 Para RGB de RAM e algumas placas-mãe, deixe selecionada a instalação do PawnIO
 e siga a janela do instalador oficial. Use a edição oficial assinada.
