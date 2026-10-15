@@ -121,11 +121,26 @@ Por exemplo, se o PC tiver o IP `192.168.1.100`:
 http://192.168.1.100:5050/
 ```
 
-Use o endereço mostrado pelo seu Nexus; o IP acima é apenas um exemplo. No próprio computador, você também pode abrir `http://127.0.0.1:5050/`. Esse endereço funciona somente no PC que executa o aplicativo.
+Use o endereço mostrado pelo seu Nexus; o IP acima é apenas um exemplo e **5050 é a porta padrão**. Se você escolher outra porta, use-a também no endereço. No próprio computador, abra pelo ícone Nexus, que usa a porta configurada. O endereço `127.0.0.1` funciona somente no PC que executa o aplicativo.
 
 **Não precisa ler o QR Code toda vez.** O favorito ou atalho abre o mesmo link, sem login ou pareamento. Para manter o endereço mesmo após reiniciar o roteador ou o computador, reserve o IP do PC nas configurações DHCP do roteador.
 
 O atalho no telefone abre o painel web. Esta versão não inclui um APK ou aplicativo iOS nativo. Wi-Fi de convidados e redes com isolamento entre aparelhos podem impedir o acesso.
+
+### Trocar portas e resolver conflitos
+
+Na instalação, a página **Portas da rede** permite escolher as portas do painel, SDK OpenRGB e ponte Alexa. Depois de instalado, clique com o botão direito no ícone Nexus perto do relógio e escolha **Configurar portas…**. Essa janela funciona mesmo se o painel não abrir. Use **Buscar livre** para sugerir uma porta de painel ou SDK disponível e depois **Aplicar e reiniciar Nexus**. O Windows pede administrador para salvar a configuração e atualizar somente as regras do Nexus no firewall.
+
+| Uso | Padrão | Configuração |
+| :--- | :--- | :--- |
+| Painel no PC e celular | TCP 5050 | 1024 a 65535 |
+| SDK OpenRGB, somente no PC | TCP 6743 | 1024 a 65535 |
+| Ponte Alexa | TCP 80 | 1 a 65535; manter 80 favorece compatibilidade com Echos |
+| Descoberta Alexa | UDP 1900 | Fixa pelo protocolo SSDP |
+
+As três portas TCP precisam ser diferentes. O configurador recusa uma porta ocupada por outro programa e tenta restaurar a configuração anterior se a troca falhar. Ele não encerra programas de terceiros. Outro OpenRGB controlando o mesmo hardware continua sendo um conflito de controle, mesmo se usar outra porta. A disponibilidade da porta sugerida é conferida novamente ao aplicar, pois outro programa pode ocupá-la nesse intervalo.
+
+As portas ficam salvas em `HKLM\SOFTWARE\NexusRGB` e são reutilizadas após reiniciar e atualizar o Nexus. A alteração não fica disponível pela LAN. Ao mudar a porta do painel, abra o novo endereço pelo ícone e atualize o favorito do celular ou gere outro QR em **Conexões**. O link permanece igual enquanto IP e porta não mudarem. Alterar a porta HTTP da Alexa pode exigir redescoberta e não garante compatibilidade com todos os Echos; o Nexus não muda a porta UDP 1900.
 
 <a id="iluminacao"></a>
 
@@ -253,12 +268,12 @@ Em **14/10/2026**, a revisão adicional passou em **48 testes de lógica/integra
 | :--- | :--- |
 | **Nenhum dispositivo foi detectado** | Feche outros programas RGB, confirme a instalação do PawnIO se o hardware precisa dele e consulte a compatibilidade do modelo no OpenRGB. |
 | **RAM aparece, mas a porta ARGB fica apagada** | Em **Dispositivos**, confira as zonas e informe a quantidade real de LEDs da porta, quando ela permite redimensionamento. Nem todo header identifica sozinho os LEDs conectados. |
-| **O celular não abre o painel** | Use o IP mostrado em **Conexões**, com `http://` e a porta `5050`. Confira se o PC está acordado e se os aparelhos estão na mesma sub-rede, sem isolamento de convidados. |
+| **O celular não abre o painel** | Use o IP e a porta mostrados em **Conexões**, com `http://`. Confira se o PC está acordado e se os aparelhos estão na mesma sub-rede, sem isolamento de convidados. |
 | **O link parou depois de reiniciar** | Confira se o IP do PC mudou. Abra o novo endereço mostrado no Nexus e faça uma reserva DHCP no roteador para manter o link. |
-| **O instalador informa porta ocupada** | Feche o Nexus antigo ou outro OpenRGB. O instalador verifica as portas `5050` e `6743` e não encerra programas de terceiros. |
+| **O instalador informa porta ocupada** | Volte à página **Portas da rede** e escolha outros números para o painel/SDK. Na instalação existente, use **Configurar portas…** pelo ícone Nexus. Outro OpenRGB disputando o hardware precisa ser fechado por você. |
 | **O instalador pede para fechar o Nexus** | Clique com o botão direito no ícone ao lado do relógio e escolha **Fechar ícone (manter as luzes)**. Depois execute novamente o instalador. |
 | **Aparece “O Windows protegeu o computador” ou “Editor desconhecido”** | Os executáveis Nexus desta prévia ainda não têm assinatura digital própria. Confira a origem na página oficial da versão e o hash em `SHA256SUMS.txt`. Não desative o SmartScreen ou o antivírus. A assinatura e a reputação de distribuição continuam pendentes. |
-| **A ponte Alexa diz “Porta 80 ocupada”** | Outro programa está usando a porta da ponte Hue. Identifique o conflito; o painel RGB na porta `5050` continua independente da ponte. |
+| **A ponte Alexa informa porta ocupada** | Outro programa está usando a porta HTTP configurada. Consulte **Configurar portas…** pelo ícone. Alguns Echos exigem a porta 80; o painel continua independente da ponte. |
 | **A Alexa não encontrou a luz** | Use a busca **Philips Hue Bridge V1 (redonda)**, abra a janela de descoberta no Nexus e confira a autorização do IP do Echo. Em **Conexões**, veja a última busca e consulta recebidas. |
 | **A Alexa oferece desligar o computador** | Confira se **Iluminação Nexus** existe no app Alexa e use esse nome nos comandos, para evitar confusão com Simple WOL ou outro dispositivo. |
 | **A roda de cores parece arrastar a página** | Atualize para a versão mais recente e recarregue o painel com **Ctrl + F5**. A roda deve acompanhar o arraste sem selecionar o conteúdo da página. |

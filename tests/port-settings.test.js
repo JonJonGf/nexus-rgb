@@ -1,0 +1,88 @@
+'use strict';
+const test = require('node:test'), assert = require('node:assert/strict');
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+test('configurador recusa porta estrangeira antes de parar serviços e restaura após falha', { skip: process.platform !== 'win32' }, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-ports-fixture-')); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const script = String.raw`
+$ErrorActionPreference='Stop'
+$env:PSModulePath=Join-Path $PSHOME 'Modules'
+$root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+$dataRoot=$env:NEXUS_PORT_TEST_DATA
+$PanelPort=5200; $SDKPort=7200; $AlexaPort=18081
+if($env:NEXUS_PORT_TEST_CASE -eq 'panel-only'){$SDKPort=6743}
+$old=$null; $stopped=$false; $original=@{}
+$native=Join-Path $root 'NexusRGB.exe'
+$fakeServices=@(
+  [pscustomobject]@{Name='NexusRGB';PathName=('"'+$native+'" --service');ProcessId=100;State='Running'},
+  [pscustomobject]@{Name='NexusRGBHardware';PathName=('"'+$native+'" --hardware-service');ProcessId=200;State='Running'}
+)
+$fakeProcesses=@(
+  [pscustomobject]@{Name='NexusRGB.exe';ProcessId=100;ParentProcessId=1;ExecutablePath=$native},
+  [pscustomobject]@{Name='NexusRGB.exe';ProcessId=200;ParentProcessId=1;ExecutablePath=$native},
+  [pscustomobject]@{Name='node.exe';ProcessId=101;ParentProcessId=100;ExecutablePath=(Join-Path $root 'runtime\node.exe')},
+  [pscustomobject]@{Name='OpenRGB.exe';ProcessId=201;ParentProcessId=200;ExecutablePath=(Join-Path $root 'openrgb\OpenRGB.exe')},
+  [pscustomobject]@{Name='Other.exe';ProcessId=900;ParentProcessId=1;ExecutablePath='C:\Other.exe'}
+)
+$statuses=@{NexusRGB='Running';NexusRGBHardware='Running'}
+function Record([string]$Text){Add-Content -LiteralPath (Join-Path $dataRoot 'events.txt') -Value $Text}
+function Get-CimInstance([string]$ClassName){if($ClassName -eq 'Win32_Service'){return $fakeServices}; return $fakeProcesses}
+function Get-NetTCPConnection {if($env:NEXUS_PORT_TEST_CASE -eq 'occupied'){[pscustomobject]@{LocalPort=5200;OwningProcess=900}}}
+function Get-NexusPorts {if($env:NEXUS_PORT_TEST_CASE -eq 'invalid-saved'){throw 'Invalid old settings'}; return @{PanelPort=5050;SDKPort=6743;AlexaPort=80}}
+function Set-NexusPorts([int]$PanelPort,[int]$SDKPort,[int]$AlexaPort){Record ('ports:'+$PanelPort+','+$SDKPort+','+$AlexaPort)}
+function Set-NexusPortFirewall([string]$NodePath,[int]$PanelPort,[int]$AlexaPort){Record ('firewall:'+$PanelPort+','+$AlexaPort)}
+function Assert-NexusPorts([int]$PanelPort,[int]$SDKPort,[int]$AlexaPort){}
+function Assert-FreePort([int]$Port){Record ('probe:'+$Port)}
+function Wait-ConfiguredPanel([int]$Port){if($env:NEXUS_PORT_TEST_CASE -eq 'health-failure'){throw 'Simulated panel failure'}; Record ('ready:'+$Port)}
+function Get-Service([string]$Name){[pscustomobject]@{Status=$statuses[$Name]} | Add-Member -MemberType ScriptMethod -Name WaitForStatus -Value {} -PassThru}
+function Stop-Service([string]$Name){Record ('stop:'+$Name); $statuses[$Name]='Stopped'}
+function Start-Service([string]$Name){Record ('start:'+$Name); $statuses[$Name]='Running'}
+$tokens=$null; $errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_PORT_TEST_SCRIPT,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'Invalid script syntax'}
+$body=$ast.EndBlock.Statements | Where-Object {$_ -is [Management.Automation.Language.TryStatementAst]} | Select-Object -Last 1
+if(-not $body){throw 'Configuration transaction missing'}
+. ([scriptblock]::Create($body.Extent.Text))
+`;
+  const file = path.join(directory, 'fixture.ps1'); fs.writeFileSync(file, '\ufeff' + script);
+  for (const mode of ['occupied', 'success', 'health-failure', 'panel-only', 'invalid-saved']) {
+    const data = path.join(directory, mode); fs.mkdirSync(data);
+    const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], { encoding: 'utf8', windowsHide: true, timeout: 15000, env: { ...process.env, NEXUS_PORT_TEST_DATA: data, NEXUS_PORT_TEST_CASE: mode, NEXUS_PORT_TEST_SCRIPT: path.resolve(__dirname, '../scripts/configure-ports.ps1') } });
+    assert.equal(result.status, ['occupied', 'health-failure'].includes(mode) ? 1 : 0, result.stdout + result.stderr);
+    const eventsFile = path.join(data, 'events.txt'); const events = fs.existsSync(eventsFile) ? fs.readFileSync(eventsFile, 'utf8') : '';
+    if (mode === 'occupied') { assert.equal(events, ''); assert.match(result.stderr, /5200.*Other.exe/); }
+    if (mode === 'success') { assert.match(events, /ports:5200,7200,18081/); assert.match(events, /ready:5200/); }
+    if (mode === 'health-failure') { assert.match(events, /ports:5050,6743,80/); assert.match(events, /firewall:5050,80/); assert.match(events, /start:NexusRGBHardware/); }
+    if (mode === 'panel-only') { assert.doesNotMatch(events, /stop:NexusRGBHardware/); assert.match(events, /ready:5200/); }
+  }
+});
+
+test('portas persistidas e regras de firewall mantêm validação e escopo LAN', { skip: process.platform !== 'win32' }, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-ports-rules-')); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const file = path.join(directory, 'fixture.ps1');
+  fs.writeFileSync(file, '\ufeff' + String.raw`
+$ErrorActionPreference='Stop'
+. $env:NEXUS_PORT_HELPER
+$script:saved=$null
+function Get-ItemProperty {return $script:saved}
+$ports=Get-NexusPorts
+if($ports.PanelPort -ne 5050 -or $ports.SDKPort -ne 6743 -or $ports.AlexaPort -ne 80){throw 'Defaults changed'}
+$script:saved=[pscustomobject]@{PanelPort=5200;SDKPort=7200;AlexaPort=8080}
+if((Get-NexusPorts).PanelPort -ne 5200){throw 'Saved port ignored'}
+foreach($invalid in @('5200',0,65536)) {$script:saved.PanelPort=$invalid; $failed=$false; try {Get-NexusPorts | Out-Null} catch {$failed=$true}; if(-not $failed){throw 'Invalid registry port accepted'}}
+$failed=$false; try {Assert-NexusPorts 5200 5200 80} catch {$failed=$true}; if(-not $failed){throw 'Duplicate ports accepted'}
+$script:rules=@()
+function Get-NetFirewallRule {}
+function Remove-NetFirewallRule {}
+function New-NetFirewallRule($DisplayName,$Group,$Direction,$Action,$Program,$Protocol,$LocalPort,$Profile,$InterfaceType,$RemoteAddress,$EdgeTraversalPolicy) {
+  if($Group -ne 'Nexus RGB' -or $Direction -ne 'Inbound' -or $Action -ne 'Allow' -or $Protocol -ne 'TCP' -or $RemoteAddress -ne 'LocalSubnet' -or $EdgeTraversalPolicy -ne 'Block'){throw 'Firewall scope widened'}
+  $script:rules+=@($LocalPort)
+}
+Set-NexusPortFirewall 'C:\Nexus\node.exe' 5200 8080
+if(($script:rules -join ',') -ne '5200,8080'){throw 'Wrong firewall ports'}
+'port-rules-safe'
+`);
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], { encoding: 'utf8', windowsHide: true, env: { ...process.env, NEXUS_PORT_HELPER: path.resolve(__dirname, '../scripts/ports.ps1') } });
+  assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /port-rules-safe/);
+});

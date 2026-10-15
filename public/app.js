@@ -246,6 +246,7 @@
       for (const item of networkInfo.urls) { const option = el('option', '', `${item.name} — ${item.url}`); option.value = item.address; select.append(option); } if ([...select.options].some(o => o.value === old)) select.value = old;
       $('uptime').textContent = `${Math.floor(networkInfo.uptime / 3600)}h ${Math.floor(networkInfo.uptime % 3600 / 60)}min`;
       $('memory').textContent = `${networkInfo.memoryMB} MB`; $('data-directory').textContent = networkInfo.dataDirectory;
+      const ports = networkInfo.ports; $('configured-ports').textContent = ports ? `Painel ${ports.panel} · SDK ${ports.sdk} · Alexa ${ports.alexa}` : 'Consulte a configuração no ícone do Nexus.';
       $('alexa-status').textContent = networkInfo.alexa.status; $('alexa-enabled').checked = networkInfo.alexa.enabled;
       const diagnostic = networkInfo.alexa.diagnostics || {};
       const time = item => new Date(item.at).toLocaleTimeString('pt-BR');

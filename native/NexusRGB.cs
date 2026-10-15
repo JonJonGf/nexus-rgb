@@ -9,12 +9,15 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
+using System.Threading.Tasks;
 
 internal static class Program {
     internal static readonly string Root = AppDomain.CurrentDomain.BaseDirectory;
-    internal const string Panel = "http://127.0.0.1:5050/";
+    internal static string Panel { get { return "http://127.0.0.1:" + PortSettings.Load().Panel + "/"; } }
     [STAThread]
     private static void Main(string[] args) {
+        if (Array.IndexOf(args, "--configure-ports") >= 0) { Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false); Application.Run(new PortDialog()); return; }
         if (Array.IndexOf(args, "--service") >= 0) { ServiceBase.Run(new Worker(false)); return; }
         if (Array.IndexOf(args, "--hardware-service") >= 0) { ServiceBase.Run(new Worker(true)); return; }
         if (Array.IndexOf(args, "--self-test") >= 0) {
@@ -30,21 +33,101 @@ internal static class Program {
         }
     }
     internal static void OpenPanel() {
+        try {
+        if (!PanelReady()) { MessageBox.Show("O painel Nexus ainda não respondeu no endereço configurado. Aguarde a inicialização ou use Configurar portas no ícone perto do relógio se houver conflito.", "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
         // The browser renders local HTML; it never receives native privileges.
         string[] paths = { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe") };
         foreach (string path in paths) if (File.Exists(path)) { Process.Start(new ProcessStartInfo(path, "--app=" + Panel) { UseShellExecute = true }); return; }
         Process.Start(new ProcessStartInfo(Panel) { UseShellExecute = true });
+        } catch (Exception error) { MessageBox.Show(error.Message + "\nAbra Configurar portas no ícone do Nexus.", "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+    internal static void ConfigurePorts() {
+        try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "NexusRGB.exe"), "--configure-ports") { UseShellExecute = true, Verb = "runas" }); }
+        catch (System.ComponentModel.Win32Exception error) { if (error.NativeErrorCode != 1223) MessageBox.Show(error.Message, "Nexus RGB"); }
+    }
+    internal static bool PanelReady() {
+        try {
+            var request = (HttpWebRequest)WebRequest.Create(Panel + "api/health"); request.Proxy = null; request.Timeout = 1000; request.ReadWriteTimeout = 1000;
+            using (var response = request.GetResponse()) using (var reader = new StreamReader(response.GetResponseStream())) { char[] buffer = new char[1024]; int count = reader.Read(buffer, 0, buffer.Length); return new string(buffer, 0, count).Contains("\"application\":\"nexus-rgb\""); }
+        } catch { return false; }
+    }
+}
+internal sealed class PortSettings {
+    internal int Panel = 5050, SDK = 6743, Alexa = 80;
+    internal static PortSettings Load() {
+        var value = new PortSettings();
+        using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\NexusRGB")) {
+            if (key != null) { value.Panel = Read(key, "PanelPort", value.Panel); value.SDK = Read(key, "SDKPort", value.SDK); value.Alexa = Read(key, "AlexaPort", value.Alexa); }
+        }
+        value.Validate(); return value;
+    }
+    private static int Read(RegistryKey key, string name, int fallback) { object value = key.GetValue(name, null); if (value == null) return fallback; if (!(value is int)) throw new InvalidDataException("Porta inválida no registro: " + name); return (int)value; }
+    internal void Validate() { if (Panel < 1024 || Panel > 65535 || SDK < 1024 || SDK > 65535 || Alexa < 1 || Alexa > 65535 || Panel == SDK || Panel == Alexa || SDK == Alexa) throw new InvalidDataException("Use portas diferentes. Painel/SDK: 1024 a 65535. Alexa: 1 a 65535."); }
+}
+internal sealed class PortDialog : Form {
+    private readonly NumericUpDown panel, sdk, alexa;
+    private readonly Button apply;
+    private bool busy;
+    internal PortDialog() {
+        Text = "Nexus RGB — Configurar portas"; ClientSize = new Size(520, 345); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen;
+        Font = new Font("Segoe UI", 9F);
+        PortSettings current;
+        try { current = PortSettings.Load(); } catch { current = new PortSettings(); }
+        var intro = new Label { Left = 20, Top = 15, Width = 480, Height = 42, Text = "Escolha portas diferentes das usadas por outros aplicativos.\nOs links e o firewall do Nexus serão atualizados ao aplicar." }; Controls.Add(intro);
+        panel = Field("Painel web / celular", 70, current.Panel, 1024, true);
+        sdk = Field("SDK OpenRGB (somente neste PC)", 115, current.SDK, 1024, true);
+        alexa = Field("Ponte Alexa (recomendado: 80)", 160, current.Alexa, 1, false);
+        Controls.Add(new Label { Left = 20, Top = 207, Width = 480, Height = 60, Text = "Descoberta Alexa: UDP 1900, definida pelo protocolo.\nOutra porta HTTP pode não funcionar com alguns Echos.\nAo mudar o painel, atualize os favoritos e o link do celular." });
+        apply = new Button { Left = 330, Top = 290, Width = 170, Height = 32, Text = "Aplicar e reiniciar Nexus" }; Controls.Add(apply);
+        apply.Click += async (s, e) => {
+            var value = new PortSettings { Panel = (int)panel.Value, SDK = (int)sdk.Value, Alexa = (int)alexa.Value };
+            try {
+                value.Validate(); busy = true; apply.Enabled = false;
+                DateTime started = DateTime.UtcNow;
+                int result = await Task.Run(() => {
+                    var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe"), "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + Path.Combine(Program.Root, @"scripts\configure-ports.ps1") + "\" -PanelPort " + value.Panel + " -SDKPort " + value.SDK + " -AlexaPort " + value.Alexa) { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true };
+                    using (var process = Process.Start(info)) { process.WaitForExit(); return process.ExitCode; }
+                });
+                if (result != 0) {
+                    string log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", "ports-error.log");
+                    string detail = File.Exists(log) && File.GetLastWriteTimeUtc(log) >= started ? File.ReadAllText(log) : "Consulte ProgramData\\NexusRGB\\ports-error.log.";
+                    throw new InvalidOperationException("A alteração não foi aplicada.\n" + detail.Substring(0, Math.Min(detail.Length, 1500)));
+                }
+                MessageBox.Show("Portas atualizadas. Abra o Nexus pelo ícone para usar o novo endereço.", "Nexus RGB");
+            } catch (Exception error) { MessageBox.Show(error.Message, "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            finally { busy = false; apply.Enabled = true; }
+        };
+        FormClosing += (s, e) => { if (busy) e.Cancel = true; };
+    }
+    private NumericUpDown Field(string title, int top, int port, int minimum, bool suggest) {
+        Controls.Add(new Label { Left = 20, Top = top + 5, Width = 265, Height = 25, Text = title });
+        var field = new NumericUpDown { Left = 288, Top = top, Width = 88, Minimum = minimum, Maximum = 65535, Value = port }; Controls.Add(field);
+        if (suggest) {
+            var button = new Button { Left = 385, Top = top - 1, Width = 115, Height = 28, Text = "Buscar livre" }; Controls.Add(button);
+            button.Click += (s, e) => {
+                for (int candidate = (int)field.Value; candidate <= Math.Min(65535, (int)field.Value + 200); candidate++) {
+                    if ((panel != null && field != panel && candidate == (int)panel.Value) || (sdk != null && field != sdk && candidate == (int)sdk.Value) || (alexa != null && candidate == (int)alexa.Value)) continue;
+                    var listener = new System.Net.Sockets.TcpListener(IPAddress.Any, candidate);
+                    try { listener.ExclusiveAddressUse = true; listener.Start(); field.Value = candidate; return; } catch (System.Net.Sockets.SocketException) {} finally { listener.Stop(); }
+                }
+                MessageBox.Show("Não foi encontrada uma porta livre próxima. Escolha outro número.", "Nexus RGB");
+            };
+        }
+        return field;
     }
 }
 internal sealed class Tray : ApplicationContext {
     private readonly NotifyIcon icon;
     private readonly System.Windows.Forms.Timer timer;
     private readonly ToolStripMenuItem status;
+    private bool checking;
+    private bool exiting;
     internal Tray(bool open) {
         var menu = new ContextMenuStrip();
         status = new ToolStripMenuItem("Nexus RGB: verificando serviço") { Enabled = false }; menu.Items.Add(status);
         menu.Items.Add("Abrir Nexus RGB", null, (s, e) => Program.OpenPanel());
         menu.Items.Add("Copiar link para o celular", null, (s, e) => CopyLink());
+        menu.Items.Add("Configurar portas…", null, (s, e) => Program.ConfigurePorts());
         menu.Items.Add("Abrir pasta de diagnósticos", null, (s, e) => Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", "app")) { UseShellExecute = true }));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Fechar ícone (manter as luzes)", null, (s, e) => ExitThread());
@@ -54,24 +137,28 @@ internal sealed class Tray : ApplicationContext {
         timer = new System.Windows.Forms.Timer { Interval = 5000 }; timer.Tick += (s, e) => CheckStatus(); timer.Start();
         CheckStatus(); if (open) Program.OpenPanel();
     }
-    private void CheckStatus() {
-        try { using (var service = new ServiceController("NexusRGB")) { status.Text = service.Status == ServiceControllerStatus.Running ? "Nexus RGB: serviço ativo" : "Nexus RGB: serviço parado"; } }
-        catch { status.Text = "Nexus RGB: instale o serviço pelo instalador"; }
+    private async void CheckStatus() {
+        if (checking) return; checking = true;
+        try { using (var service = new ServiceController("NexusRGB")) { if (service.Status != ServiceControllerStatus.Running) status.Text = "Nexus RGB: serviço parado"; else { int port = PortSettings.Load().Panel; bool ready = await Task.Run(() => Program.PanelReady()); if (exiting) return; status.Text = ready ? "Nexus RGB: painel ativo na porta " + port : "Nexus RGB: painel indisponível na porta " + port; } } }
+        catch { if (!exiting) status.Text = "Nexus RGB: confira serviços e portas"; }
+        finally { checking = false; }
     }
     private void CopyLink() {
+        int port;
+        try { port = PortSettings.Load().Panel; } catch (Exception error) { MessageBox.Show(error.Message, "Nexus RGB"); return; }
         foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces()) {
             if (adapter.OperationalStatus != OperationalStatus.Up || adapter.NetworkInterfaceType == NetworkInterfaceType.Loopback || adapter.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
-            string name = adapter.Name.ToLowerInvariant(); if (name.Contains("virtual") || name.Contains("vethernet") || name.Contains("vpn") || name.Contains("tailscale")) continue;
+            string name = adapter.Name.ToLowerInvariant(); if (name.Contains("virtual") || name.Contains("vethernet") || name.Contains("vpn") || name.Contains("tailscale") || name.Contains("hamachi") || name.Contains("radmin") || name.Contains("zerotier") || name.Contains("wireguard") || name.Contains("tunnel") || name.Contains("wsl")) continue;
             foreach (var address in adapter.GetIPProperties().UnicastAddresses) {
                 byte[] ip = address.Address.GetAddressBytes();
                 if (ip.Length == 4 && (ip[0] == 10 || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] == 192 && ip[1] == 168))) {
-                    Clipboard.SetText("http://" + address.Address + ":5050/"); icon.ShowBalloonTip(3000, "Link copiado", "Abra este endereço no celular conectado ao mesmo Wi-Fi.", ToolTipIcon.Info); return;
+                    Clipboard.SetText("http://" + address.Address + ":" + port + "/"); icon.ShowBalloonTip(3000, "Link copiado", "Abra este endereço no celular conectado ao mesmo Wi-Fi.", ToolTipIcon.Info); return;
                 }
             }
         }
         icon.ShowBalloonTip(3000, "Rede indisponível", "Conecte o PC a uma rede Wi-Fi ou Ethernet privada.", ToolTipIcon.Warning);
     }
-    protected override void ExitThreadCore() { timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore(); }
+    protected override void ExitThreadCore() { exiting = true; timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore(); }
 }
 internal sealed class Worker : ServiceBase {
     private readonly bool hardware;
@@ -102,10 +189,11 @@ internal sealed class Worker : ServiceBase {
             if (child != null) { Log("Processo encerrou com código " + child.ExitCode); if ((DateTime.UtcNow - child.StartTime.ToUniversalTime()).TotalMinutes > 5) failures = 0; child.Dispose(); child = null; failures++; nextStart = DateTime.UtcNow.AddSeconds(Math.Min(30, Math.Pow(2, Math.Min(failures, 5)))); }
             if (DateTime.UtcNow < nextStart) return;
             try {
+                var ports = PortSettings.Load();
                 string exe = Path.Combine(Program.Root, hardware ? "openrgb\\OpenRGB.exe" : "runtime\\node.exe");
-                string arguments = hardware ? "--server --server-host 127.0.0.1 --server-port 6743 --noautoconnect --config \"" + data + "\"" : "\"" + Path.Combine(Program.Root, "server", "index.js") + "\"";
+                string arguments = hardware ? "--server --server-host 127.0.0.1 --server-port " + ports.SDK + " --noautoconnect --config \"" + data + "\"" : "\"" + Path.Combine(Program.Root, "server", "index.js") + "\"";
                 var info = new ProcessStartInfo(exe, arguments) { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-                if (!hardware) { info.EnvironmentVariables["NEXUS_DATA_DIR"] = data; info.EnvironmentVariables["NEXUS_PORT"] = "5050"; info.EnvironmentVariables["NEXUS_RGB_PORT"] = "6743"; info.EnvironmentVariables["NODE_ENV"] = "production"; info.EnvironmentVariables.Remove("NODE_OPTIONS"); info.EnvironmentVariables.Remove("NODE_PATH"); }
+                if (!hardware) { info.EnvironmentVariables["NEXUS_DATA_DIR"] = data; info.EnvironmentVariables["NEXUS_PORT"] = ports.Panel.ToString(); info.EnvironmentVariables["NEXUS_RGB_PORT"] = ports.SDK.ToString(); info.EnvironmentVariables["NEXUS_ALEXA_PORT"] = ports.Alexa.ToString(); info.EnvironmentVariables["NODE_ENV"] = "production"; info.EnvironmentVariables.Remove("NODE_OPTIONS"); info.EnvironmentVariables.Remove("NODE_PATH"); }
                 child = new Process { StartInfo = info }; child.OutputDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); }; child.ErrorDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); };
                 child.Start(); if (!Job.Assign(job, child.Handle)) { child.Kill(); throw new InvalidOperationException("Não foi possível supervisionar o processo."); }
                 child.BeginOutputReadLine(); child.BeginErrorReadLine(); Log("Processo iniciado: " + child.Id);

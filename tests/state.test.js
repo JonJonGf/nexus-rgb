@@ -15,6 +15,16 @@ test('arquivo corrompido falha explicitamente sem sobrescrever configuração', 
   fs.writeFileSync(path.join(dir, 'settings.json'), 'broken'); assert.throws(() => new Store(dir), /inválida/); assert.equal(fs.readFileSync(path.join(dir, 'settings.json'), 'utf8'), 'broken');
 });
 
+test('falha de escrita não deixa ajustes ou perfis fantasmas na memória', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-write-fail-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const store = new Store(dir); store.master({ color: '#123456' });
+  const originalFile = store.file, previous = structuredClone(store.data);
+  const blocked = path.join(dir, 'directory-not-file'); fs.mkdirSync(blocked); store.file = blocked;
+  assert.throws(() => store.master({ color: '#ff0000' })); assert.deepEqual(store.data, previous);
+  assert.throws(() => store.profile('Não foi salvo')); assert.deepEqual(store.data, previous);
+  store.file = originalFile; assert.deepEqual(new Store(dir).data, previous);
+});
+
 test('cenas prontas persistem paletas e ajuste manual de cor sai da paleta', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-scenes-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const { presets, applyPreset } = require('../server/presets'); const store = new Store(dir);

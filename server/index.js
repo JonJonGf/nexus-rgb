@@ -10,6 +10,7 @@ const { Alexa } = require('./alexa');
 const network = require('./network');
 const QRCode = require('qrcode');
 const VERSION = require('../package.json').version;
+const { ports } = require('./ports');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -33,12 +34,13 @@ function readBody(req, maximum = 8192) {
   });
 }
 async function createApp(options = {}) {
+  const configuredPorts = ports(options);
   const directory = options.directory || process.env.NEXUS_DATA_DIR || path.join(__dirname, '..', 'data');
   fs.mkdirSync(directory, { recursive: true });
   const getInterfaces = options.getInterfaces || network.adapters;
   const store = options.store || new Store(directory); const security = new Security(directory, getInterfaces);
-  const hardware = options.hardware || new Hardware(store, { port: Number(process.env.NEXUS_RGB_PORT) || 6743 });
-  const localPort = options.localPort ?? Number(process.env.NEXUS_PORT || 5050);
+  const hardware = options.hardware || new Hardware(store, { port: configuredPorts.sdk });
+  const localPort = configuredPorts.panel;
   const clients = new Set(); const rate = new RateLimiter(240); const globalRate = new RateLimiter(2000);
   let local, heartbeat;
   const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status } });
@@ -49,7 +51,7 @@ async function createApp(options = {}) {
       client.res.write(message);
     }
   };
-  const alexa = new Alexa(store, hardware, directory, broadcast, { port: options.alexaPort || 80, getInterfaces });
+  const alexa = new Alexa(store, hardware, directory, broadcast, { port: configuredPorts.alexa, getInterfaces });
   hardware.on('change', broadcast);
   function headers(res) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
@@ -76,7 +78,7 @@ async function createApp(options = {}) {
     if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origem não autorizada.' });
     if (!rate.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     const url = new URL(req.url, origin); const route = url.pathname;
-    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, version: VERSION });
+    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION });
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
       if (req.headers.origin !== origin || req.headers['x-nexus-client'] !== 'web') return json(res, 403, { error: 'Requisição sem proteção de origem.' });
@@ -120,7 +122,7 @@ async function createApp(options = {}) {
       if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin(); store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
-        admin(); return json(res, 200, { urls: getInterfaces().map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });
+        admin(); return json(res, 200, { urls: getInterfaces().map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), ports: { panel: lport, sdk: configuredPorts.sdk, alexa: alexa.port, discovery: 1900 }, alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });
       }
       if (route === '/api/link' && req.method === 'POST') {
         admin(); const body = await readBody(req); const addresses = getInterfaces(); const chosen = addresses.find(a => a.address === body.address) || addresses[0];
@@ -152,7 +154,7 @@ async function createApp(options = {}) {
   async function start() {
     const listen = (server, port, host) => new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, host, () => { server.removeListener('error', reject); resolve(); }); });
     try { await listen(local, localPort, '0.0.0.0'); }
-    catch (error) { await stop(); throw error; }
+    catch (error) { await stop(); if (['EADDRINUSE', 'EACCES'].includes(error.code)) error.message = `Não foi possível abrir a porta ${localPort} do painel (${error.code}). No ícone do Nexus perto do relógio, abra Configurar portas, escolha outra porta e aplique.`; throw error; }
     local.on('error', error => console.error('Servidor:', error.code));
     heartbeat = setInterval(() => { for (const client of clients) { if (!security.session(client.req)) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
     if (!options.disableHardware && process.env.NEXUS_DISABLE_HARDWARE !== '1') hardware.start();

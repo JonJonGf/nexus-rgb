@@ -1,6 +1,9 @@
 # Read-only configuration inventory. No scan, removal or security setting changes.
 param([string]$ReportPath=(Join-Path $PSScriptRoot '..\data\validation\installed-config.json'))
 $ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot 'ports.ps1')
+$ports=Get-NexusPorts
+$origin='http://127.0.0.1:'+$ports.PanelPort
 $root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
 $services=@(Get-CimInstance Win32_Service | Where-Object Name -in 'NexusRGB','NexusRGBHardware' | Select-Object Name,State,StartMode,StartName)
 $defender=Get-MpComputerStatus | Select-Object AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,RebootRequired
@@ -19,10 +22,10 @@ $permissions=@(foreach($relative in @('','runtime\node.exe','server\index.js','s
   })
   [pscustomobject]@{File=if($relative){$relative}else{'installation-root'};OwnerSID=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value;OrdinaryUsersCanWrite=($unsafe.Count -gt 0)}
 })
-$sdk=@(Get-NetTCPConnection -State Listen -LocalPort 6743 -ErrorAction SilentlyContinue)
+$sdk=@(Get-NetTCPConnection -State Listen -LocalPort $ports.SDKPort -ErrorAction SilentlyContinue)
 $webSession=New-Object Microsoft.PowerShell.Commands.WebRequestSession
-Invoke-RestMethod http://127.0.0.1:5050/api/session/local -Method Post -Headers @{Origin='http://127.0.0.1:5050';'X-Nexus-Client'='web'} -ContentType 'application/json' -Body '{}' -WebSession $webSession | Out-Null
-$state=Invoke-RestMethod http://127.0.0.1:5050/api/state -WebSession $webSession
+Invoke-RestMethod ($origin+'/api/session/local') -Method Post -Headers @{Origin=$origin;'X-Nexus-Client'='web'} -ContentType 'application/json' -Body '{}' -WebSession $webSession | Out-Null
+$state=Invoke-RestMethod ($origin+'/api/state') -WebSession $webSession
 $report=[ordered]@{
   CollectedAt=(Get-Date -Format o)
   Scope='Read-only snapshot of this installed PC; no malware scan or independent audit'
@@ -32,6 +35,7 @@ $report=[ordered]@{
   WinRingHistoricalAlertActive=@($threats | Where-Object {$_.ThreatName -match 'Winring' -and $_.IsActive}).Count -gt 0
   RGBDrivers=$drivers
   Services=$services
+  Ports=$ports
   FirewallProfiles=@(Get-NetFirewallProfile | Select-Object Name,Enabled)
   NexusFirewallRules=$rules
   Permissions=$permissions

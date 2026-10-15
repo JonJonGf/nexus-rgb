@@ -5,6 +5,11 @@ permissions:
   contents: read
 jobs:
   install:
+    strategy:
+      matrix:
+        ports:
+          - { panel: 5050, sdk: 6743, alexa: 80 }
+          - { panel: 5151, sdk: 6754, alexa: 8081 }
     runs-on: windows-2025
     timeout-minutes: 20
     steps:
@@ -21,9 +26,9 @@ jobs:
       - run: npm run test:installer
       - name: Instalar, atualizar, recuperar, remover e reinstalar
         shell: powershell
-        run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe
+        run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: validacao-do-instalador
+          name: validacao-do-instalador-${{ matrix.ports.panel }}
           path: test-results/installation/

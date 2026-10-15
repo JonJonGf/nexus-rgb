@@ -57,6 +57,8 @@ var
   InstallationStarted: Boolean;
   RuntimeNeedsRestart: Boolean;
   SetupFailed: Boolean;
+  PortsPage: TInputQueryWizardPage;
+  PanelPortValue, SDKPortValue, AlexaPortValue: Integer;
 function PowerShellPath: String;
 begin
   Result := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
@@ -67,24 +69,47 @@ var
   Command: String;
 begin
   Result := '';
+  PanelPortValue := StrToIntDef(PortsPage.Values[0], 0);
+  SDKPortValue := StrToIntDef(PortsPage.Values[1], 0);
+  AlexaPortValue := StrToIntDef(PortsPage.Values[2], 0);
+  if (PanelPortValue < 1024) or (PanelPortValue > 65535) or (SDKPortValue < 1024) or (SDKPortValue > 65535) or (AlexaPortValue < 1) or (AlexaPortValue > 65535) or (PanelPortValue = SDKPortValue) or (PanelPortValue = AlexaPortValue) or (SDKPortValue = AlexaPortValue) then begin
+    Result := 'Escolha três portas TCP diferentes. Painel e SDK: 1024 a 65535. Alexa: 1 a 65535.';
+    Exit;
+  end;
   if PreflightReady then Exit;
   if CompareText(RemoveBackslashUnlessRoot(WizardDirValue), RemoveBackslashUnlessRoot(ExpandConstant('{autopf}\Nexus RGB'))) <> 0 then begin
     Result := 'Os serviços precisam ser instalados em Program Files\Nexus RGB para proteger o executável e o controlador de hardware.';
     Exit;
   end;
   ExtractTemporaryFile('service-preflight.ps1');
-  Command := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Prepare -Root "' + ExpandConstant('{app}') + '"';
+  Command := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Prepare -Root "' + ExpandConstant('{app}') + '" -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue);
   if not Exec(PowerShellPath, Command, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then Result := 'Não foi possível verificar os serviços.'
   else if (ExitCode >= 0) and (ExitCode <= 3) then begin
     ServiceResumeMask := ExitCode;
     PreflightReady := True;
   end
-  else if ExitCode = 40 then Result := 'As portas 5050 ou 6743 estão ocupadas por outro programa. Feche-o e tente novamente. Os serviços instalados foram mantidos.'
+  else if ExitCode = 40 then Result := 'Uma das portas escolhidas para o painel (' + IntToStr(PanelPortValue) + ') ou SDK (' + IntToStr(SDKPortValue) + ') está ocupada. Volte à página Portas da rede e escolha outra. Os serviços instalados foram mantidos.'
+  else if ExitCode = 46 then Result := 'As portas escolhidas são inválidas. Volte à página Portas da rede.'
   else if ExitCode = 41 then Result := 'Outro OpenRGB está em execução. Feche-o antes de instalar para evitar dois programas controlando o mesmo hardware. Os serviços instalados foram mantidos.'
   else if ExitCode = 42 then Result := 'Existe um serviço com o nome Nexus RGB que não pertence a esta instalação. A preparação não alterou esse serviço.'
   else if ExitCode = 43 then Result := 'A pasta de instalação é inválida ou contém um link de sistema de arquivos.'
   else if ExitCode = 44 then Result := 'Não foi possível preparar a atualização. Os serviços que estavam ativos foram restaurados.'
   else Result := 'Não foi possível preparar ou restaurar os serviços. Código: ' + IntToStr(ExitCode);
+end;
+procedure InitializeWizard;
+var
+  Value: Cardinal;
+begin
+  PortsPage := CreateInputQueryPage(wpSelectTasks, 'Portas da rede', 'Defina as portas usadas pelo Nexus RGB', 'Mantenha os padrões se estiverem livres. Se outro aplicativo já os usa, escolha outros números. UDP 1900 é fixo para descoberta Alexa; alguns Echos exigem HTTP 80.');
+  PortsPage.Add('Painel web e celular:', False);
+  PortsPage.Add('SDK OpenRGB (somente neste PC):', False);
+  PortsPage.Add('Ponte Alexa (recomendado: 80):', False);
+  if not RegQueryDWordValue(HKLM, 'Software\NexusRGB', 'PanelPort', Value) then Value := 5050;
+  PortsPage.Values[0] := ExpandConstant('{param:PANELPORT|' + IntToStr(Value) + '}');
+  if not RegQueryDWordValue(HKLM, 'Software\NexusRGB', 'SDKPort', Value) then Value := 6743;
+  PortsPage.Values[1] := ExpandConstant('{param:SDKPORT|' + IntToStr(Value) + '}');
+  if not RegQueryDWordValue(HKLM, 'Software\NexusRGB', 'AlexaPort', Value) then Value := 80;
+  PortsPage.Values[2] := ExpandConstant('{param:ALEXAPORT|' + IntToStr(Value) + '}');
 end;
 procedure DeinitializeSetup;
 var ExitCode: Integer;
@@ -134,7 +159,7 @@ begin
       DiagnosticPath := ExpandConstant('{commonappdata}\NexusRGB\installation-error.log');
       PreviousDiagnostic := '';
       LoadStringFromFile(DiagnosticPath, PreviousDiagnostic);
-      if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Install', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível configurar os serviços.');
+      if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Install -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue) + ' -AlexaPort ' + IntToStr(AlexaPortValue), '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível configurar os serviços.');
       if ExitCode <> 0 then begin
         ErrorMessage := 'A configuração dos serviços falhou. Código: ' + IntToStr(ExitCode);
         if LoadStringFromFile(DiagnosticPath, Diagnostic) and (Diagnostic <> PreviousDiagnostic) then begin

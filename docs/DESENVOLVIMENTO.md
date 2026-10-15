@@ -103,11 +103,15 @@ nexus-rgb/
 | :--- | :--- |
 | `NexusRGB` · LocalService | Painel e API com conta limitada. |
 | `NexusRGBHardware` · SYSTEM | Controlador OpenRGB e acesso ao driver. |
-| TCP `5050` · LAN | Interface do PC, celular e tablet. |
-| TCP `6743` · loopback | SDK OpenRGB, acessível somente no próprio PC. |
-| TCP `80` e UDP `1900` · LAN | Ponte Hue e descoberta da Alexa, quando ativada. |
+| TCP `5050` por padrão · LAN | Interface do PC, celular e tablet; configurável. |
+| TCP `6743` por padrão · loopback | SDK OpenRGB, somente no próprio PC; configurável. |
+| TCP `80` por padrão e UDP `1900` · LAN | HTTP da ponte Hue configurável; descoberta SSDP permanece em 1900. |
 
 Os serviços são instalados em `Program Files\Nexus RGB`, com permissões protegidas. Os dados do painel ficam em `%ProgramData%\NexusRGB\app`, e os dados privilegiados do controlador em `%ProgramData%\NexusRGB\hardware`. As ACLs separam essas pastas.
+
+O executável instalado lê `PanelPort`, `SDKPort` e `AlexaPort` como DWORDs de `HKLM\SOFTWARE\NexusRGB`, com padrões 5050/6743/80 se os valores estiverem ausentes. O serviço passa os três números validados ao Node e o SDK ao OpenRGB. A janela **Configurar portas…** roda elevada e chama o script protegido `scripts/configure-ports.ps1`; o serviço limitado e a interface web não podem gravar essa configuração. Em desenvolvimento, `NEXUS_PORT`, `NEXUS_RGB_PORT` e `NEXUS_ALEXA_PORT` configuram os listeners. Valores inválidos ou portas TCP repetidas causam erro explícito.
+
+Na instalação silenciosa, `/PANELPORT=5151 /SDKPORT=6754 /ALEXAPORT=8081` seleciona portas alternativas. Sem esses argumentos, uma atualização reutiliza os valores já salvos. O workflow de instalação em VM tem uma matriz de portas padrão e alternativas. O teste destrutivo continua proibido no PC normal. `test:offline` e o inventário da instalação consultam a porta persistida, sem presumir 5050.
 
 O instalador libera apenas a sub-rede local por Ethernet/Wi-Fi, inclusive quando o Windows classifica a rede doméstica como Pública. A API valida Host e origem, rejeita proxies, limita requisições e restringe controles administrativos ao loopback. As regras de saída bloqueiam internet para o serviço de rede e acesso do OpenRGB para fora do próprio PC. A ponte Hue aceita comandos somente de IPs autorizados.
 

@@ -1,5 +1,5 @@
 ﻿# Destructive lifecycle checks: execute only in a fresh GitHub-hosted VM.
-param([Parameter(Mandatory=$true)][string]$Installer)
+param([Parameter(Mandatory=$true)][string]$Installer,[ValidateRange(1024,65535)][int]$PanelPort=5050,[ValidateRange(1024,65535)][int]$SDKPort=6743,[ValidateRange(1,65535)][int]$AlexaPort=80)
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted'){throw 'Este teste só pode rodar em uma VM descartável hospedada pelo GitHub.'}
@@ -14,23 +14,24 @@ if(-not $Installer.StartsWith($workspace+'\',[StringComparison]::OrdinalIgnoreCa
 $reports=Join-Path $workspace 'test-results\installation'
 New-Item -ItemType Directory -Path $reports -Force | Out-Null
 $checks=New-Object 'Collections.Generic.List[string]'
+$origin='http://127.0.0.1:'+$PanelPort
 $report=[ordered]@{Passed=$false;StartedAt=(Get-Date -Format o);OS=(Get-CimInstance Win32_OperatingSystem).Caption;Build=(Get-CimInstance Win32_OperatingSystem).BuildNumber;InstallerSHA256=(Get-FileHash -LiteralPath $Installer).Hash;Scope='Fresh GitHub-hosted Windows Server VM; no PawnIO installation or physical RGB/Echo tests';Checks=$checks}
 function Check([bool]$Condition,[string]$Name){if(-not $Condition){throw ('Check failed: '+$Name)}; $checks.Add($Name); Write-Output ('PASS: '+$Name)}
 function Wait-Panel {
   for($attempt=0;$attempt -lt 60;$attempt++) {
-    try {if((Invoke-RestMethod http://127.0.0.1:5050/api/health -TimeoutSec 1).ready -eq $true){return}} catch {}
+    try {$health=Invoke-RestMethod ($origin+'/api/health') -TimeoutSec 1; if($health.ready -eq $true -and $health.application -eq 'nexus-rgb'){return}} catch {}
     Start-Sleep -Seconds 1
   }
   throw 'Panel failed to recover within 60 seconds.'
 }
 function Session {
   $script:session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
-  Invoke-RestMethod http://127.0.0.1:5050/api/session/local -Method Post -Headers @{Origin='http://127.0.0.1:5050';'X-Nexus-Client'='web'} -ContentType 'application/json' -Body '{}' -WebSession $script:session | Out-Null
+  Invoke-RestMethod ($origin+'/api/session/local') -Method Post -Headers @{Origin=$origin;'X-Nexus-Client'='web'} -ContentType 'application/json' -Body '{}' -WebSession $script:session | Out-Null
 }
-function State {Invoke-RestMethod http://127.0.0.1:5050/api/state -WebSession $script:session}
+function State {Invoke-RestMethod ($origin+'/api/state') -WebSession $script:session}
 function Setup([string]$Phase) {
   $log=Join-Path $reports ($Phase+'.log')
-  $process=Start-Process -FilePath $Installer -ArgumentList ('/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /LOG="'+$log+'"') -WindowStyle Hidden -Wait -PassThru
+  $process=Start-Process -FilePath $Installer -ArgumentList ('/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /PANELPORT='+$PanelPort+' /SDKPORT='+$SDKPort+' /ALEXAPORT='+$AlexaPort+' /LOG="'+$log+'"') -WindowStyle Hidden -Wait -PassThru
   Check ($process.ExitCode -in 0,3010) ('Installer '+$Phase+' exited successfully')
   Wait-Panel; Session
 }
@@ -41,7 +42,7 @@ function VerifyServices {
   Check ($hardware.State -eq 'Running' -and $hardware.StartMode -eq 'Auto' -and $hardware.StartName -eq 'LocalSystem') 'Hardware service runs automatically as SYSTEM'
   $sdk=@()
   for($attempt=0;$attempt -lt 30 -and $sdk.Count -eq 0;$attempt++) {
-    $sdk=@(Get-NetTCPConnection -State Listen -LocalPort 6743 -ErrorAction SilentlyContinue)
+    $sdk=@(Get-NetTCPConnection -State Listen -LocalPort $SDKPort -ErrorAction SilentlyContinue)
     if($sdk.Count -eq 0){Start-Sleep -Seconds 1}
   }
   Check ($sdk.Count -gt 0 -and @($sdk | Where-Object LocalAddress -ne '127.0.0.1').Count -eq 0) 'OpenRGB SDK listens only on loopback'
@@ -73,9 +74,9 @@ try {
   $unrelated=Get-CimInstance Win32_Service -Filter "Name='RpcSs'" | Select-Object Name,State,StartMode,PathName
   New-NetFirewallRule -DisplayName $sentinel -Group $sentinel -Direction Inbound -Action Block -Protocol TCP -LocalPort 59999 | Out-Null
   Setup 'fresh'; VerifyServices; VerifyPermissions
-  $headers=@{Origin='http://127.0.0.1:5050';'X-Nexus-Client'='web'}
-  Invoke-RestMethod http://127.0.0.1:5050/api/control -Method Post -Headers $headers -ContentType 'application/json' -Body '{"color":"#22aa77","brightness":61,"power":false}' -WebSession $session | Out-Null
-  Invoke-RestMethod http://127.0.0.1:5050/api/profiles -Method Post -Headers $headers -ContentType 'application/json' -Body '{"name":"VM preservation check"}' -WebSession $session | Out-Null
+  $headers=@{Origin=$origin;'X-Nexus-Client'='web'}
+  Invoke-RestMethod ($origin+'/api/control') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"color":"#22aa77","brightness":61,"power":false}' -WebSession $session | Out-Null
+  Invoke-RestMethod ($origin+'/api/profiles') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"name":"VM preservation check"}' -WebSession $session | Out-Null
   $settings=Join-Path $data 'app\settings.json'; $before=(Get-FileHash -LiteralPath $settings).Hash
   $firstDiagnostic=[IO.File]::ReadAllText((Join-Path $data 'installation.log'))
   Setup 'upgrade'; VerifyServices

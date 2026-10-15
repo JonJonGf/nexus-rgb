@@ -5,8 +5,14 @@ O serviço de rede roda com permissões limitadas; somente o controlador de
 hardware usa privilégios elevados. O RGB inicia automaticamente com o Windows.
 
 Qualquer dispositivo da mesma rede privada pode abrir o link local na porta
-5050 e controlar as luzes, sem conta, senha ou pareamento. O QR Code é opcional.
+configurada (5050 por padrão) e controlar as luzes, sem conta, senha ou pareamento. O QR Code é opcional.
 Para manter o mesmo endereço, reserve o IP do computador no roteador.
+
+Na página Portas da rede, escolha outras portas se os padrões estiverem ocupados.
+Depois, use Configurar portas pelo ícone do Nexus perto do relógio, mesmo se o
+painel não abrir. Isso pede administrador para atualizar o firewall e os serviços.
+Ao trocar a porta do painel, atualize o link salvo no celular. A porta UDP 1900
+da descoberta Alexa é fixa; alguns Echos precisam que a ponte HTTP fique em 80.
 
 Feche o aplicativo Nexus antigo, outro OpenRGB e os programas RGB do fabricante
 antes de instalar. Não execute dois controladores ao mesmo tempo.

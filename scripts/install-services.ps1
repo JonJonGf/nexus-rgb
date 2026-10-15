@@ -1,6 +1,7 @@
-﻿param([ValidateSet('Install','Uninstall')][string]$Mode='Install')
+﻿param([ValidateSet('Install','Uninstall')][string]$Mode='Install',[int]$PanelPort=0,[int]$SDKPort=0,[int]$AlexaPort=0)
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
+. (Join-Path $PSScriptRoot 'ports.ps1')
 $dataRoot=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'NexusRGB'
 $stage='Verificar instalação'
 function Invoke-NexusSc([string[]]$Arguments) {
@@ -74,7 +75,7 @@ function Wait-NexusPanel([string]$Url='http://127.0.0.1:5050/api/health',[int]$T
       $response=$request.GetResponse()
       $reader=[IO.StreamReader]::new($response.GetResponseStream())
       $health=$reader.ReadToEnd() | ConvertFrom-Json
-      if($health.ready -is [bool] -and $health.ready){return}
+      if($health.ready -is [bool] -and $health.ready -and $health.application -eq 'nexus-rgb'){return}
     } catch { # The worker may be starting Node; retry within the deadline.
     } finally {if($reader){$reader.Dispose()}; if($response){$response.Dispose()}}
     Start-Sleep -Milliseconds 250
@@ -85,6 +86,11 @@ try {
 $installRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $expectedRoot=[IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'))
 if($installRoot -ne $expectedRoot){throw 'Os serviços só podem ser registrados na pasta protegida Program Files\Nexus RGB.'}
+if($Mode -eq 'Install') {
+  $ports=if($PanelPort -eq 0 -or $SDKPort -eq 0 -or $AlexaPort -eq 0){Get-NexusPorts}else{@{PanelPort=$PanelPort;SDKPort=$SDKPort;AlexaPort=$AlexaPort}}
+  if($PanelPort -eq 0){$PanelPort=$ports.PanelPort}; if($SDKPort -eq 0){$SDKPort=$ports.SDKPort}; if($AlexaPort -eq 0){$AlexaPort=$ports.AlexaPort}
+  Assert-NexusPorts $PanelPort $SDKPort $AlexaPort
+}
 foreach($name in @('NexusRGB','NexusRGBHardware')) {
   $service=Get-Service -Name $name -ErrorAction SilentlyContinue
   if($service){ if($service.Status -ne 'Stopped'){Stop-Service -Name $name -Force; $service.WaitForStatus('Stopped',[TimeSpan]::FromSeconds(30))}; if($Mode -eq 'Uninstall'){Invoke-NexusSc @('delete',$name)} }
@@ -134,10 +140,11 @@ foreach($definition in @(@{Name='NexusRGBHardware';Argument='--hardware-service'
   Invoke-NexusSc @('failureflag',$definition.Name,'1')
 }
 $nodePath=Join-Path $installRoot 'runtime\node.exe'
+$stage='Salvar portas'
+Set-NexusPorts $PanelPort $SDKPort $AlexaPort
 $stage='Configurar firewall local'
 Get-NetFirewallRule -Group 'Nexus RGB' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
-New-NetFirewallRule -DisplayName 'Nexus RGB — Painel LAN' -Group 'Nexus RGB' -Direction Inbound -Action Allow -Program $nodePath -Protocol TCP -LocalPort 5050 -Profile Any -InterfaceType Wired,Wireless -RemoteAddress LocalSubnet -EdgeTraversalPolicy Block | Out-Null
-New-NetFirewallRule -DisplayName 'Nexus RGB — Alexa LAN' -Group 'Nexus RGB' -Direction Inbound -Action Allow -Program $nodePath -Protocol TCP -LocalPort 80 -Profile Any -InterfaceType Wired,Wireless -RemoteAddress LocalSubnet -EdgeTraversalPolicy Block | Out-Null
+Set-NexusPortFirewall $nodePath $PanelPort $AlexaPort
 New-NetFirewallRule -DisplayName 'Nexus RGB — Descoberta Alexa' -Group 'Nexus RGB' -Direction Inbound -Action Allow -Program $nodePath -Protocol UDP -LocalPort 1900 -Profile Any -InterfaceType Wired,Wireless -RemoteAddress LocalSubnet -EdgeTraversalPolicy Block | Out-Null
 # Enforce offline operation for the two dedicated executables; no global firewall settings.
 # Windows Firewall rejects a /0 prefix. The two /1 prefixes cover IPv6.
@@ -150,7 +157,7 @@ Start-Service -Name NexusRGBHardware
 $stage='Iniciar painel local'
 Start-Service -Name NexusRGB
 $stage='Verificar painel local'
-Wait-NexusPanel
+Wait-NexusPanel -Url ('http://127.0.0.1:'+$PanelPort+'/api/health')
 Write-NexusDiagnostic 'installation.log' ((Get-Date -Format o)+"`r`nServiços instalados e iniciados.")
 } catch {
   $failure=(Get-Date -Format o)+"`r`nEtapa: $stage`r`n"+$_.ToString()+"`r`n"+$_.InvocationInfo.PositionMessage

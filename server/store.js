@@ -38,8 +38,12 @@ class Store {
     this.data.devices ??= {};
     this.data.profiles ??= [];
     this.data.zones ??= {};
+    this.committed = structuredClone(this.data);
   }
-  save() { writeJson(this.file, this.data); }
+  save() {
+    try { writeJson(this.file, this.data); this.committed = structuredClone(this.data); }
+    catch (error) { this.data = structuredClone(this.committed); throw error; }
+  }
   power(value) {
     validatePatch({ power: value });
     if (this.data.master.power === value) return false;

@@ -31,7 +31,7 @@ function huePatch(body) {
 }
 class Alexa {
   constructor(store, hardware, directory, onChange, options = {}) {
-    this.store = store; this.hardware = hardware; this.onChange = onChange; this.port = options.port || 80;
+    this.store = store; this.hardware = hardware; this.onChange = onChange; this.port = options.port ?? 80;
     this.getInterfaces = options.getInterfaces || net.adapters;
     this.file = path.join(directory, 'alexa.json'); this.data = readJson(this.file, { uuid: crypto.randomUUID(), peers: [] });
     this.identity = bridgeIdentity(this.data.uuid);
@@ -133,8 +133,9 @@ class Alexa {
     if (this.server || !this.store.data.alexaEnabled) return;
     this.server = http.createServer((req, res) => { this.request(req, res).catch(() => { if (!res.headersSent) res.writeHead(500); res.end(); }); });
     this.server.requestTimeout = 10000; this.server.headersTimeout = 8000; this.server.maxConnections = 16;
-    this.server.on('error', error => { this.status = error.code === 'EADDRINUSE' ? 'Porta 80 ocupada por outro programa.' : `Falha: ${error.code}`; this.stop(false); this.onChange(); });
+    this.server.on('error', error => { this.status = error.code === 'EADDRINUSE' ? `Porta ${this.port} da Alexa ocupada. Use Configurar portas no ícone do Nexus.` : `Falha na porta ${this.port}: ${error.code}`; this.stop(false); this.onChange(); });
     this.server.listen(this.port, '0.0.0.0', () => {
+      this.port = this.server.address().port;
       this.status = 'Ponte local ativa'; this.onChange();
       this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
       this.socket.on('error', error => { this.status = `Descoberta indisponível: ${error.code}`; this.onChange(); });

@@ -1,7 +1,8 @@
 ﻿param(
   [ValidateSet('Prepare','Restore')][string]$Mode='Prepare',
   [Parameter(Mandatory=$true)][string]$Root,
-  [ValidateRange(0,3)][int]$RestoreMask=0
+  [ValidateRange(0,3)][int]$RestoreMask=0,
+  [int]$PanelPort=0,[int]$SDKPort=0
 )
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
@@ -43,6 +44,10 @@ function Restore-NexusServices([int]$Mask) {
   }
 }
 function Invoke-NexusPreparation {
+  $saved=Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\NexusRGB' -ErrorAction SilentlyContinue
+  $panel=if($PanelPort -gt 0){$PanelPort}elseif($saved.PanelPort){$saved.PanelPort}else{5050}
+  $sdk=if($SDKPort -gt 0){$SDKPort}elseif($saved.SDKPort){$saved.SDKPort}else{6743}
+  if($panel -lt 1024 -or $panel -gt 65535 -or $sdk -lt 1024 -or $sdk -gt 65535 -or $panel -eq $sdk){return 46}
   $expectedRoot=[IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'))
   if(-not [String]::Equals([IO.Path]::GetFullPath($Root),$expectedRoot,[StringComparison]::OrdinalIgnoreCase)){return 43}
   if(Test-Path -LiteralPath $Root) {
@@ -54,7 +59,7 @@ function Invoke-NexusPreparation {
   try {$owned=Get-NexusOwnedProcessIds $services $processes $Root} catch {return 42}
   if($Mode -eq 'Restore') {Restore-NexusServices $RestoreMask; return 0}
   # Reject unrelated listeners/controllers before stopping any installed service.
-  $listeners=@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in 5050,6743)
+  $listeners=@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in $panel,$sdk)
   if($listeners | Where-Object {-not $owned.ContainsKey([int]$_.OwningProcess)}){return 40}
   if($processes | Where-Object {$_.Name -eq 'OpenRGB.exe' -and -not $owned.ContainsKey([int]$_.ProcessId)}){return 41}
   $mask=0
@@ -72,7 +77,7 @@ function Invoke-NexusPreparation {
     }
     # Job shutdown can briefly precede TCP teardown. Never terminate a foreign PID.
     for($attempt=0; $attempt -lt 20; $attempt++) {
-      $remaining=@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in 5050,6743)
+      $remaining=@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in $panel,$sdk)
       if(-not $remaining.Count){return $mask}
       Start-Sleep -Milliseconds 100
     }
