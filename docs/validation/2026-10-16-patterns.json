@@ -1,0 +1,80 @@
+{
+  "measuredAt": "2026-10-16T15:45:09.365Z",
+  "scope": "Pure native formula drawing plus 320x200 pixel readback; no IPC, PNG encoding, server, SDK, hardware or browser totals",
+  "cpu": "AMD Ryzen 5 3600 6-Core Processor              ",
+  "logicalProcessors": 12,
+  "node": "v24.20.0",
+  "platform": "win32",
+  "warmupFrames": 10,
+  "samplesPerPattern": 100,
+  "sourceRaster": [
+    80,
+    50
+  ],
+  "output": [
+    320,
+    200
+  ],
+  "results": [
+    {
+      "pattern": "wave",
+      "meanMs": 0.66,
+      "p95Ms": 0.749
+    },
+    {
+      "pattern": "comet",
+      "meanMs": 0.648,
+      "p95Ms": 0.71
+    },
+    {
+      "pattern": "rings",
+      "meanMs": 0.688,
+      "p95Ms": 0.753
+    },
+    {
+      "pattern": "gradient",
+      "meanMs": 0.666,
+      "p95Ms": 0.718
+    },
+    {
+      "pattern": "scanner",
+      "meanMs": 1.564,
+      "p95Ms": 1.958
+    },
+    {
+      "pattern": "rain",
+      "meanMs": 1.55,
+      "p95Ms": 1.637
+    },
+    {
+      "pattern": "spiral",
+      "meanMs": 1.485,
+      "p95Ms": 1.657
+    },
+    {
+      "pattern": "plasma",
+      "meanMs": 1.456,
+      "p95Ms": 1.629
+    },
+    {
+      "pattern": "fire",
+      "meanMs": 1.71,
+      "p95Ms": 1.99
+    },
+    {
+      "pattern": "sparkle",
+      "meanMs": 1.621,
+      "p95Ms": 1.786
+    },
+    {
+      "pattern": "ripples",
+      "meanMs": 1.729,
+      "p95Ms": 1.798
+    },
+    {
+      "pattern": "blocks",
+      "meanMs": 1.41,
+      "p95Ms": 1.46
+    }
+  ]
+}

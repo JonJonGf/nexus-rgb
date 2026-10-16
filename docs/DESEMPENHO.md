@@ -214,3 +214,11 @@ Para repetir a análise em outro PC, identifique os processos instalados por ser
 - Na versão histórica medida, a agenda usava intervalos de 50 ms. A versão atual permite 5–60 FPS; a taxa efetiva do hardware não foi medida neste ensaio histórico.
 
 O [resumo em JSON](benchmarks/2026-10-13.json) contém os valores sem arredondamento para consulta e comparação.
+
+## Desenho dos doze padrões — 16/10/2026
+
+Uma medição isolada do desenho nativo e da leitura de pixels 320 × 200, com Node 24.20.0 em um Ryzen 5 3600, usou dez quadros de aquecimento e cem amostras por padrão. Os quatro padrões anteriores tiveram médias de 0,648 a 0,688 ms; os oito novos, de 1,410 a 1,729 ms. O percentil 95 dos novos ficou entre 1,460 e 1,990 ms. Os novos campos são calculados em uma superfície 80 × 50 reutilizada e ampliados com suavização.
+
+Os [resultados brutos](validation/2026-10-16-patterns.json) medem somente esse trecho do motor. Excluem IPC, compressão PNG, navegador, amostragem do mapa, tráfego SDK, OpenRGB e drivers; não são uma nova medição da CPU ou memória total do aplicativo. Os efeitos HTML importados têm custo próprio e podem exceder os orçamentos do motor.
+
+A prévia JSON é local ao navegador e para ao fechar. A prévia HTML usa um processo temporário separado, acompanha a taxa configurada para o motor e transmite até dez imagens por segundo. Assim, scripts que avançam por quadro não são executados apenas a 10 FPS por causa da taxa de exibição. Há somente uma prévia HTML por servidor; pausar, fechar, perder autorização ou exceder os limites encerra o processo. Testar um HTML pesado pode aumentar temporariamente o consumo.

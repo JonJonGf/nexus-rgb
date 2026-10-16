@@ -26,7 +26,8 @@ function Wait-Panel {
 }
 function Session {
   $script:session=New-Object Microsoft.PowerShell.Commands.WebRequestSession
-  Invoke-RestMethod ($origin+'/api/session/local') -Method Post -Headers @{Origin=$origin;'X-Nexus-Client'='web'} -ContentType 'application/json' -Body '{}' -WebSession $script:session | Out-Null
+  $sessionResult=Invoke-RestMethod ($origin+'/api/session/local') -Method Post -Headers @{Origin=$origin;'X-Nexus-Client'='web'} -ContentType 'application/json' -Body '{}' -WebSession $script:session
+  $script:welcome=[bool]$sessionResult.welcome
 }
 function State {Invoke-RestMethod ($origin+'/api/state') -WebSession $script:session}
 function Setup([string]$Phase) {
@@ -75,6 +76,9 @@ try {
   $unrelated=Get-CimInstance Win32_Service -Filter "Name='RpcSs'" | Select-Object Name,State,StartMode,PathName
   New-NetFirewallRule -DisplayName $sentinel -Group $sentinel -Direction Inbound -Action Block -Protocol TCP -LocalPort 59999 | Out-Null
   Setup 'fresh'; VerifyServices; VerifyPermissions
+  Check $welcome 'First local visit offers the welcome guide'
+  Check ((Invoke-WebRequest ($origin+'/help') -UseBasicParsing).StatusCode -eq 200) 'Offline help is included in the installed payload'
+  Check ([IO.File]::ReadAllText((Join-Path $root 'LEIA-ME.txt')).Contains('Configuracoes > Ajuda')) 'Plain-text Notepad guide is included'
   $build=Invoke-RestMethod ($origin+'/api/about') -WebSession $session
   Check ($build.version -eq '0.1.0') 'Installed package exposes its own build metadata'
   if($env:GITHUB_REF_TYPE -eq 'tag') {Check ($build.tag -eq $env:GITHUB_REF_NAME -and $build.commit -eq $env:GITHUB_SHA -and -not $build.development) 'Installed build matches the exact release tag and commit'}
@@ -85,6 +89,12 @@ try {
   $headers=@{Origin=$origin;'X-Nexus-Client'='web'}
   Invoke-RestMethod ($origin+'/api/settings') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"fps":60}' -WebSession $session | Out-Null
   Check ((State).performance.fps -eq 60) 'Installed API saves configurable FPS'
+  $draftSource='<title>VM transient preview</title><canvas id="exCanvas" width="320" height="200"></canvas><script>var ctx=document.getElementById("exCanvas").getContext("2d");function run(){ctx.fillStyle="#22aa77";ctx.fillRect(0,0,320,200);window.requestAnimationFrame(run)}window.requestAnimationFrame(run);</script>'
+  $draftSettings=Join-Path $data 'app\settings.json';$draftBefore=(Get-FileHash -LiteralPath $draftSettings).Hash
+  $draft=Invoke-RestMethod ($origin+'/api/studio/draft') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{source=$draftSource} | ConvertTo-Json -Compress) -WebSession $session
+  $draftRequest=[Net.HttpWebRequest]::Create($origin+'/api/studio/draft/'+$draft.token);$draftRequest.CookieContainer=$session.Cookies;$draftRequest.Timeout=15000;$draftResponse=$null
+  try{$draftResponse=$draftRequest.GetResponse();$draftStream=$draftResponse.GetResponseStream();$draftStream.ReadTimeout=15000;$draftBuffer=New-Object byte[] 8192;$draftText='';$draftDeadline=[DateTime]::UtcNow.AddSeconds(15);while($draftText -notmatch '"image":"iVBOR' -and [DateTime]::UtcNow -lt $draftDeadline){$draftLength=$draftStream.Read($draftBuffer,0,$draftBuffer.Length);if($draftLength -eq 0){break};$draftText += [Text.Encoding]::UTF8.GetString($draftBuffer,0,$draftLength)};Check ($draftText -match '"image":"iVBOR') 'Installed transient HTML preview returns a PNG without applying'}finally{if($draftResponse){$draftResponse.Close()};$draftRequest.Abort()}
+  Check ((Get-FileHash -LiteralPath $draftSettings).Hash -eq $draftBefore -and -not (State).studio.enabled) 'Draft preview preserves settings and the active effect'
   $effectSource='<title>VM Canvas preservation</title><canvas id="exCanvas" width="320" height="200"></canvas><script>var c=document.getElementById("exCanvas").getContext("2d");function frame(){c.fillStyle="#1234ab";c.fillRect(0,0,320,200);requestAnimationFrame(frame)}requestAnimationFrame(frame);</script>'
   $import=Invoke-RestMethod ($origin+'/api/studio/import') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{source=$effectSource} | ConvertTo-Json -Compress) -WebSession $session
   Check ($import.id -match '^[a-f0-9]{24}$') 'Installed LocalService loads QuickJS and native Canvas to validate an import'
@@ -105,6 +115,7 @@ try {
   $settings=Join-Path $data 'app\settings.json'; $before=(Get-FileHash -LiteralPath $settings).Hash
   $firstDiagnostic=[IO.File]::ReadAllText((Join-Path $data 'installation.log'))
   Setup 'upgrade'; VerifyServices
+  Check (-not $welcome) 'Upgrade does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Upgrade preserves settings and profiles byte for byte'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Upgrade preserves imported effects byte for byte'
   $upgradeBackups=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json')
@@ -123,6 +134,7 @@ try {
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Worker recovery preserves data'
   Stop-Service NexusRGB; (Get-Service NexusRGB).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(30))
   Start-Service NexusRGB; Wait-Panel; Session
+  Check (-not $welcome) 'Service restart does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Service restart preserves data'
   $hardwareBefore=Get-CimInstance Win32_Service -Filter "Name='NexusRGBHardware'"
   $oldOpenRGB=@(Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq $hardwareBefore.ProcessId -and $_.Name -eq 'OpenRGB.exe'})
@@ -141,6 +153,7 @@ try {
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Uninstall preserves user profiles and settings'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Uninstall preserves imported effects'
   Setup 'reinstall'; VerifyServices
+  Check (-not $welcome) 'Reinstall with preserved data does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Reinstall restores preserved data'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Reinstall restores imported effect files'
   Check ((State).performance.fps -eq 60) 'Reinstalled API restores selected FPS'

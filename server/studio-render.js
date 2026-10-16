@@ -101,7 +101,7 @@ class StudioRenderer {
     return this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
   }
   nativeFrame(seconds) {
-    recipeModel.draw(this.ctx,this.effect,seconds,this.canvas.width,this.canvas.height);
+    recipeModel.draw(this.ctx,this.effect,seconds,this.canvas.width,this.canvas.height,createCanvas);
   }
   sample(points, pixels) {
     const w = this.canvas.width, h = this.canvas.height;

@@ -12,6 +12,8 @@ const QRCode = require('qrcode');
 const VERSION = require('../package.json').version;
 const { ports } = require('./ports');
 const { Studio } = require('./studio');
+const { DraftPreview } = require('./draft-preview');
+const { FirstUse } = require('./first-use');
 const { about } = require('./about');
 const { Backups, MAX: BACKUP_MAX } = require('./backup');
 const { Resources } = require('./resources');
@@ -42,6 +44,7 @@ async function createApp(options = {}) {
   const configuredPorts = ports(options);
   const directory = options.directory || process.env.NEXUS_DATA_DIR || path.join(__dirname, '..', 'data');
   fs.mkdirSync(directory, { recursive: true });
+  const firstUse=new FirstUse(directory,options.disableWelcome===true);
   const getInterfaces = options.getInterfaces || network.adapters;
   const store = options.store || new Store(directory); const security = new Security(directory, getInterfaces);
   const hardware = options.hardware || new Hardware(store, { port: configuredPorts.sdk });
@@ -58,6 +61,7 @@ async function createApp(options = {}) {
   };
   const alexa = new Alexa(store, hardware, directory, broadcast, { port: configuredPorts.alexa, getInterfaces });
   const studio = new Studio(store, hardware, directory, broadcast); hardware.studio = studio;
+  const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
   const resources = new Resources();
   hardware.on('change', broadcast);
@@ -69,6 +73,8 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/help',['help.html','text/html; charset=utf-8']],
+    ['/code-preview.js',['code-preview.js','application/javascript; charset=utf-8']],
     ['/recipe.js', ['recipe.js', 'application/javascript; charset=utf-8']],
     ['/effects-guide', ['effects-guide.html', 'text/html; charset=utf-8']], ['/effects-guide.html', ['effects-guide.html', 'text/html; charset=utf-8']],
     ['/effects-guide.css', ['effects-guide.css', 'text/css; charset=utf-8']],
@@ -107,7 +113,7 @@ async function createApp(options = {}) {
     if (route === '/api/session/local' && req.method === 'POST') {
       if (!isLocal) return json(res, 403, { error: 'Apenas no PC.' });
       res.setHeader('Set-Cookie', security.cookie(security.newAdmin(), !!req.socket.encrypted, 8 * 3600));
-      return json(res, 200, { admin: true });
+      return json(res, 200, { admin: true, welcome: firstUse.take() });
     }
     const session = security.session(req);
     if (route.startsWith('/api/')) {
@@ -133,6 +139,10 @@ async function createApp(options = {}) {
         return json(res,200,{active:hardware.identification || null});
       }
       if (route === '/api/studio' && req.method === 'GET') return json(res, 200, studio.snapshot(true));
+      if(route==='/api/studio/draft'&&req.method==='POST'){admin();const body=await readBody(req,256*1024);if(Object.keys(body).some(k=>!['source','values'].includes(k)))throw Error('Comando de prévia inválido.');return json(res,200,await draftPreview.create(body.source,body.values));}
+      const draftRoute=route.match(/^\/api\/studio\/draft\/([a-f0-9]{48})$/);
+      if(draftRoute&&req.method==='GET'){admin();draftPreview.watch(draftRoute[1],res,()=>security.session(req)?.admin);return;}
+      if(draftRoute&&req.method==='DELETE'){admin();draftPreview.remove(draftRoute[1]);return json(res,200,{stopped:true});}
       if (route === '/api/studio/play' && req.method === 'POST') { const body = await readBody(req); if (!body || Object.keys(body).some(k => !['activeId', 'values', 'enabled'].includes(k))) throw Error('Comando de efeito inválido.'); studio.configure(body); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/studio' && req.method === 'POST') { admin(); studio.configure(await readBody(req, 128 * 1024)); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/studio/preview' && req.method === 'GET') { studio.watch(req, res, () => security.session(req)); return; }
@@ -212,11 +222,11 @@ async function createApp(options = {}) {
     return { localPort: local.address().port };
   }
   async function stop() {
-    clearInterval(heartbeat); studio.stop(); hardware.stop(); alexa.stop();
+    clearInterval(heartbeat); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
     for (const client of clients) client.res.end(); clients.clear();
     local.closeAllConnections(); if (local.listening) await new Promise(resolve => local.close(resolve));
   }
-  return { start, stop, local, store, security, hardware, alexa, studio, snapshot };
+  return { start, stop, local, store, security, hardware, alexa, studio, draftPreview, snapshot };
 }
 if (require.main === module) {
   let app;

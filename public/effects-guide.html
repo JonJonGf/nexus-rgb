@@ -2,7 +2,7 @@
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nexus RGB · Effect guide</title><link rel="stylesheet" href="/effects-guide.css"><script src="/en.js" defer></script><script src="/i18n.js" defer></script></head>
 <body><main>
 <header><a class="brand" href="/">NEXUS RGB ↗</a><label><span data-i18n="Idioma da interface">Idioma da interface</span> <select id="settings-language"><option value="pt-BR">Português</option><option value="en">English</option></select></label></header>
-<h1 data-i18n="Seu primeiro efeito em JSON">Seu primeiro efeito em JSON</h1>
+<h1 data-i18n="Crie efeitos para seu setup">Crie efeitos para seu setup</h1>
 <p data-i18n="Uma fórmula Nexus descreve cores e movimento com dados, sem código executável. Este guia acompanha o app e funciona sem Internet.">Uma fórmula Nexus descreve cores e movimento com dados, sem código executável. Este guia acompanha o app e funciona sem Internet.</p>
 <h2 data-i18n="Do rascunho às luzes">Do rascunho às luzes</h2>
 <ol><li data-i18n="No Mapa do setup, abra Trocar efeito → Criar efeito +. Use os controles ou cole seu JSON em Editar JSON · avançado.">No Mapa do setup, abra Trocar efeito → Criar efeito +. Use os controles ou cole seu JSON em Editar JSON · avançado.</li>
@@ -28,12 +28,20 @@
 <tr><td><code>comet</code></td><td data-i18n="Faixa luminosa com rastro e intervalos escuros. Segue angle.">Faixa luminosa com rastro e intervalos escuros. Segue angle.</td></tr>
 <tr><td><code>rings</code></td><td data-i18n="Anéis que se expandem a partir do centro. A simetria radial torna angle visualmente irrelevante.">Anéis que se expandem a partir do centro. A simetria radial torna angle visualmente irrelevante.</td></tr>
 <tr><td><code>gradient</code></td><td data-i18n="Gradiente estático. Usa a paleta, angle e scale. speed não o anima.">Gradiente estático. Usa a paleta, angle e scale. speed não o anima.</td></tr>
+<tr><td><code>scanner</code></td><td data-i18n="Varredura · feixe que vai e volta">Varredura · feixe que vai e volta</td></tr>
+<tr><td><code>rain</code></td><td data-i18n="Chuva · rastros em sequência">Chuva · rastros em sequência</td></tr>
+<tr><td><code>spiral</code></td><td data-i18n="Espiral · braços de cores">Espiral · braços de cores</td></tr>
+<tr><td><code>plasma</code></td><td data-i18n="Plasma · nuvens em movimento">Plasma · nuvens em movimento</td></tr>
+<tr><td><code>fire</code></td><td data-i18n="Fogo · chamas e turbulência">Fogo · chamas e turbulência</td></tr>
+<tr><td><code>sparkle</code></td><td data-i18n="Cintilação · pontos que acendem">Cintilação · pontos que acendem</td></tr>
+<tr><td><code>ripples</code></td><td data-i18n="Ondulações · ondas que se encontram">Ondulações · ondas que se encontram</td></tr>
+<tr><td><code>blocks</code></td><td data-i18n="Blocos · mosaico em movimento">Blocos · mosaico em movimento</td></tr>
 </tbody></table></div>
 <h2 data-i18n="Campos e limites">Campos e limites</h2><p data-i18n="Todos os campos abaixo são obrigatórios. Os números aceitam decimais; use ponto decimal no JSON.">Todos os campos abaixo são obrigatórios. Os números aceitam decimais; use ponto decimal no JSON.</p>
 <div class="table-wrap"><table><thead><tr><th data-i18n="Campo">Campo</th><th data-i18n="Valor e significado">Valor e significado</th></tr></thead><tbody>
 <tr><td><code>format</code></td><td><code>"nexus-effect/1"</code></td></tr>
 <tr><td><code>name</code></td><td data-i18n="Nome do efeito: 1 a 60 caracteres.">Nome do efeito: 1 a 60 caracteres.</td></tr>
-<tr><td><code>pattern</code></td><td><code>wave | comet | rings | gradient</code></td></tr>
+<tr><td><code>pattern</code></td><td><code>wave | comet | rings | gradient | scanner | rain | spiral | plasma | fire | sparkle | ripples | blocks</code></td></tr>
 <tr><td><code>palette</code></td><td data-i18n="De 1 a 8 cores #RRGGBB, em ordem. A última transita de volta para a primeira; uma cor produz uma paleta uniforme.">De 1 a 8 cores #RRGGBB, em ordem. A última transita de volta para a primeira; uma cor produz uma paleta uniforme.</td></tr>
 <tr><td><code>speed</code></td><td data-i18n="0 a 100. Controla a velocidade da animação, não os FPS. Zero mantém o quadro parado.">0 a 100. Controla a velocidade da animação, não os FPS. Zero mantém o quadro parado.</td></tr>
 <tr><td><code>angle</code></td><td data-i18n="−360 a 360 graus. 0: esquerda → direita; 90: cima → baixo; 180: direita → esquerda; −90: baixo → cima.">−360 a 360 graus. 0: esquerda → direita; 90: cima → baixo; 180: direita → esquerda; −90: baixo → cima.</td></tr>
@@ -43,5 +51,11 @@
 <p data-i18n="JSON inválido exibe um erro e bloqueia testar/salvar. Confira aspas duplas, vírgulas, chaves e os limites. O editor aceita um rótulo JSON ou cercas de Markdown ao colar; o arquivo .json importado deve conter somente o objeto JSON.">JSON inválido exibe um erro e bloqueia testar/salvar. Confira aspas duplas, vírgulas, chaves e os limites. O editor aceita um rótulo JSON ou cercas de Markdown ao colar; o arquivo .json importado deve conter somente o objeto JSON.</p>
 <p data-i18n="Salvar uma fórmula alterada cria outro item na biblioteca; não substitui perfis antigos. JSON não executa JavaScript, expressões, áudio ou integrações. O limite de importação é 128 KiB por arquivo e 64 efeitos importados.">Salvar uma fórmula alterada cria outro item na biblioteca; não substitui perfis antigos. JSON não executa JavaScript, expressões, áudio ou integrações. O limite de importação é 128 KiB por arquivo e 64 efeitos importados.</p>
 <p data-i18n="Para a onda atravessar as peças, aplique o efeito espacial e confira posição, quantidade e ordem dos LEDs no mapa. É necessário Direct com cor por LED. Hubs que espelham o sinal não permitem controlar cada fan separadamente.">Para a onda atravessar as peças, aplique o efeito espacial e confira posição, quantidade e ordem dos LEDs no mapa. É necessário Direct com cor por LED. Hubs que espelham o sinal não permitem controlar cada fan separadamente.</p>
+<h2 data-i18n="HTML / Canvas do SignalRGB">HTML / Canvas do SignalRGB</h2>
+<p data-i18n="No criador, escolha SignalRGB · HTML / Canvas ou cole o HTML completo com canvas e script. Testar prévia valida o código e mostra os controles das metatags. Alterar código ou parâmetros pausa a prévia; teste novamente para reiniciar.">No criador, escolha SignalRGB · HTML / Canvas ou cole o HTML completo com canvas e script. Testar prévia valida o código e mostra os controles das metatags. Alterar código ou parâmetros pausa a prévia; teste novamente para reiniciar.</p>
+<p data-i18n="O HTML executa em QuickJS dentro de um processo isolado. O navegador recebe somente imagens. A prévia acompanha o FPS configurado para o motor, exibindo até 10 imagens por segundo; não salva nem altera as luzes.">O HTML executa em QuickJS dentro de um processo isolado. O navegador recebe somente imagens. A prévia acompanha o FPS configurado para o motor, exibindo até 10 imagens por segundo; não salva nem altera as luzes.</p>
+<p data-i18n="Compatibilidade parcial: Canvas 2D, requestAnimationFrame, timers e controles color, number, boolean e combobox. Booleanos chegam como 0 ou 1. Áudio, WebGL, rede, arquivos e scripts ou imagens externos não são suportados.">Compatibilidade parcial: Canvas 2D, requestAnimationFrame, timers e controles color, number, boolean e combobox. Booleanos chegam como 0 ou 1. Áudio, WebGL, rede, arquivos e scripts ou imagens externos não são suportados.</p>
+<p data-i18n="Salvar e aplicar guarda o HTML e os parâmetros escolhidos e ativa o efeito. Guardar também em Perfis permite recuperar esses parâmetros depois. Nome e autoria do arquivo são preservados.">Salvar e aplicar guarda o HTML e os parâmetros escolhidos e ativa o efeito. Guardar também em Perfis permite recuperar esses parâmetros depois. Nome e autoria do arquivo são preservados.</p>
+<p data-i18n="Para chuva de cima para baixo, use rain com angle 90. Para fogo subindo da base, use fire com angle -90 e uma paleta amarela, laranja e vermelha.">Para chuva de cima para baixo, use rain com angle 90. Para fogo subindo da base, use fire com angle -90 e uma paleta amarela, laranja e vermelha.</p>
 <footer>NEXUS RGB / nexus-effect/1</footer>
 </main></body></html>

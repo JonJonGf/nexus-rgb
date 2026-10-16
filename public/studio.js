@@ -300,28 +300,42 @@
     try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + T(': limite de 128 KiB.')); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
   });
   let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'], formulaDraft, formulaValid = true, formulaSaving = false, formulaTimer, formulaPreviewOpen = false, formulaDrawDirty = true, formulaStarted = 0, formulaSeconds = 0, formulaProfileId;
+  let formulaHTML=false,codeBusy=false;const formulaBuffers={json:'',html:''};
+  const codePreview=NexusCodePreview.create({api:(...args)=>api(...args),source:$('studio-source'),canvas:$('formula-preview'),parameters:$('formula-code-parameters'),metadata:$('formula-code-metadata'),status:message=>{$('formula-preview-note').textContent=message;$('formula-preview-toggle').textContent=T(codePreview.playing()?'Pausar prévia':'Testar prévia');},error:message=>{$('formula-error').textContent=message;$('formula-error').hidden=false;$('formula-preview-toggle').textContent=T('Testar prévia');},busy:value=>{codeBusy=value;formulaValidity(formulaValid);$('formula-preview-toggle').textContent=T(value?'Validando código…':codePreview.playing()?'Pausar prévia':'Testar prévia');}});
+  function formulaMode(html,pasted){
+    formulaStop();if(html!==formulaHTML){if(pasted===undefined)formulaBuffers[formulaHTML?'html':'json']=$('studio-source').value;$('studio-source').value=pasted??formulaBuffers[html?'html':'json'];}formulaHTML=html;$('formula-format').value=html?'html':'json';$('formula-json-fields').hidden=html;$('formula-palette-preview').hidden=html;$('formula-code-parameters').hidden=!html;$('formula-code-metadata').hidden=!html;$('formula-intro').hidden=html;
+    for(const input of $('formula-json-fields').querySelectorAll('input,select,button'))input.disabled=html;
+    $('formula-name').required=!html;
+    const summary=$('formula-advanced').querySelector('summary');summary.dataset.i18n=html?'Código HTML / Canvas':'Editar JSON · avançado';summary.textContent=T(summary.dataset.i18n);
+    const help=$('formula-code-help');help.dataset.i18n=html?'Cole o HTML completo, incluindo meta, canvas e script. A prévia executa em um processo isolado. Áudio, imagens e scripts externos não são suportados.':'JSON válido atualiza os controles e a prévia aberta. Alterar os controles gera o JSON correspondente.';help.textContent=T(help.dataset.i18n);
+    if(html){$('formula-advanced').open=true;codePreview.changed();formulaValidity(Boolean($('studio-source').value.trim()));}else formulaReadout();
+    $('formula-error').hidden=true;
+  }
+  $('formula-format').addEventListener('change',()=>{formulaMode($('formula-format').value==='html');if(!formulaHTML){if($('studio-source').value)formulaFromJSON();else formulaPalette();}});
   function formulaValidity(valid) {
     formulaValid = valid;
-    for (const id of ['formula-save','formula-apply','formula-preview-toggle']) $(id).disabled = !valid || formulaSaving;
-    for (const key of ['name','pattern','speed','angle','scale']) $('formula-'+key).disabled = formulaSaving;
+    for (const id of ['formula-save','formula-apply','formula-preview-toggle']) $(id).disabled = !valid || formulaSaving || codeBusy;
+    for (const key of ['name','pattern','speed','angle','scale']) $('formula-'+key).disabled = formulaSaving || formulaHTML;
     $('formula-add-color').disabled = formulaSaving || formulaColors.length >= 8;
     $('formula-colors').querySelectorAll('input,button').forEach(e=>{e.disabled = formulaSaving || e.dataset.unavailable === 'true';});
-    $('studio-source').disabled = $('formula-profile').disabled = $('studio-formula-close').disabled = formulaSaving;
+    $('studio-source').disabled = $('formula-profile').disabled = $('studio-formula-close').disabled = $('formula-format').disabled = formulaSaving;
+    $('formula-code-parameters').querySelectorAll('input,select').forEach(e=>e.disabled=formulaSaving);
   }
   function formulaReadout() {
-    if (!formulaDraft) return;
+    if (!formulaDraft || formulaHTML) return;
     $('formula-speed-label').value = formulaDraft.speed + '%';
     $('formula-palette-preview').style.background = 'linear-gradient(90deg,' + (formulaColors.length === 1 ? [formulaColors[0], formulaColors[0]] : formulaColors).join(',') + ')';
     $('formula-preview-note').textContent = T(formulaDraft.pattern === 'gradient' ? 'Gradiente é estático. Use wave para mover as cores; speed não anima gradient.' : formulaDraft.speed === 0 ? 'Ritmo zero: o efeito fica parado.' : 'Prévia do rascunho. As luzes só mudam ao salvar e aplicar.');
     formulaDrawDirty = true; formulaFrame();
   }
   function formulaFrame() {
-    if (!formulaPreviewOpen || !formulaValid || document.hidden || !$('studio-formula-dialog').open || !formulaDraft) return;
+    if (formulaHTML || !formulaPreviewOpen || !formulaValid || document.hidden || !$('studio-formula-dialog').open || !formulaDraft) return;
     if (!formulaDrawDirty && (formulaDraft.pattern === 'gradient' || formulaDraft.speed === 0)) return;
     const canvas = $('formula-preview'); NexusRecipe.draw(canvas.getContext('2d'),formulaDraft,formulaTimer ? (performance.now()-formulaStarted)/1000 : formulaSeconds,canvas.width,canvas.height); formulaDrawDirty = false;
   }
-  function formulaStop() { if(formulaTimer)formulaSeconds=(performance.now()-formulaStarted)/1000; clearInterval(formulaTimer); formulaTimer = null; $('formula-preview-toggle').textContent = T('Testar prévia'); }
-  $('formula-preview-toggle').addEventListener('click',()=>{
+  function formulaStop() { codePreview.stop();if(formulaTimer)formulaSeconds=(performance.now()-formulaStarted)/1000; clearInterval(formulaTimer); formulaTimer = null; $('formula-preview-toggle').textContent = T('Testar prévia'); }
+  $('formula-preview-toggle').addEventListener('click',async()=>{
+    if(formulaHTML){if(codePreview.playing())return formulaStop();$('formula-error').hidden=true;$('formula-preview-wrap').hidden=false;await codePreview.start();return;}
     if (formulaTimer) return formulaStop();
     if (!formulaFromJSON()) return;
     formulaPreviewOpen = true; $('formula-preview-wrap').hidden = false; formulaStarted = performance.now(); formulaSeconds = 0; formulaDrawDirty = true; formulaFrame(); formulaTimer = setInterval(formulaFrame,100); $('formula-preview-toggle').textContent = T('Pausar prévia');
@@ -329,21 +343,27 @@
   $('studio-formula-dialog').addEventListener('close',formulaStop);
   $('studio-formula-dialog').addEventListener('cancel',event=>{if(formulaSaving)event.preventDefault();});
   window.addEventListener('pagehide',formulaStop);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden&&formulaHTML)formulaStop();});
   function formulaOpen() {
     formulaStop(); formulaProfileId = null; formulaPreviewOpen = false; formulaSeconds = 0; $('formula-preview-wrap').hidden = true;
-    $('formula-error').hidden = true; formulaPalette(); $('studio-picker-dialog').close(); $('studio-formula-dialog').showModal(); $('formula-name').focus();
+    formulaMode(false);$('formula-error').hidden = true; formulaPalette(); $('studio-picker-dialog').close(); $('studio-formula-dialog').showModal(); $('formula-name').focus();
   }
   function formulaFromJSON() {
     try {
       formulaDraft = NexusRecipe.parse($('studio-source').value);
+      formulaBuffers.json=$('studio-source').value;
       for (const key of ['name','pattern','speed','angle','scale']) $('formula-'+key).value = formulaDraft[key];
       formulaColors = [...formulaDraft.palette]; formulaPalette(false); formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); return true;
     } catch (e) { formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; return false; }
   }
-  $('studio-source').addEventListener('input',formulaFromJSON);
+  $('studio-source').addEventListener('input',()=>{
+    const raw=$('studio-source').value;if(!formulaHTML&&!raw.trimStart().startsWith('{')&&/<canvas\b/i.test(raw)&&/<script\b/i.test(raw))formulaMode(true,raw);
+    if(formulaHTML){formulaBuffers.html=raw;codePreview.changed();formulaValidity(Boolean(raw.trim()));$('formula-error').hidden=true;}else formulaFromJSON();
+  });
   function formulaSource() {
     const recipe = { format: 'nexus-effect/1', name: $('formula-name').value, pattern: $('formula-pattern').value, palette: formulaColors, speed: Number($('formula-speed').value), angle: Number($('formula-angle').value), scale: Number($('formula-scale').value) };
     $('studio-source').value = JSON.stringify(recipe, null, 2);
+    formulaBuffers.json=$('studio-source').value;
     try { formulaDraft = NexusRecipe.normalize(recipe); formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); } catch(e) { formulaDraft = null; formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
   }
   function formulaPalette(writeSource = true) {
@@ -366,15 +386,16 @@
   $('studio-new').addEventListener('click', formulaOpen);
   $('studio-formula-close').addEventListener('click', () => $('studio-formula-dialog').close());
   $('studio-formula-form').addEventListener('submit', async event => {
-    event.preventDefault(); if(formulaSaving || !formulaFromJSON()) return;
-    const recipe = formulaDraft, apply = event.submitter?.id === 'formula-apply', profile = $('formula-profile').checked;
+    event.preventDefault(); if(formulaSaving || codeBusy || (!formulaHTML&&!formulaFromJSON())) return;
+    const source=formulaHTML?$('studio-source').value:JSON.stringify(formulaDraft),values=formulaHTML?codePreview.values():{}, apply = event.submitter?.id === 'formula-apply', profile = $('formula-profile').checked;formulaStop();
     formulaSaving = true; formulaValidity(true); $('formula-error').hidden = true;
     try {
-      const result = await api('/api/studio/import', { source: JSON.stringify(recipe) }, 'POST');
+      const result = await api('/api/studio/import', { source }, 'POST');
       result.layout = data.layout; data = result; renderLibrary();
       const effect = result.effects.find(e => e.id === result.id);
-      if (profile && formulaProfileId !== effect.id) { await api('/api/studio/profiles', { name: effect.name.slice(0, 48), activeId: effect.id, values: {} }, 'POST'); formulaProfileId = effect.id; }
-      if (apply && !await play({activeId:effect.id,enabled:true,values:{}})) throw Error('Efeito salvo, mas não foi possível aplicar. Tente novamente.');
+      const profileKey=JSON.stringify([effect.id,values]);
+      if (profile && formulaProfileId !== profileKey) { await api('/api/studio/profiles', { name: effect.name.slice(0, 48), activeId: effect.id, values }, 'POST'); formulaProfileId = profileKey; }
+      if (apply && !await play({activeId:effect.id,enabled:true,values})) throw Error('Efeito salvo, mas não foi possível aplicar. Tente novamente.');
       $('studio-formula-dialog').close(); toast(apply ? T(state.master.power ? 'Efeito salvo e aplicado às luzes.' : 'Efeito salvo e aplicado. A iluminação continua desligada.') : profile ? T('Efeito guardado na biblioteca e em Perfis.') : T('Efeito guardado na biblioteca.'));
     } catch (e) { $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
     finally { formulaSaving = false; formulaValidity(formulaValid); }
@@ -415,7 +436,7 @@
     $('studio-dirty').textContent = !$('studio-retry').hidden ? T('Não foi possível salvar') : dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
     renderPorts();
     // Translating palette buttons must not replace an advanced JSON draft.
-    const source = $('studio-source').value; formulaPalette(false); $('studio-source').value = source; formulaValidity(formulaValid); formulaReadout(); $('formula-preview-toggle').textContent = T(formulaTimer ? 'Pausar prévia' : 'Testar prévia');
+    const source = $('studio-source').value; formulaPalette(false); $('studio-source').value = source; formulaValidity(formulaValid); formulaReadout(); $('formula-preview-toggle').textContent = T(formulaTimer || codePreview.playing() ? 'Pausar prévia' : 'Testar prévia');
   });
   document.addEventListener('visibilitychange', () => open(current));
   window.addEventListener('pagehide', () => { clearInterval(poll); stream?.close(); stream = null; });

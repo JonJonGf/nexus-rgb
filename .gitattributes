@@ -3,3 +3,4 @@
 *.json text eol=lf
 *.ps1 text eol=crlf
 *.cs text eol=crlf
+LEIA-ME.txt text eol=crlf

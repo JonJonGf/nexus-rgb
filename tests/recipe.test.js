@@ -16,7 +16,7 @@ test('gradiente é estático; wave, comet e rings animam e ritmo zero pausa',asy
 });
 test('desenho do editor corresponde ao motor, inclusive direção e mudança de paleta',async()=>{
  const renderer=new StudioRenderer(),canvas=createCanvas(320,200),ctx=canvas.getContext('2d');try{
-  for(const pattern of recipe.patterns){const input={...cascade,pattern};await renderer.load(schema.recipe(input));recipe.draw(ctx,input,1.5);assert.deepEqual(Buffer.from(ctx.getImageData(0,0,320,200).data),Buffer.from(renderer.frame(1500)));}
+  for(const pattern of recipe.patterns){const input={...cascade,pattern};await renderer.load(schema.recipe(input));recipe.draw(ctx,input,1.5,320,200,createCanvas);assert.deepEqual(Buffer.from(ctx.getImageData(0,0,320,200).data),Buffer.from(renderer.frame(1500)));}
   recipe.draw(ctx,cascade,0);const image=Buffer.from(ctx.getImageData(0,0,320,200).data);recipe.draw(ctx,{...cascade,palette:['#000000','#ffffff'],angle:0},0);assert.notDeepEqual(image,Buffer.from(ctx.getImageData(0,0,320,200).data));
  }finally{renderer.close();}
 });

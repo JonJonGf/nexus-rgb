@@ -73,6 +73,8 @@ Controles booleanos são guardados como ligado/desligado na configuração e env
 
 ## Criar uma fórmula Nexus
 
+O seletor **Formato do efeito** oferece **Nexus · JSON** e **SignalRGB · HTML / Canvas**. A fórmula JSON tem doze padrões: onda, cometa, anéis, gradiente, varredura, chuva, espiral, plasma, fogo, cintilação, ondulações e blocos. Para código Canvas, cole o HTML completo ou escolha o formato HTML; **Testar prévia** executa um rascunho isolado e mostra os controles das metatags sem salvar ou aplicar às luzes. Editar código ou parâmetros pausa essa prévia; testar novamente reinicia o script. **Salvar e aplicar** preserva os parâmetros escolhidos, inclusive no perfil opcional. Veja o [guia dos dois formatos](EFEITOS.md#htmlcanvas-do-signalrgb).
+
 **Trocar efeito → Criar efeito +** abre uma janela própria, acima do mapa, com rolagem interna no desktop e no celular. Escolha nome, movimento, até oito cores ordenadas, ritmo, direção e escala. **Testar prévia** anima o rascunho sem salvar nem mudar as luzes e acompanha as edições válidas. **Salvar na biblioteca** guarda sem ativar; **Salvar e aplicar** guarda e seleciona o efeito, preservando os dispositivos desligados. A opção **Guardar também na aba Perfis** cria um perfil. A faixa estreita representa a paleta; a imagem de prévia mostra a fonte de cores do efeito.
 
 **Editar JSON · avançado** permite escrever o formato declarativo `nexus-effect/1`. JSON válido atualiza os controles e a prévia aberta; alterar os controles gera o JSON correspondente. Consulte o [guia de efeitos e patterns](EFEITOS.md) ([English](EFFECTS.md)) para exemplos, campos e limites. `gradient` é estático; use `wave` para animar uma sequência de cores. Também é possível importar um arquivo JSON nesse formato.

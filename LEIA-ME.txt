@@ -1,0 +1,53 @@
+NEXUS RGB - GUIA RAPIDO / QUICK START
+
+PORTUGUES
+
+Abra o Nexus RGB pelo menu Iniciar ou pelo icone perto do relogio.
+O painel abre no navegador. Aguarde o OpenRGB detectar os componentes.
+
+Iluminacao: cores, brilho e movimentos comuns.
+Dispositivos: ajustes individuais e quantidades reais de LEDs ARGB.
+Perfis: guarde combinacoes para ativar depois.
+Mapa do setup: organize e calibre as pecas para efeitos espaciais.
+Configuracoes > Ajuda: guia local com formatacao, sem Internet.
+
+Criar efeito: Mapa > Trocar efeito > Criar efeito +.
+Escolha Nexus JSON ou SignalRGB HTML / Canvas, cole o codigo e teste
+a previa. Salvar na biblioteca guarda; Salvar e aplicar ativa nas luzes.
+O suporte a efeitos SignalRGB e parcial; consulte o guia de efeitos.
+
+Celular: use o link mostrado em Conexoes, na mesma rede local.
+Se precisar recuperar o controlador, Configuracoes permite reiniciar
+Nexus e OpenRGB. O Windows pede administrador. Preserve seus backups.
+
+A apresentacao inicial nao se repete ao abrir ou atualizar o app.
+O guia permanece em Configuracoes > Ajuda.
+
+ENGLISH
+
+Open Nexus RGB from the Start menu or the system tray.
+Wait for OpenRGB to detect your components.
+
+Lighting: colors, brightness and common movements.
+Devices: individual settings and actual ARGB LED counts.
+Profiles: save combinations for later.
+Setup map: arrange and calibrate components for spatial effects.
+Settings > Help: formatted offline guide.
+
+Create effect: Setup map > Change effect > Create effect +.
+Choose Nexus JSON or SignalRGB HTML / Canvas, paste code and test the
+preview. Save to library stores; Save and apply activates the lights.
+SignalRGB effect support is partial; consult the effect guide.
+
+Phone: use the link in Connections on the same LAN.
+Settings can restart Nexus and OpenRGB if needed; Windows asks for
+administrator permission. Keep backups of your settings and effects.
+
+The welcome screen does not repeat when reopening or updating.
+Help stays available in Settings.
+
+FULL DOCUMENTATION / DOCUMENTACAO COMPLETA
+https://github.com/JonJonGf/nexus-rgb#readme
+
+README.md uses Markdown formatting for GitHub and compatible editors.
+For Notepad, use this LEIA-ME.txt file instead.

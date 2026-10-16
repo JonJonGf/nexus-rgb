@@ -284,8 +284,9 @@
     initializing = true; clearTimeout(reconnectTimer); reconnectTimer = null;
     events?.close(); events = null;
     try {
-      if (onThisPC) await api('/api/session/local', {});
+      const localSession=onThisPC?await api('/api/session/local', {}):null;
       const session = await api('/api/session'); admin = session.admin; render(await api('/api/state'));
+      if(localSession?.welcome)$('welcome-dialog').showModal();
       reconnectDelay = 3000; events = new EventSource('/api/events');
       events.onmessage = event => { try { render(JSON.parse(event.data)); } catch { toast(T('Não foi possível atualizar o estado.')); } };
       events.onerror = () => { events?.close(); events = null; $('connection').textContent = T('● Reconectando ao PC…'); $('connection').className = 'badge offline'; enable(false); scheduleReconnect(); };
@@ -305,6 +306,8 @@
     if (networkInfo && currentPage === 'connect') loadNetwork();
   });
   $('page-title').textContent = T('Iluminação');
+  $('welcome-start').addEventListener('click',()=>$('welcome-dialog').close());
+  $('welcome-guide').addEventListener('click',()=>$('welcome-dialog').close());
   enable(false); initialize();
   setInterval(() => { if (currentPage === 'connect' && admin && !document.hidden) loadNetwork(); }, 5000);
   window.addEventListener('online', initialize); window.addEventListener('pageshow', event => { if (event.persisted) initialize(); });
