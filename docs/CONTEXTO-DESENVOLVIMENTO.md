@@ -7,10 +7,11 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 - **Entrega de código:** alpha.20, commit `b00c3f687bdd9509dd3d9d9d79a362034cb7c397`.
 - **Distribuição:** [release alpha.20](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.20), com instalador, desinstalador, hashes e origem do build. Evidências adicionadas ao main em `dc6b8f8`; esse commit posterior só altera documentação.
 - **PC de validação:** alpha.20 instalada com autorização do usuário, instalação encerrada com código zero e sem reinício do Windows. Os cinco componentes voltaram sem erro; hashes dos ajustes e dos arquivos de efeitos permaneceram iguais aos capturados antes da atualização. Contagens, nomes pessoais e logs locais não são publicados.
-- **Resultado físico:** usuário testou a alpha.20 e informou que a Alexa continua anunciando falha. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados desse teste, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
-- **Pendente principal:** confirmar se o aviso acontece nas duas direções e investigar o protocolo a partir desse resultado. Grupos e rotinas precisam de teste separado. Não declarar o defeito corrigido nem repetir a hipótese de `bri` como causa comprovada.
+- **Resultado físico:** usuário testou a alpha.20 e confirmou aviso de falha nos dois comandos, acender e apagar. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados de desligamento, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
+- **Resultado posterior em Alexa+:** o usuário pediu por voz para a Alexa deixar de anunciar o erro e informou que funcionou. Nenhuma outra mudança de código ou reinstalação ocorreu. Registrar como preferência de resposta/solução prática relatada pelo usuário, sem concluir que o protocolo foi corrigido. O estado do aplicativo Alexa após esse pedido não foi retestado.
+- **Pendência técnica:** a causa do aviso no protocolo permanece desconhecida. Investigar caso o usuário queira retomar; a confirmação de brilho não é causa comprovada. Grupos, rotinas e estado no aplicativo precisam de teste separado. Não iniciar novas tentativas de alteração ou recadastro automaticamente após a solução prática relatada.
 - **Demais melhorias:** registradas no [plano](PLANO-MELHORIAS.md) e adiadas por decisão do usuário. Não iniciá-las automaticamente.
-- **Mudança documental após o instalador:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento. Os arquivos de instruções não alteram o binário da alpha.20. Conferir commit correspondente no histórico do Git; ele não é conhecido antes de sua criação.
+- **Mudança documental após o instalador:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`. O registro posterior incorpora a confirmação das duas direções e a solução prática na Alexa+. Esses arquivos não alteram o binário da alpha.20; conferir os commits posteriores no histórico do Git.
 
 ## Decisões de produto que devem ser preservadas
 
@@ -33,11 +34,13 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 **Validação:** 124 testes de lógica/integração locais e no CI; 34 de interface no CI; supervisor e estabilidade de 60 segundos/171 requisições/dez reinícios abruptos. Nove testes específicos de Alexa, incluindo transporte HTTP real em loopback com identidade LAN simulada. Duas VMs Windows passaram em 75 verificações cada. As três análises CodeQL do mesmo commit/tag passaram sem erros/avisos e sem alertas abertos, sem descartar novos alertas para esta alteração. Assets oficiais baixados e confrontados com hashes e metadados; instalação local e preservação dos dados verificadas. Consulte o [relatório](validation/2026-10-16-alexa-feedback.md), o [CI](https://github.com/JonJonGf/nexus-rgb/actions/runs/38957323136) e a [publicação](https://github.com/JonJonGf/nexus-rgb/actions/runs/38957323137).
 
-**Resultado físico posterior à instalação:** o usuário informou que o aviso persiste. O diagnóstico local mostrou PUT com apenas `on`, sem `bri`, respostas 200 concluídas em aproximadamente 5–8 ms e GETs posteriores com `on: false`, `reachable: true`. Isso enfraquece a hipótese de confirmação de brilho para a falha observada. A finalização da resposta pelo servidor não comprova a interpretação dela pelo firmware. O ajuste melhora coerência do protocolo, mas não resolveu o aviso nesse Echo.
+**Resultado físico posterior à instalação:** o usuário confirmou aviso ao acender e apagar. O diagnóstico local do desligamento mostrou PUT com apenas `on`, sem `bri`, respostas 200 concluídas em aproximadamente 5–8 ms e GETs posteriores com `on: false`, `reachable: true`. Isso enfraquece a hipótese de confirmação de brilho para a falha observada. A finalização da resposta pelo servidor não comprova a interpretação dela pelo firmware. O ajuste melhora coerência do protocolo, mas não resolveu o aviso nesse Echo.
+
+**Solução prática relatada depois:** em Alexa+, o usuário pediu para não ouvir mais o anúncio de erro e informou sucesso. Nenhum código mudou entre a falha e esse resultado. Não foi retestado o estado no app; não atribuir a supressão do aviso a uma correção de protocolo no Nexus.
 
 **Limites:** brilho virtual não corresponde ao brilho RGB e reinicia em 254 com um novo processo. Campos Hue não suportados permanecem sem implementação. O efeito em grupos/rotinas precisa de observação física.
 
-**Próximo passo:** confirmar as duas direções e investigar a compatibilidade da resposta/estado anunciado com o firmware antes de modificar novamente o protocolo. O resultado informado foi registrado. Não alterar brilho RGB nem identidade/cadastro da luz como tentativa automática.
+**Próximo passo:** manter o resultado registrado. Se o usuário retomar a investigação técnica, observar pedidos/respostas nas duas direções e o estado no app antes de modificar novamente o protocolo. Não alterar brilho RGB nem identidade/cadastro da luz como tentativa automática.
 
 ### 16/10/2026 — Continuidade entre agentes
 
@@ -45,7 +48,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 **Implementação:** instruções na raiz e regra sempre ativa do Antigravity direcionam a este registro. Exigem atualização após blocos relevantes e antes de encerrar/pausar, incluindo tarefa incompleta, testes, pendências e distinção entre fonte, release e instalação. O guia de desenvolvimento oferece o mesmo ponto de entrada.
 
-**Validação:** conferir os links locais e as mudanças documentais; não é necessária outra compilação para publicar apenas estas instruções. Nenhum comportamento do aplicativo é alterado por elas.
+**Validação:** links locais conferidos pelo leitor de documentação e diferenças verificadas com `git diff --check`. Não é necessária outra compilação para publicar apenas estas instruções. Nenhum comportamento do aplicativo é alterado por elas.
 
 ## Modelo para novas entradas
 

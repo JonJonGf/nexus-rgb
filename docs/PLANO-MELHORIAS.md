@@ -2,13 +2,15 @@
 
 Este registro mantém as melhorias aceitas para avaliação e implementação futura. Ele não anuncia recursos disponíveis nem uma data de entrega. A revisão do código identificou diferenças em relação às hipóteses do relatório externo; cada alteração precisa de reprodução e testes próprios.
 
-## Implementado na alpha.20, aguardando teste físico: comunicação da Alexa
+## Implementado na alpha.20, com resultado físico registrado: comunicação da Alexa
 
 - Confirmar separadamente energia e brilho virtual no protocolo Hue, sem mudar o brilho RGB, cores, perfis ou parâmetros do mapa.
 - Preservar a energia em pedidos que contêm somente brilho. Um `on` explícito determina a energia, mesmo com `bri: 0`.
 - Manter consultas posteriores coerentes com o brilho virtual aceito e validar tipos/faixas antes de aplicar energia.
 - Aceitar barra final nas rotas Hue sem ampliar o acesso a Echos não aprovados.
 - Validar com HTTP real e testes isolados; o desaparecimento do aviso de falha depende de teste com Echo físico. Consulte [Alexa](ALEXA.md).
+
+O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usuário relatou que pediu à Alexa+ para não anunciar mais o erro e a resposta de voz foi suprimida, sem nova alteração do Nexus. O estado no app e a causa no protocolo permanecem sem confirmação de correção. Consulte o [contexto de continuidade](CONTEXTO-DESENVOLVIMENTO.md) antes de novas tentativas.
 
 ## Próxima etapa: estabilidade e hardware
 
