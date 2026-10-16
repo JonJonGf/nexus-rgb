@@ -33,20 +33,35 @@ CloseApplications=yes
 RestartApplications=no
 UsePreviousTasks=yes
 [Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"; InfoBeforeFile: "..\docs\INSTALLATION.en.txt"
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+[CustomMessages]
+english.DesktopIcon=Create a desktop shortcut
+brazilianportuguese.DesktopIcon=Criar atalho na área de trabalho
+english.TrayStartup=Show the Nexus RGB tray icon when signing in to Windows
+brazilianportuguese.TrayStartup=Mostrar ícone do Nexus RGB ao entrar no Windows
+english.PawnIO=Open the signed PawnIO driver installer (RGB RAM and some motherboards)
+brazilianportuguese.PawnIO=Abrir instalador do driver assinado PawnIO (RGB da RAM e algumas placas-mãe)
+english.UninstallNexus=Uninstall Nexus RGB
+brazilianportuguese.UninstallNexus=Desinstalar Nexus RGB
+english.RestartNexus=Restart Nexus and OpenRGB
+brazilianportuguese.RestartNexus=Reiniciar Nexus e OpenRGB
+english.OpenNexus=Open Nexus RGB
+brazilianportuguese.OpenNexus=Abrir Nexus RGB
 [Tasks]
-Name: "desktopicon"; Description: "Criar atalho na área de trabalho"
-Name: "traystartup"; Description: "Mostrar ícone do Nexus RGB ao entrar no Windows"
-Name: "pawnio"; Description: "Abrir instalador do driver assinado PawnIO (RGB da RAM e algumas placas-mãe)"
+Name: "desktopicon"; Description: "{cm:DesktopIcon}"
+Name: "traystartup"; Description: "{cm:TrayStartup}"
+Name: "pawnio"; Description: "{cm:PawnIO}"
 [Files]
 Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\vendor\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "..\vendor\PawnIO_setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "service-preflight.ps1"; Flags: dontcopy
+Source: "backup-before-upgrade.ps1"; Flags: dontcopy
 [Icons]
 Name: "{group}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"
-Name: "{group}\Desinstalar Nexus RGB"; Filename: "{uninstallexe}"
-Name: "{group}\Reiniciar Nexus e OpenRGB"; Filename: "{app}\NexusRGB.exe"; Parameters: "--restart-rgb"
+Name: "{group}\{cm:UninstallNexus}"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:RestartNexus}"; Filename: "{app}\NexusRGB.exe"; Parameters: "--restart-rgb"
 Name: "{commondesktop}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"; Tasks: desktopicon
 Name: "{commonstartup}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"; Parameters: "--tray"; Tasks: traystartup
 [Registry]
@@ -54,7 +69,7 @@ Root: HKLM; Subkey: "Software\Classes\nexusrgb"; ValueType: string; ValueData: "
 Root: HKLM; Subkey: "Software\Classes\nexusrgb"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKLM; Subkey: "Software\Classes\nexusrgb\shell\open\command"; ValueType: string; ValueData: """{app}\NexusRGB.exe"" --restart-rgb ""%1"""
 [Run]
-Filename: "{app}\NexusRGB.exe"; Description: "Abrir Nexus RGB"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\NexusRGB.exe"; Description: "{cm:OpenNexus}"; Flags: nowait postinstall skipifsilent runasoriginaluser
 [Code]
 var
   ServiceResumeMask: Integer;
@@ -68,6 +83,10 @@ function PowerShellPath: String;
 begin
   Result := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
 end;
+function LocalText(Portuguese, English: String): String;
+begin
+  if ActiveLanguage = 'english' then Result := English else Result := Portuguese;
+end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ExitCode: Integer;
@@ -78,37 +97,38 @@ begin
   SDKPortValue := StrToIntDef(PortsPage.Values[1], 0);
   AlexaPortValue := StrToIntDef(PortsPage.Values[2], 0);
   if (PanelPortValue < 1024) or (PanelPortValue > 65535) or (SDKPortValue < 1024) or (SDKPortValue > 65535) or (AlexaPortValue < 1) or (AlexaPortValue > 65535) or (PanelPortValue = SDKPortValue) or (PanelPortValue = AlexaPortValue) or (SDKPortValue = AlexaPortValue) then begin
-    Result := 'Escolha três portas TCP diferentes. Painel e SDK: 1024 a 65535. Alexa: 1 a 65535.';
+    Result := LocalText('Escolha três portas TCP diferentes. Painel e SDK: 1024 a 65535. Alexa: 1 a 65535.', 'Choose three different TCP ports. Dashboard and SDK: 1024 to 65535. Alexa: 1 to 65535.');
     Exit;
   end;
   if PreflightReady then Exit;
   if CompareText(RemoveBackslashUnlessRoot(WizardDirValue), RemoveBackslashUnlessRoot(ExpandConstant('{autopf}\Nexus RGB'))) <> 0 then begin
-    Result := 'Os serviços precisam ser instalados em Program Files\Nexus RGB para proteger o executável e o controlador de hardware.';
+    Result := LocalText('Os serviços precisam ser instalados em Program Files\Nexus RGB para proteger o executável e o controlador de hardware.', 'Services must be installed in Program Files\Nexus RGB to protect the executable and hardware controller.');
     Exit;
   end;
   ExtractTemporaryFile('service-preflight.ps1');
+  ExtractTemporaryFile('backup-before-upgrade.ps1');
   Command := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Prepare -Root "' + ExpandConstant('{app}') + '" -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue);
-  if not Exec(PowerShellPath, Command, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then Result := 'Não foi possível verificar os serviços.'
+  if not Exec(PowerShellPath, Command, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then Result := LocalText('Não foi possível verificar os serviços.', 'Could not check services.')
   else if (ExitCode >= 0) and (ExitCode <= 3) then begin
     ServiceResumeMask := ExitCode;
     PreflightReady := True;
   end
-  else if ExitCode = 40 then Result := 'Uma das portas escolhidas para o painel (' + IntToStr(PanelPortValue) + ') ou SDK (' + IntToStr(SDKPortValue) + ') está ocupada. Volte à página Portas da rede e escolha outra. Os serviços instalados foram mantidos.'
-  else if ExitCode = 46 then Result := 'As portas escolhidas são inválidas. Volte à página Portas da rede.'
-  else if ExitCode = 41 then Result := 'Outro OpenRGB está em execução. Feche-o antes de instalar para evitar dois programas controlando o mesmo hardware. Os serviços instalados foram mantidos.'
-  else if ExitCode = 42 then Result := 'Existe um serviço com o nome Nexus RGB que não pertence a esta instalação. A preparação não alterou esse serviço.'
-  else if ExitCode = 43 then Result := 'A pasta de instalação é inválida ou contém um link de sistema de arquivos.'
-  else if ExitCode = 44 then Result := 'Não foi possível preparar a atualização. Os serviços que estavam ativos foram restaurados.'
-  else Result := 'Não foi possível preparar ou restaurar os serviços. Código: ' + IntToStr(ExitCode);
+  else if ExitCode = 40 then Result := LocalText('Uma das portas escolhidas para o painel (', 'A selected dashboard (') + IntToStr(PanelPortValue) + LocalText(') ou SDK (', ') or SDK (') + IntToStr(SDKPortValue) + LocalText(') está ocupada. Volte à página Portas da rede e escolha outra. Os serviços instalados foram mantidos.', ') port is busy. Return to Network ports and choose another one. Installed services were preserved.')
+  else if ExitCode = 46 then Result := LocalText('As portas escolhidas são inválidas. Volte à página Portas da rede.', 'Selected ports are invalid. Return to Network ports.')
+  else if ExitCode = 41 then Result := LocalText('Outro OpenRGB está em execução. Feche-o antes de instalar para evitar dois programas controlando o mesmo hardware. Os serviços instalados foram mantidos.', 'Another OpenRGB is running. Close it before installation to avoid two programs controlling the same hardware. Installed services were preserved.')
+  else if ExitCode = 42 then Result := LocalText('Existe um serviço com o nome Nexus RGB que não pertence a esta instalação. A preparação não alterou esse serviço.', 'A service named Nexus RGB does not belong to this installation. Preparation did not change that service.')
+  else if ExitCode = 43 then Result := LocalText('A pasta de instalação é inválida ou contém um link de sistema de arquivos.', 'The installation folder is invalid or contains a filesystem link.')
+  else if ExitCode = 44 then Result := LocalText('Não foi possível preparar a atualização. Os serviços que estavam ativos foram restaurados.', 'Could not prepare the update. Previously running services were restored.')
+  else Result := LocalText('Não foi possível preparar ou restaurar os serviços. Código: ', 'Could not prepare or restore services. Code: ') + IntToStr(ExitCode);
 end;
 procedure InitializeWizard;
 var
   Value: Cardinal;
 begin
-  PortsPage := CreateInputQueryPage(wpSelectTasks, 'Portas da rede', 'Defina as portas usadas pelo Nexus RGB', 'Mantenha os padrões se estiverem livres. Se outro aplicativo já os usa, escolha outros números. UDP 1900 é fixo para descoberta Alexa; alguns Echos exigem HTTP 80.');
-  PortsPage.Add('Painel web e celular:', False);
-  PortsPage.Add('SDK OpenRGB (somente neste PC):', False);
-  PortsPage.Add('Ponte Alexa (recomendado: 80):', False);
+  PortsPage := CreateInputQueryPage(wpSelectTasks, LocalText('Portas da rede', 'Network ports'), LocalText('Defina as portas usadas pelo Nexus RGB', 'Configure the ports used by Nexus RGB'), LocalText('Mantenha os padrões se estiverem livres. Se outro aplicativo já os usa, escolha outros números. UDP 1900 é fixo para descoberta Alexa; alguns Echos exigem HTTP 80.', 'Keep the defaults if available. Choose other numbers if another app uses them. UDP 1900 is fixed for Alexa discovery; some Echos require HTTP 80.'));
+  PortsPage.Add(LocalText('Painel web e celular:', 'Web and phone dashboard:'), False);
+  PortsPage.Add(LocalText('SDK OpenRGB (somente neste PC):', 'OpenRGB SDK (this PC only):'), False);
+  PortsPage.Add(LocalText('Ponte Alexa (recomendado: 80):', 'Alexa bridge (recommended: 80):'), False);
   if not RegQueryDWordValue(HKLM, 'Software\NexusRGB', 'PanelPort', Value) then Value := 5050;
   PortsPage.Values[0] := ExpandConstant('{param:PANELPORT|' + IntToStr(Value) + '}');
   if not RegQueryDWordValue(HKLM, 'Software\NexusRGB', 'SDKPort', Value) then Value := 6743;
@@ -121,7 +141,7 @@ var ExitCode: Integer;
 begin
   if PreflightReady and not InstallationStarted and (ServiceResumeMask <> 0) then begin
     if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Restore -Root "' + ExpandConstant('{app}') + '" -RestoreMask ' + IntToStr(ServiceResumeMask), '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then ExitCode := -1;
-    if ExitCode <> 0 then MsgBox('A instalação foi cancelada, mas não foi possível restaurar os serviços. Abra novamente o instalador para reparar o Nexus RGB. Código: ' + IntToStr(ExitCode), mbError, MB_OK);
+    if ExitCode <> 0 then MsgBox(LocalText('A instalação foi cancelada, mas não foi possível restaurar os serviços. Abra novamente o instalador para reparar o Nexus RGB. Código: ', 'Setup was canceled but services could not be restored. Reopen the installer to repair Nexus RGB. Code: ') + IntToStr(ExitCode), mbError, MB_OK);
   end;
 end;
 function NeedRestart: Boolean;
@@ -153,25 +173,25 @@ begin
   if CurStep = ssPostInstall then begin
     { Keep failures nonzero, including runtime installation failures. }
     SetupFailed := True;
-    if not Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível instalar o runtime Microsoft.');
-    if (ExitCode <> 0) and (ExitCode <> 3010) and (ExitCode <> 1638) then RaiseException('Runtime Microsoft: código ' + IntToStr(ExitCode));
+    if not Exec(ExpandConstant('{tmp}\vc_redist.x64.exe'), '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException(LocalText('Não foi possível instalar o runtime Microsoft.', 'Could not install the Microsoft runtime.'));
+    if (ExitCode <> 0) and (ExitCode <> 3010) and (ExitCode <> 1638) then RaiseException(LocalText('Runtime Microsoft: código ', 'Microsoft runtime: code ') + IntToStr(ExitCode));
     if ExitCode = 3010 then RuntimeNeedsRestart := True;
     if WizardIsTaskSelected('pawnio') then begin
-      if not Exec(ExpandConstant('{tmp}\PawnIO_setup.exe'), '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível abrir o instalador PawnIO.');
-      if ExitCode <> 0 then Log('O driver PawnIO não foi instalado. Controle USB continua disponível.');
+      if not Exec(ExpandConstant('{tmp}\PawnIO_setup.exe'), '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, ExitCode) then RaiseException(LocalText('Não foi possível abrir o instalador PawnIO.', 'Could not open the PawnIO installer.'));
+      if ExitCode <> 0 then Log(LocalText('O driver PawnIO não foi instalado. Controle USB continua disponível.', 'PawnIO was not installed. USB control remains available.'));
     end;
     try
       DiagnosticPath := ExpandConstant('{commonappdata}\NexusRGB\installation-error.log');
       PreviousDiagnostic := '';
       LoadStringFromFile(DiagnosticPath, PreviousDiagnostic);
-      if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Install -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue) + ' -AlexaPort ' + IntToStr(AlexaPortValue), '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível configurar os serviços.');
+      if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Install -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue) + ' -AlexaPort ' + IntToStr(AlexaPortValue), '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException(LocalText('Não foi possível configurar os serviços.', 'Could not configure services.'));
       if ExitCode <> 0 then begin
-        ErrorMessage := 'A configuração dos serviços falhou. Código: ' + IntToStr(ExitCode);
+        ErrorMessage := LocalText('A configuração dos serviços falhou. Código: ', 'Service configuration failed. Code: ') + IntToStr(ExitCode);
         if LoadStringFromFile(DiagnosticPath, Diagnostic) and (Diagnostic <> PreviousDiagnostic) then begin
           ErrorMessage := ErrorMessage + #13#10#13#10 + Copy(UTF8Decode(Diagnostic), 1, 1200);
-          ErrorMessage := ErrorMessage + #13#10#13#10 + 'Diagnóstico: ' + DiagnosticPath;
+          ErrorMessage := ErrorMessage + #13#10#13#10 + LocalText('Diagnóstico: ', 'Diagnostic: ') + DiagnosticPath;
         end else
-          ErrorMessage := ErrorMessage + #13#10#13#10 + 'Não foi possível gravar um diagnóstico novo. Consulte o log do instalador e ProgramData\NexusRGB\app\service.log.';
+          ErrorMessage := ErrorMessage + #13#10#13#10 + LocalText('Não foi possível gravar um diagnóstico novo. Consulte o log do instalador e ProgramData\NexusRGB\app\service.log.', 'Could not write a new diagnostic. Check the installer log and ProgramData\NexusRGB\app\service.log.');
         RaiseException(ErrorMessage);
       end;
     except
@@ -186,7 +206,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var ExitCode: Integer;
 begin
   if CurUninstallStep = usUninstall then begin
-    if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Uninstall', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException('Não foi possível parar os serviços antes de desinstalar.');
-    if ExitCode <> 0 then RaiseException('Não foi possível remover os serviços. Código: ' + IntToStr(ExitCode));
+    if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\scripts\install-services.ps1') + '" -Mode Uninstall', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then RaiseException(LocalText('Não foi possível parar os serviços antes de desinstalar.', 'Could not stop services before uninstalling.'));
+    if ExitCode <> 0 then RaiseException(LocalText('Não foi possível remover os serviços. Código: ', 'Could not remove services. Code: ') + IntToStr(ExitCode));
   end;
 end;

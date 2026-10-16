@@ -1,5 +1,5 @@
 'use strict';
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixture');
 // Network mocks must reach the page rather than a local service-worker fetch.
 test.use({ serviceWorkers: 'block' });
 
@@ -39,7 +39,7 @@ test('criador monta, reordena, edita e ativa uma sequência sem alterar luzes ao
   await edited.getByRole('button', { name: 'Ativar perfil', exact: true }).click();
   snapshot = await (await page.request.get('/api/state')).json(); expect(snapshot.master.effect).toBe('scanner'); expect(snapshot.profiles.find(p => p.id === profile.id).name).toBe('Meu vai e vem');
   await page.locator('.nav[data-page=control]').click(); await expect(page.locator('#preview-effect')).toHaveText('Vai e vem');
-  await page.request.delete(`/api/profiles/${profile.id}`, { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: {} });
+  await page.request.delete(`/api/profiles/${profile.id}`, { headers: { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' }, data: {} });
   expect(errors).toEqual([]);
 });
 test('controle local, perfis seguros e link permanente sem fluxo de pareamento', async ({ page }) => {
@@ -158,22 +158,22 @@ test('nomes de perfil com HTML são exibidos como texto sem executar conteúdo',
   page.on('pageerror', error => errors.push(error.message));
   page.on('dialog', async dialog => { dialogs.push(dialog.message()); await dialog.dismiss(); });
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
-  const response = await page.request.post('/api/profiles', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { name } });
+  const response = await page.request.post('/api/profiles', { headers: { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' }, data: { name } });
   expect(response.status()).toBe(200);
   await page.locator('.nav[data-page=profiles]').click();
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   expect(await page.locator('[onerror], [onload]').count()).toBe(0); expect(errors).toEqual([]); expect(dialogs).toEqual([]);
   const state = await (await page.request.get('/api/state')).json();
   const profile = state.profiles.find(p => p.name === name);
-  expect((await page.request.delete('/api/profiles/' + profile.id, { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: {} })).status()).toBe(200);
+  expect((await page.request.delete('/api/profiles/' + profile.id, { headers: { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' }, data: {} })).status()).toBe(200);
 });
 
-test('cliente LAN com resposta 401 nunca solicita uma sessão administrativa', async ({ page }) => {
+test('cliente LAN com resposta 401 nunca solicita uma sessão administrativa', async ({ page, baseURL }) => {
   const adapters = require('../../server/network').adapters();
   test.skip(!adapters.length, 'Este ambiente não tem adaptador privado para testar a LAN real.');
   let bootstraps = 0;
   page.on('request', request => { if (request.url().endsWith('/api/session/local')) bootstraps++; });
-  await page.goto(`http://${adapters[0].address}:5071/`);
+  await page.goto(`http://${adapters[0].address}:${new URL(baseURL).port}/`);
   await expect(page.locator('#power')).toBeEnabled();
   await page.route('**/api/control', route => route.fulfill({ status: 401, json: { error: 'Sessão LAN recusada.' } }));
   await page.getByRole('button', { name: 'Usar cor #ff0055', exact: true }).click();

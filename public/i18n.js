@@ -20,11 +20,11 @@
     document.documentElement.lang = language;
     for (const element of document.querySelectorAll('[data-i18n]')) element.textContent = text(element.dataset.i18n);
     for (const attr of ['aria-label', 'title', 'placeholder', 'alt']) for (const element of document.querySelectorAll('[data-i18n-' + attr + ']')) element.setAttribute(attr, text(element.getAttribute('data-i18n-' + attr)));
-    document.getElementById('settings-language').value = language;
+    const select=document.getElementById('settings-language');if(select)select.value = language;
   }
   text.set = value => {
     if (!['pt-BR', 'en'].includes(value) || value === language) return;
-    const name = document.getElementById('formula-name'), defaultName = text('Minha onda'), defaultOnly = name.value === defaultName;
+    const name = document.getElementById('formula-name'), defaultName = text('Minha onda'), defaultOnly = name?.value === defaultName;
     language = value;
     try { localStorage.setItem('nexus.language', language); } catch {}
     apply(); if (defaultOnly) name.value = text('Minha onda');
@@ -33,8 +33,8 @@
   window.NexusI18n = text;
   apply();
   for (const id of ['page-title', 'connection', 'preview-effect', 'summary-power', 'hardware-summary', 'studio-state', 'studio-current-effect', 'studio-dirty', 'studio-live-note', 'studio-map-summary', 'studio-metrics']) {
-    const element = document.getElementById(id); element.textContent = text(element.textContent);
+    const element = document.getElementById(id); if(element)element.textContent = text(element.textContent);
   }
-  const name = document.getElementById('formula-name'); name.value = text('Minha onda');
-  document.getElementById('settings-language').addEventListener('change', e => text.set(e.target.value));
+  const name = document.getElementById('formula-name'); if(name)name.value = text('Minha onda');
+  document.getElementById('settings-language')?.addEventListener('change', e => text.set(e.target.value));
 })();

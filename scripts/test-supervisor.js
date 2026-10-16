@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-supervisor-'));
 const compiler = path.join(process.env.SystemRoot, 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
 function compile(args) {
-  const result = spawnSync(compiler, ['/nologo', ...args], { encoding: 'utf8', windowsHide: true });
+  const result = spawnSync(compiler, ['/nologo', '/codepage:65001', ...args], { encoding: 'utf8', windowsHide: true });
   assert.equal(result.status, 0, result.stdout + result.stderr);
 }
 try {
@@ -66,7 +66,7 @@ internal static class ChildFixture {
   fs.mkdirSync(path.join(directory, 'runtime'));
   compile(['/target:exe', '/platform:x64', '/out:' + path.join(directory, 'runtime', 'node.exe'), childFile]);
   const executable = path.join(directory, 'fixture.exe');
-  compile(['/target:exe', '/platform:x64', '/main:WorkerFixture', '/out:' + executable, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.ServiceProcess.dll', nativeFile]);
+  compile(['/target:exe', '/platform:x64', '/main:WorkerFixture', '/out:' + executable, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.ServiceProcess.dll', nativeFile, path.join(root,'native','Locale.cs')]);
   const result = spawnSync(executable, [], { encoding: 'utf8', timeout: 30000, windowsHide: true });
   assert.equal(result.status, 0, result.stdout + result.stderr + (result.error || ''));
   process.stdout.write(result.stdout);

@@ -1,5 +1,5 @@
 'use strict';
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixture');
 test.use({ serviceWorkers: 'block' });
 
 test('idioma persiste sem alterar luzes, perfis ou o rascunho do editor', async ({ page }) => {

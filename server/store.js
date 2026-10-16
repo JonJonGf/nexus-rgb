@@ -17,6 +17,11 @@ function readJson(file, fallback) {
 }
 const defaults = { power: true, color: '#00f0ff', brightness: 80, effect: 'static', speed: 40 };
 const effects = ['static', 'rainbow', 'wave', 'breathe', 'pulse', 'strobe', 'sequence', 'comet', 'scanner', 'sparkle'];
+function validateLibrary(value) {
+  const key=/^(?:profile:[a-f0-9-]{36}|spatial:[a-f0-9]{24}|(?:motion|preset):[a-z]{1,24})$/;
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['favorites','categories','transitionMs'].includes(k))||!Array.isArray(value.favorites)||value.favorites.length>256||value.favorites.some(k=>typeof k!=='string'||!key.test(k))||!value.categories||typeof value.categories!=='object'||Array.isArray(value.categories)||Object.keys(value.categories).length>256||Object.entries(value.categories).some(([k,v])=>!key.test(k)||typeof v!=='string'||!v.trim()||v.length>40)||!Number.isInteger(value.transitionMs)||value.transitionMs<0||value.transitionMs>1000)throw Error('Backup: biblioteca inválida.');
+  return {favorites:[...new Set(value.favorites)],categories:Object.fromEntries(Object.entries(value.categories).map(([k,v])=>[k,v.trim()])),transitionMs:value.transitionMs};
+}
 function validatePatch(body, allowNative = false) {
   if (!body || Array.isArray(body) || typeof body !== 'object') throw new Error('Configuração inválida.');
   const valid = new Set(['power', 'color', 'brightness', 'effect', 'speed', 'palette', ...(allowNative ? ['nativeMode'] : [])]);
@@ -39,6 +44,7 @@ class Store {
     this.data.devices ??= {};
     this.data.profiles ??= [];
     this.data.zones ??= {};
+    if(this.data.library)this.data.library=validateLibrary(this.data.library);
     this.committed = structuredClone(this.data);
   }
   save() {
@@ -55,6 +61,18 @@ class Store {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some(k => k !== 'fps') || !Number.isInteger(patch.fps) || patch.fps < 5 || patch.fps > 60) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
     this.data.performance = { fps: patch.fps }; this.save();
   }
+  library(patch, keys) {
+    if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(k=>!['key','favorite','category','transitionMs'].includes(k)))throw Error('Ajuste de biblioteca inválido.');
+    const next=structuredClone(this.data.library||{favorites:[],categories:{},transitionMs:0});
+    if(Object.hasOwn(patch,'transitionMs')){if(!Number.isInteger(patch.transitionMs)||patch.transitionMs<0||patch.transitionMs>1000)throw Error('Transição: escolha de 0 a 1000 ms.');next.transitionMs=patch.transitionMs;}
+    if(Object.hasOwn(patch,'favorite')||Object.hasOwn(patch,'category')){
+      if(typeof patch.key!=='string'||!keys.includes(patch.key))throw Error('Item da biblioteca não encontrado.');
+      if(Object.hasOwn(patch,'favorite')){if(typeof patch.favorite!=='boolean')throw Error('Favorito inválido.');next.favorites=next.favorites.filter(k=>k!==patch.key);if(patch.favorite)next.favorites.push(patch.key);}
+      if(Object.hasOwn(patch,'category')){if(typeof patch.category!=='string'||patch.category.length>40)throw Error('Categoria: limite de 40 caracteres.');if(patch.category.trim())next.categories[patch.key]=patch.category.trim();else delete next.categories[patch.key];}
+    }
+    this.data.library=validateLibrary(next);this.save();
+  }
+  duplicateProfile(id,name) {const source=this.data.profiles.find(p=>p.id===id);if(!source)throw Error('Perfil não encontrado.');this.profileSettings(name);if(this.data.profiles.length>=32)throw Error('Limite de 32 perfis.');const copy={...structuredClone(source),id:crypto.randomUUID(),name:name.trim()};this.data.profiles.push(copy);this.save();return copy;}
   device(id, patch, knownIds = []) {
     const valid = validatePatch(patch, true), previous = { ...(this.data.devices[id] || {}) };
     if ('effect' in valid) delete previous.nativeMode;
@@ -99,4 +117,4 @@ class Store {
     this.save();
   }
 }
-module.exports = { Store, defaults, effects, validatePatch, readJson, writeJson };
+module.exports = { Store, defaults, effects, validatePatch, validateLibrary, readJson, writeJson };

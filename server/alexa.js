@@ -140,6 +140,7 @@ class Alexa {
         const body = JSON.parse(Buffer.concat(chunks).toString());
         const patch = huePatch(body);
         if ('power' in patch) {
+          if (!patch.power) this.hardware.cancelIdentification?.();
           if (this.store.power(patch.power)) { this.hardware.changed(); this.onChange(); }
           const known = ['on', 'bri', 'hue', 'sat', 'ct', 'xy', 'effect', 'alert', 'transitiontime'];
           this.diagnostics.lastCommand = { at: Date.now(), ip, name: LIGHT_NAME, power: this.store.data.master.power, fields: known.filter(key => Object.hasOwn(body, key)), otherFieldCount: Object.keys(body).filter(key => !known.includes(key)).length, responseMs: Math.round(performance.now() - started) };

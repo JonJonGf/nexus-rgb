@@ -1,5 +1,47 @@
 # Desempenho do Nexus RGB
 
+<a id="alpha15"></a>
+
+## Mapa e motor — v0.1.0-alpha.15
+
+Ensaios de 16/10/2026 no Ryzen 5 3600, 12 processadores lógicos, Windows 10.0.26300, Node v24.20.0. Dados e LEDs simulados em processos dedicados, sem alterar serviços ou luzes da instalação. CPU usa a capacidade total da máquina, não um único núcleo. Memória soma conjuntos de trabalho e pode contar páginas compartilhadas mais de uma vez.
+
+### Navegador
+
+Edge sem janela, 1366 × 900, 3 controladoras/5 componentes/92 LEDs simulados, 4 perfis e 32 efeitos próprios, Aurora a 20 FPS com prévia. Duas rodadas em ordem inversa, navegador novo a cada cenário, aquecimento de 3 segundos e cinco amostras com intervalo solicitado de 3 segundos; janela efetiva próxima de 13,3 segundos. Somente a interface alpha.14 foi substituída na comparação; o backend foi compartilhado e usa o código da candidata.
+
+| Cenário | CPU do navegador | RAM residente média | Pico de RAM | Heap JS médio |
+| --- | ---: | ---: | ---: | ---: |
+| Mapa alpha.14, português | 0,54% | 486,05 MiB | 504,88 MiB | 3,89 MiB |
+| Mapa novo, português | 0,62% | 489,39 MiB | 509,91 MiB | 3,88 MiB |
+| Mapa novo, inglês | 0,60% | 493,00 MiB | 510,64 MiB | 4,00 MiB |
+| Biblioteca nova, inglês | 0,68% | 503,08 MiB | 522,21 MiB | 3,88 MiB |
+
+O mapa novo acrescentou cerca de 0,08 ponto percentual de CPU e 3,34 MiB residentes em média neste ensaio. A biblioteca tem mais controles e elementos. Não houve erros JavaScript, e a última métrica do motor foi 20 FPS em todas as rodadas. Duas janelas curtas não demonstram estabilidade prolongada nem ausência de vazamentos.
+
+Esta tabela inclui apenas os processos Edge dedicados. Heap JavaScript é uma parte da memória do navegador e não deve ser somado à RAM. Servidor, motor, OpenRGB, serviços, bandeja, driver, coletor e programas em segundo plano estão fora da soma. A central de consumo, que consulta o Windows quando Configurações está aberta, não foi exercitada nestes cenários de mapa/biblioteca.
+
+### Servidor e motor
+
+Sete cenários sequenciais no mesmo servidor, SDK simulado de 92 LEDs e duas fontes próprias: receita Aurora e um HTML Canvas de barras. Cada cenário teve três segundos de aquecimento e 21 amostras, com intervalo solicitado de um segundo; coleta acrescenta tempo e a janela efetiva ficou em cerca de 26 segundos.
+
+| Cenário | CPU de servidor + motor | RAM residente média | Pico de RAM | FPS renderizados |
+| --- | ---: | ---: | ---: | ---: |
+| Mapa desativado, estático · 20 FPS solicitados | 0,02% | 47,99 MiB | 49,62 MiB | 0,00 |
+| Aurora, sem prévia · 20 FPS solicitados | 0,41% | 132,71 MiB | 139,48 MiB | 20,01 |
+| Aurora, sem prévia · 60 FPS solicitados | 0,83% | 157,11 MiB | 182,66 MiB | 60,05 |
+| Aurora, com prévia · 60 FPS solicitados | 1,06% | 184,41 MiB | 185,62 MiB | 59,98 |
+| HTML próprio, sem prévia · 20 FPS solicitados | 0,35% | 209,29 MiB | 243,63 MiB | 20,03 |
+| HTML próprio, sem prévia · 60 FPS solicitados | 0,81% | 250,50 MiB | 255,93 MiB | 59,99 |
+| HTML próprio, com prévia · 60 FPS solicitados | 1,04% | 260,86 MiB | 277,07 MiB | 59,98 |
+
+O limite de 20/60 FPS foi acompanhado nesses dois efeitos sintéticos. O valor de chamadas ao SDK não mede a taxa física de LEDs: com 60 FPS, são aproximadamente 180 chamadas/s somadas nas três controladoras simuladas. O estático não reenviou LEDs na janela estável. Efeitos importados mais complexos, controladoras lentas e contagens maiores podem reduzir a taxa.
+
+Esta tabela inclui servidor Node e seu processo de efeitos, sem navegador, OpenRGB, supervisores, bandeja, driver ou coletor PowerShell. Como os cenários são sequenciais, retenção de memória, aquecimento e coleta de lixo podem afetar diferenças. Ela não representa o consumo total do aplicativo instalado. Não some os ensaios de datas/escopos diferentes como uma única medição simultânea. GPU, energia, temperatura, inicialização, suspensão e uso durante horas não foram medidos.
+
+[Dados da interface](benchmarks/2026-10-16-improvements-ui.json) · [Dados do motor](benchmarks/2026-10-16-improvements-engine.json). Reprodução: `node scripts/benchmark-ui.cjs v0.1.0-alpha.14 data/ui-benchmark.json` e `node scripts/benchmark-engine.cjs data/engine-benchmark.json`. Ambos usam dados temporários e SDK simulado.
+
+
 ## Interface do mapa e inglês — v0.1.0-alpha.13
 
 Comparativo de 15/10/2026 no Ryzen 5 3600, 12 processadores lógicos, Windows 10.0.26300, Node v24.20.0 e Edge sem janela, em 1366 × 900. A aplicação usou SDK simulado com 3 controladoras, 5 componentes, 92 LEDs, 4 perfis e 32 efeitos próprios. Aurora espacial solicitada a 20 FPS, com prévia ativa. Os dois idiomas usam tradução local.

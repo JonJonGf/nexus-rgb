@@ -91,6 +91,7 @@ class Hardware extends EventEmitter {
     this.retry = Math.min(this.retry * 2, 30000);
   }
   lost(error) {
+    this.cancelIdentification();
     this.connected = false; this.error = error.message; this.modes.clear(); this.emit('change');
     if (!this.busy) this.scheduleReconnect();
   }
@@ -141,17 +142,49 @@ class Hardware extends EventEmitter {
     return settings;
   }
   changed() { this.dirty = true; }
+  transition(duration) {
+    if(!duration){this.transitionState=null;this.changed();return;}
+    const from=new Map();for(const [id,output]of this.output)if(output.colors&&output.source!=='native'&&output.source!=='identify')from.set(id,output.colors.map(c=>({...c})));
+    this.transitionState=duration>0&&from.size?{from,started:performance.now(),duration}:null;this.changed();
+  }
+  blend(id,colors,settings) {
+    const state=this.transitionState,from=state?.from.get(id);if(!state||!from||!settings.power)return colors;
+    const amount=Math.min(1,Math.max(0,(performance.now()-state.started)/state.duration));
+    return colors.map((color,index)=>{const old=from[index]||color;return {red:Math.round(old.red+(color.red-old.red)*amount),green:Math.round(old.green+(color.green-old.green)*amount),blue:Math.round(old.blue+(color.blue-old.blue)*amount)};});
+  }
+  cancelIdentification(id) {
+    if (!this.identification || id && this.identification.id !== id) return;
+    const parent = this.devices.find(d => d.id === this.identification.id || d.components?.some(c => c.id === this.identification.id));
+    this.identification = null; clearTimeout(this.identifyTimer);
+    if (parent) this.applied.delete(parent.id);
+    this.changed();
+  }
+  identify(id, led, stop = false) {
+    if (stop) { this.cancelIdentification(id); return; }
+    const parent = this.devices.find(d => d.id === id || d.components?.some(c => c.id === id)), component = parent?.components?.find(c => c.id === id) || parent;
+    if (!parent?.direct || !this.connected || !component) throw Error('Este componente não está disponível para identificação por LED.');
+    if (led !== undefined && (!Number.isInteger(led) || led < 0 || led >= component.ledCount)) throw Error('LED de identificação fora da faixa do componente.');
+    {
+      this.cancelIdentification();
+      clearTimeout(this.identifyTimer);
+      const selection = this.identification = {id,led:led ?? null,until:Date.now()+3000};
+      this.identifyTimer = setTimeout(() => { if (this.identification === selection) { this.identification = null; this.applied.delete(parent.id); this.changed(); } },3000);
+      this.identifyTimer.unref?.();
+    }
+    this.applied.delete(parent.id); this.changed();
+  }
   rememberOutput(id, colors, settings) {
-    this.output.set(id, { colors, at: Date.now(), source: !settings.power ? 'off' : settings.nativeMode !== undefined ? 'native' : this.studio?.hasDevice(id) ? 'map' : 'software' });
+    this.output.set(id, { colors, at: Date.now(), source: this.identification?.id === id ? 'identify' : !settings.power ? 'off' : settings.nativeMode !== undefined ? 'native' : this.studio?.hasDevice(id) ? 'map' : 'software' });
   }
   outputFor(id) { return this.connected ? this.output.get(id) : null; }
   renderFrame(id, settings, count, seconds) {
+    if (this.identification?.id === id) return Array.from({length:count},(_,n) => ({red:0,green:this.identification.led === null || this.identification.led === n ? 64 : 0,blue:this.identification.led === null || this.identification.led === n ? 64 : 0}));
     const spatial = this.studio?.colorsFor(id, settings, count);
-    if (spatial) return spatial;
+    if (spatial) return this.blend(id,spatial,settings);
     const signature = JSON.stringify([settings.effect, settings.color, settings.palette, settings.power]);
     let animation = this.animations.get(id);
     if (!animation || animation.signature !== signature) { animation = { signature, startedAt: seconds }; this.animations.set(id, animation); }
-    return frame(settings, count, Math.max(0, seconds - animation.startedAt));
+    return this.blend(id,frame(settings, count, Math.max(0, seconds - animation.startedAt)),settings);
   }
   async applyMode(device, mode, settings, perLedColors = false) {
     const config = { ...mode };
@@ -165,9 +198,10 @@ class Hardware extends EventEmitter {
   }
   async tick(spatialFrame = false) {
     if (this.stopped || this.busy || !this.connected) return;
+    if (this.identification && Date.now() >= this.identification.until) this.cancelIdentification();
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
-      return s.power && d.direct && !this.studio?.hasDevice(component.id) && !('nativeMode' in s) && s.effect !== 'static';
+      return s.power && d.direct && !('nativeMode' in s) && (this.transitionState?.from.has(component.id) || !this.studio?.hasDevice(component.id) && s.effect !== 'static');
     }));
     if (!this.dirty && !animated && Date.now() < this.nextDiscovery) return;
     this.busy = true; let changedErrors = false;
@@ -178,9 +212,9 @@ class Hardware extends EventEmitter {
       const seconds = performance.now() / 1000;
       for (const d of this.devices) {
         const channels = d.components || [d];
-        const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components), spatial: this.studio?.hasDevice(component.id) ? this.studio.revision : null })));
+        const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components), identify:this.identification?.id === component.id ? this.identification : null, spatial: this.studio?.hasDevice(component.id) ? this.studio.revision : null })));
         const changed = this.applied.get(d.id) !== signature;
-        const animation = !spatialFrame && channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && d.direct && !this.studio?.hasDevice(component.id) && s.nativeMode === undefined && s.effect !== 'static'; });
+        const animation = channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && d.direct && s.nativeMode === undefined && (this.transitionState?.from.has(component.id)||!spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'); });
         if (!changed && !animation) continue;
         if (d.components) {
           const oldError = d.error;
@@ -197,9 +231,11 @@ class Hardware extends EventEmitter {
           continue;
         }
         const settings = { ...this.settings(d.id) };
+        const identifying = this.identification?.id === d.id;
+        if (identifying) { settings.power = true; delete settings.nativeMode; }
         if (this.studio?.hasDevice(d.id)) delete settings.nativeMode;
         const oldError = d.error;
-        const mode = !settings.power ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
+        const mode = identifying ? d.direct : !settings.power ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
         if (!mode) { d.error = 'Este dispositivo não oferece controle de cor compatível.'; }
         else if (settings.power && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
         else {
@@ -213,7 +249,7 @@ class Hardware extends EventEmitter {
         if (oldError !== d.error) changedErrors = true;
       }
     } catch (error) { this.lost(error); this.client?.socket?.destroy(); }
-    finally { this.busy = false; if (!this.connected) this.scheduleReconnect(); if (changedErrors) this.emit('change'); }
+    finally { this.busy = false; if(this.transitionState&&performance.now()-this.transitionState.started>=this.transitionState.duration)this.transitionState=null; if (!this.connected) this.scheduleReconnect(); if (changedErrors) this.emit('change'); }
   }
   async resize(id, zoneId, count) {
     if (!this.connected || this.busy) throw new Error('Controlador ocupado ou desconectado. Tente novamente.');
@@ -239,6 +275,6 @@ class Hardware extends EventEmitter {
   }
   setFps() { clearInterval(this.timer); if (!this.stopped) this.timer = setInterval(() => { this.tick().catch(error => this.lost(error)); }, 1000 / (this.store.data.performance?.fps || 20)); }
   start() { this.stopped = false; this.connect(); this.setFps(); }
-  stop() { this.stopped = true; clearInterval(this.timer); clearTimeout(this.reconnect); this.client?.socket?.destroy(); this.client?.disconnect(); }
+  stop() { this.stopped = true; clearInterval(this.timer); clearTimeout(this.identifyTimer); this.identification = null; clearTimeout(this.reconnect); this.client?.socket?.destroy(); this.client?.disconnect(); }
 }
 module.exports = { Hardware, identity, frame, hue, paletteColor };

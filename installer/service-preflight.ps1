@@ -78,7 +78,11 @@ function Invoke-NexusPreparation {
     # Job shutdown can briefly precede TCP teardown. Never terminate a foreign PID.
     for($attempt=0; $attempt -lt 20; $attempt++) {
       $remaining=@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in $panel,$sdk)
-      if(-not $remaining.Count){return $mask}
+      if(-not $remaining.Count){
+        . (Join-Path $PSScriptRoot 'backup-before-upgrade.ps1')
+        Save-NexusUpgradeBackup (Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'NexusRGB\app')
+        return $mask
+      }
       Start-Sleep -Milliseconds 100
     }
     throw 'Portas ainda ocupadas após parar os serviços.'

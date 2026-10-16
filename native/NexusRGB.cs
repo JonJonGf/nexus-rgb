@@ -19,8 +19,8 @@ internal static class Program {
     private static void Main(string[] args) {
         if (Array.IndexOf(args, "--restart-rgb") >= 0) {
             Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
-            if (args[0] != "--restart-rgb" || !(args.Length == 1 || (args.Length == 2 && RecoveryLink(args[1])))) { MessageBox.Show("Comando de recuperação inválido.", "Nexus RGB"); return; }
-            if (!RecoveryInstalled()) { MessageBox.Show("Use o Nexus instalado em Program Files\\Nexus RGB para recuperar os serviços.", "Nexus RGB"); return; }
+            if (args[0] != "--restart-rgb" || !(args.Length == 1 || (args.Length == 2 && RecoveryLink(args[1])))) { MessageBox.Show(L.T("Comando de recuperação inválido."), "Nexus RGB"); return; }
+            if (!RecoveryInstalled()) { MessageBox.Show(L.T("Use o Nexus instalado em Program Files\\Nexus RGB para recuperar os serviços."), "Nexus RGB"); return; }
             if (!new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator)) { RestartServices(); return; }
             Application.Run(new RecoveryDialog()); return;
         }
@@ -41,12 +41,12 @@ internal static class Program {
     }
     internal static void OpenPanel() {
         try {
-        if (!PanelReady()) { MessageBox.Show("O painel Nexus ainda não respondeu no endereço configurado. Aguarde a inicialização ou use Configurar portas no ícone perto do relógio se houver conflito.", "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (!PanelReady()) { MessageBox.Show(L.T("O painel Nexus ainda não respondeu no endereço configurado. Aguarde a inicialização ou use Configurar portas no ícone perto do relógio se houver conflito."), "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
         // The browser renders local HTML; it never receives native privileges.
         string[] paths = { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe") };
         foreach (string path in paths) if (File.Exists(path)) { Process.Start(new ProcessStartInfo(path, "--app=" + Panel) { UseShellExecute = true }); return; }
         Process.Start(new ProcessStartInfo(Panel) { UseShellExecute = true });
-        } catch (Exception error) { MessageBox.Show(error.Message + "\nAbra Configurar portas no ícone do Nexus.", "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        } catch (Exception error) { MessageBox.Show(error.Message + L.T("\nAbra Configurar portas no ícone do Nexus."), "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
     internal static void ConfigurePorts() {
         try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "NexusRGB.exe"), "--configure-ports") { UseShellExecute = true, Verb = "runas" }); }
@@ -58,7 +58,7 @@ internal static class Program {
         return string.Equals(root, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Nexus RGB"), StringComparison.OrdinalIgnoreCase) && (File.GetAttributes(root) & FileAttributes.ReparsePoint) == 0 && File.Exists(Path.Combine(root, @"scripts\restart-services.ps1"));
     }
     internal static void RestartServices() {
-        if (!RecoveryInstalled()) { MessageBox.Show("Instale ou atualize o Nexus para recuperar os serviços.", "Nexus RGB"); return; }
+        if (!RecoveryInstalled()) { MessageBox.Show(L.T("Instale ou atualize o Nexus para recuperar os serviços."), "Nexus RGB"); return; }
         try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "NexusRGB.exe"), "--restart-rgb") { UseShellExecute = true, Verb = "runas" }); }
         catch (System.ComponentModel.Win32Exception error) { if (error.NativeErrorCode != 1223) MessageBox.Show(error.Message, "Nexus RGB"); }
     }
@@ -74,10 +74,10 @@ internal sealed class RecoveryDialog : Form {
     private readonly Button close;
     private bool busy = true;
     internal RecoveryDialog() {
-        Text = "Nexus RGB — Reiniciar controlador"; ClientSize = new Size(520, 260); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen; Font = new Font("Segoe UI", 10F);
-        Controls.Add(new Label { Left = 22, Top = 20, Width = 475, Height = 30, Text = "Reiniciando Nexus e OpenRGB", Font = new Font("Segoe UI", 14F, FontStyle.Bold) });
-        status = new Label { Left = 22, Top = 65, Width = 475, Height = 125, Text = "Aguarde. As luzes podem parar por alguns segundos.\nPerfis, posições, efeitos importados e configurações serão preservados." }; Controls.Add(status);
-        close = new Button { Left = 367, Top = 210, Width = 130, Height = 30, Text = "Fechar", Enabled = false }; close.Click += (s,e) => Close(); Controls.Add(close);
+        Text = L.T("Nexus RGB — Reiniciar controlador"); ClientSize = new Size(520, 260); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen; Font = new Font("Segoe UI", 10F);
+        Controls.Add(new Label { Left = 22, Top = 20, Width = 475, Height = 30, Text = L.T("Reiniciando Nexus e OpenRGB"), Font = new Font("Segoe UI", 14F, FontStyle.Bold) });
+        status = new Label { Left = 22, Top = 65, Width = 475, Height = 125, Text = L.T("Aguarde. As luzes podem parar por alguns segundos.\nPerfis, posições, efeitos importados e configurações serão preservados.") }; Controls.Add(status);
+        close = new Button { Left = 367, Top = 210, Width = 130, Height = 30, Text = L.T("Fechar"), Enabled = false }; close.Click += (s,e) => Close(); Controls.Add(close);
         FormClosing += (s,e) => { if (busy) e.Cancel = true; };
         Shown += async (s,e) => {
             try {
@@ -86,12 +86,12 @@ internal sealed class RecoveryDialog : Form {
                     var info = new ProcessStartInfo(shell, "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"" + Path.Combine(Program.Root, @"scripts\restart-services.ps1") + "\"") { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
                     using (var process = Process.Start(info)) {
                         var output = process.StandardOutput.ReadToEndAsync(); var errors = process.StandardError.ReadToEndAsync();
-                        if (!process.WaitForExit(180000)) { process.Kill(); throw new InvalidOperationException("A recuperação demorou além do limite. Confira os serviços e diagnósticos."); }
+                        if (!process.WaitForExit(180000)) { process.Kill(); throw new InvalidOperationException(L.T("A recuperação demorou além do limite. Confira os serviços e diagnósticos.")); }
                         return new { Code = process.ExitCode, Message = output.Result + errors.Result };
                     }
                 });
-                status.Text = (result.Code == 0 ? "Concluído.\n" : "Não foi possível concluir.\n") + result.Message.Trim() + "\nRecarregue o painel para conferir o estado atual.";
-            } catch (Exception error) { status.Text = "Não foi possível concluir.\n" + error.Message; }
+                status.Text = (result.Code == 0 ? L.T("Concluído.\n") : L.T("Não foi possível concluir.\n")) + result.Message.Trim() + L.T("\nRecarregue o painel para conferir o estado atual.");
+            } catch (Exception error) { status.Text = L.T("Não foi possível concluir.\n") + error.Message; }
             finally { busy = false; close.Enabled = true; }
         };
     }
@@ -105,24 +105,24 @@ internal sealed class PortSettings {
         }
         value.Validate(); return value;
     }
-    private static int Read(RegistryKey key, string name, int fallback) { object value = key.GetValue(name, null); if (value == null) return fallback; if (!(value is int)) throw new InvalidDataException("Porta inválida no registro: " + name); return (int)value; }
-    internal void Validate() { if (Panel < 1024 || Panel > 65535 || SDK < 1024 || SDK > 65535 || Alexa < 1 || Alexa > 65535 || Panel == SDK || Panel == Alexa || SDK == Alexa) throw new InvalidDataException("Use portas diferentes. Painel/SDK: 1024 a 65535. Alexa: 1 a 65535."); }
+    private static int Read(RegistryKey key, string name, int fallback) { object value = key.GetValue(name, null); if (value == null) return fallback; if (!(value is int)) throw new InvalidDataException(L.T("Porta inválida no registro: ") + name); return (int)value; }
+    internal void Validate() { if (Panel < 1024 || Panel > 65535 || SDK < 1024 || SDK > 65535 || Alexa < 1 || Alexa > 65535 || Panel == SDK || Panel == Alexa || SDK == Alexa) throw new InvalidDataException(L.T("Use portas diferentes. Painel/SDK: 1024 a 65535. Alexa: 1 a 65535.")); }
 }
 internal sealed class PortDialog : Form {
     private readonly NumericUpDown panel, sdk, alexa;
     private readonly Button apply;
     private bool busy;
     internal PortDialog() {
-        Text = "Nexus RGB — Configurar portas"; ClientSize = new Size(520, 345); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen;
+        Text = L.T("Nexus RGB — Configurar portas"); ClientSize = new Size(520, 345); FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false; MinimizeBox = false; StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
         PortSettings current;
         try { current = PortSettings.Load(); } catch { current = new PortSettings(); }
-        var intro = new Label { Left = 20, Top = 15, Width = 480, Height = 42, Text = "Escolha portas diferentes das usadas por outros aplicativos.\nOs links e o firewall do Nexus serão atualizados ao aplicar." }; Controls.Add(intro);
-        panel = Field("Painel web / celular", 70, current.Panel, 1024, true);
-        sdk = Field("SDK OpenRGB (somente neste PC)", 115, current.SDK, 1024, true);
-        alexa = Field("Ponte Alexa (recomendado: 80)", 160, current.Alexa, 1, false);
-        Controls.Add(new Label { Left = 20, Top = 207, Width = 480, Height = 60, Text = "Descoberta Alexa: UDP 1900, definida pelo protocolo.\nOutra porta HTTP pode não funcionar com alguns Echos.\nAo mudar o painel, atualize os favoritos e o link do celular." });
-        apply = new Button { Left = 330, Top = 290, Width = 170, Height = 32, Text = "Aplicar e reiniciar Nexus" }; Controls.Add(apply);
+        var intro = new Label { Left = 20, Top = 15, Width = 480, Height = 42, Text = L.T("Escolha portas diferentes das usadas por outros aplicativos.\nOs links e o firewall do Nexus serão atualizados ao aplicar.") }; Controls.Add(intro);
+        panel = Field(L.T("Painel web / celular"), 70, current.Panel, 1024, true);
+        sdk = Field(L.T("SDK OpenRGB (somente neste PC)"), 115, current.SDK, 1024, true);
+        alexa = Field(L.T("Ponte Alexa (recomendado: 80)"), 160, current.Alexa, 1, false);
+        Controls.Add(new Label { Left = 20, Top = 207, Width = 480, Height = 60, Text = L.T("Descoberta Alexa: UDP 1900, definida pelo protocolo.\nOutra porta HTTP pode não funcionar com alguns Echos.\nAo mudar o painel, atualize os favoritos e o link do celular.") });
+        apply = new Button { Left = 330, Top = 290, Width = 170, Height = 32, Text = L.T("Aplicar e reiniciar Nexus") }; Controls.Add(apply);
         apply.Click += async (s, e) => {
             var value = new PortSettings { Panel = (int)panel.Value, SDK = (int)sdk.Value, Alexa = (int)alexa.Value };
             try {
@@ -134,10 +134,10 @@ internal sealed class PortDialog : Form {
                 });
                 if (result != 0) {
                     string log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", "ports-error.log");
-                    string detail = File.Exists(log) && File.GetLastWriteTimeUtc(log) >= started ? File.ReadAllText(log) : "Consulte ProgramData\\NexusRGB\\ports-error.log.";
-                    throw new InvalidOperationException("A alteração não foi aplicada.\n" + detail.Substring(0, Math.Min(detail.Length, 1500)));
+                    string detail = File.Exists(log) && File.GetLastWriteTimeUtc(log) >= started ? File.ReadAllText(log) : L.T("Consulte ProgramData\\NexusRGB\\ports-error.log.");
+                    throw new InvalidOperationException(L.T("A alteração não foi aplicada.\n") + detail.Substring(0, Math.Min(detail.Length, 1500)));
                 }
-                MessageBox.Show("Portas atualizadas. Abra o Nexus pelo ícone para usar o novo endereço.", "Nexus RGB");
+                MessageBox.Show(L.T("Portas atualizadas. Abra o Nexus pelo ícone para usar o novo endereço."), "Nexus RGB");
             } catch (Exception error) { MessageBox.Show(error.Message, "Nexus RGB", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
             finally { busy = false; apply.Enabled = true; }
         };
@@ -147,14 +147,14 @@ internal sealed class PortDialog : Form {
         Controls.Add(new Label { Left = 20, Top = top + 5, Width = 265, Height = 25, Text = title });
         var field = new NumericUpDown { Left = 288, Top = top, Width = 88, Minimum = minimum, Maximum = 65535, Value = port }; Controls.Add(field);
         if (suggest) {
-            var button = new Button { Left = 385, Top = top - 1, Width = 115, Height = 28, Text = "Buscar livre" }; Controls.Add(button);
+            var button = new Button { Left = 385, Top = top - 1, Width = 115, Height = 28, Text = L.T("Buscar livre") }; Controls.Add(button);
             button.Click += (s, e) => {
                 for (int candidate = (int)field.Value; candidate <= Math.Min(65535, (int)field.Value + 200); candidate++) {
                     if ((panel != null && field != panel && candidate == (int)panel.Value) || (sdk != null && field != sdk && candidate == (int)sdk.Value) || (alexa != null && candidate == (int)alexa.Value)) continue;
                     var listener = new System.Net.Sockets.TcpListener(IPAddress.Any, candidate);
                     try { listener.ExclusiveAddressUse = true; listener.Start(); field.Value = candidate; return; } catch (System.Net.Sockets.SocketException) {} finally { listener.Stop(); }
                 }
-                MessageBox.Show("Não foi encontrada uma porta livre próxima. Escolha outro número.", "Nexus RGB");
+                MessageBox.Show(L.T("Não foi encontrada uma porta livre próxima. Escolha outro número."), "Nexus RGB");
             };
         }
         return field;
@@ -168,14 +168,28 @@ internal sealed class Tray : ApplicationContext {
     private bool exiting;
     internal Tray(bool open) {
         var menu = new ContextMenuStrip();
-        status = new ToolStripMenuItem("Nexus RGB: verificando serviço") { Enabled = false }; menu.Items.Add(status);
-        menu.Items.Add("Abrir Nexus RGB", null, (s, e) => Program.OpenPanel());
-        menu.Items.Add("Copiar link para o celular", null, (s, e) => CopyLink());
-        menu.Items.Add("Configurar portas…", null, (s, e) => Program.ConfigurePorts());
-        menu.Items.Add("Reiniciar Nexus e OpenRGB…", null, (s, e) => Program.RestartServices());
-        menu.Items.Add("Abrir pasta de diagnósticos", null, (s, e) => Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", "app")) { UseShellExecute = true }));
+        status = new ToolStripMenuItem(L.T("Nexus RGB: verificando serviço")) { Enabled = false }; menu.Items.Add(status);
+        menu.Items.Add(L.T("Abrir Nexus RGB"), null, (s, e) => Program.OpenPanel());
+        menu.Items.Add(L.T("Copiar link para o celular"), null, (s, e) => CopyLink());
+        menu.Items.Add(L.T("Configurar portas…"), null, (s, e) => Program.ConfigurePorts());
+        menu.Items.Add(L.T("Reiniciar Nexus e OpenRGB…"), null, (s, e) => Program.RestartServices());
+        menu.Items.Add(L.T("Abrir pasta de diagnósticos"), null, (s, e) => Process.Start(new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", "app")) { UseShellExecute = true }));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Fechar ícone (manter as luzes)", null, (s, e) => ExitThread());
+        menu.Items.Add(L.T("Fechar ícone (manter as luzes)"), null, (s, e) => ExitThread());
+        var languages = new ToolStripMenuItem("Idioma / Language");
+        var portuguese = new ToolStripMenuItem("Português (Brasil)");
+        var english = new ToolStripMenuItem("English");
+        Action refreshLanguage = () => {
+            string[] labels = { L.T("Abrir Nexus RGB"), L.T("Copiar link para o celular"), L.T("Configurar portas…"), L.T("Reiniciar Nexus e OpenRGB…"), L.T("Abrir pasta de diagnósticos") };
+            for (int i = 0; i < labels.Length; i++) menu.Items[i + 1].Text = L.T(labels[i]);
+            menu.Items[7].Text = L.T("Fechar ícone (manter as luzes)");
+            portuguese.Checked = L.Current == "pt-BR"; english.Checked = !portuguese.Checked;
+            CheckStatus();
+        };
+        portuguese.Click += (s,e) => { L.Select("pt-BR"); refreshLanguage(); };
+        english.Click += (s,e) => { L.Select("en"); refreshLanguage(); };
+        portuguese.Checked = L.Current == "pt-BR"; english.Checked = !portuguese.Checked;
+        languages.DropDownItems.Add(portuguese); languages.DropDownItems.Add(english); menu.Items.Add(languages);
         string ico = Path.Combine(Program.Root, "app.ico");
         icon = new NotifyIcon { Icon = File.Exists(ico) ? new Icon(ico) : SystemIcons.Application, Text = "Nexus RGB", ContextMenuStrip = menu, Visible = true };
         icon.DoubleClick += (s, e) => Program.OpenPanel();
@@ -184,8 +198,8 @@ internal sealed class Tray : ApplicationContext {
     }
     private async void CheckStatus() {
         if (checking) return; checking = true;
-        try { using (var service = new ServiceController("NexusRGB")) { if (service.Status != ServiceControllerStatus.Running) status.Text = "Nexus RGB: serviço parado"; else { int port = PortSettings.Load().Panel; bool ready = await Task.Run(() => Program.PanelReady()); if (exiting) return; status.Text = ready ? "Nexus RGB: painel ativo na porta " + port : "Nexus RGB: painel indisponível na porta " + port; } } }
-        catch { if (!exiting) status.Text = "Nexus RGB: confira serviços e portas"; }
+        try { using (var service = new ServiceController("NexusRGB")) { if (service.Status != ServiceControllerStatus.Running) status.Text = L.T("Nexus RGB: serviço parado"); else { int port = PortSettings.Load().Panel; bool ready = await Task.Run(() => Program.PanelReady()); if (exiting) return; status.Text = ready ? L.T("Nexus RGB: painel ativo na porta ") + port : L.T("Nexus RGB: painel indisponível na porta ") + port; } } }
+        catch { if (!exiting) status.Text = L.T("Nexus RGB: confira serviços e portas"); }
         finally { checking = false; }
     }
     private void CopyLink() {
@@ -197,11 +211,11 @@ internal sealed class Tray : ApplicationContext {
             foreach (var address in adapter.GetIPProperties().UnicastAddresses) {
                 byte[] ip = address.Address.GetAddressBytes();
                 if (ip.Length == 4 && (ip[0] == 10 || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] == 192 && ip[1] == 168))) {
-                    Clipboard.SetText("http://" + address.Address + ":" + port + "/"); icon.ShowBalloonTip(3000, "Link copiado", "Abra este endereço no celular conectado ao mesmo Wi-Fi.", ToolTipIcon.Info); return;
+                    Clipboard.SetText("http://" + address.Address + ":" + port + "/"); icon.ShowBalloonTip(3000, L.T("Link copiado"), L.T("Abra este endereço no celular conectado ao mesmo Wi-Fi."), ToolTipIcon.Info); return;
                 }
             }
         }
-        icon.ShowBalloonTip(3000, "Rede indisponível", "Conecte o PC a uma rede Wi-Fi ou Ethernet privada.", ToolTipIcon.Warning);
+        icon.ShowBalloonTip(3000, L.T("Rede indisponível"), L.T("Conecte o PC a uma rede Wi-Fi ou Ethernet privada."), ToolTipIcon.Warning);
     }
     protected override void ExitThreadCore() { exiting = true; timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore(); }
 }
@@ -218,7 +232,7 @@ internal sealed class Worker : ServiceBase {
     internal Worker(bool hardware) { this.hardware = hardware; ServiceName = hardware ? "NexusRGBHardware" : "NexusRGB"; CanStop = true; CanShutdown = true; AutoLog = true; }
     protected override void OnStart(string[] args) {
         data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", hardware ? "hardware" : "app");
-        if (!Directory.Exists(data)) throw new DirectoryNotFoundException("Use o instalador para criar a pasta do serviço.");
+        if (!Directory.Exists(data)) throw new DirectoryNotFoundException(L.T("Use o instalador para criar a pasta do serviço."));
         job = Job.Create(); timer = new System.Threading.Timer(Tick, null, 0, 1000);
     }
     private void Log(string message) {
@@ -240,7 +254,7 @@ internal sealed class Worker : ServiceBase {
                 var info = new ProcessStartInfo(exe, arguments) { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
                 if (!hardware) { info.EnvironmentVariables["NEXUS_DATA_DIR"] = data; info.EnvironmentVariables["NEXUS_PORT"] = ports.Panel.ToString(); info.EnvironmentVariables["NEXUS_RGB_PORT"] = ports.SDK.ToString(); info.EnvironmentVariables["NEXUS_ALEXA_PORT"] = ports.Alexa.ToString(); info.EnvironmentVariables["NODE_ENV"] = "production"; info.EnvironmentVariables.Remove("NODE_OPTIONS"); info.EnvironmentVariables.Remove("NODE_PATH"); }
                 child = new Process { StartInfo = info }; child.OutputDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); }; child.ErrorDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); };
-                child.Start(); if (!Job.Assign(job, child.Handle)) { child.Kill(); throw new InvalidOperationException("Não foi possível supervisionar o processo."); }
+                child.Start(); if (!Job.Assign(job, child.Handle)) { child.Kill(); throw new InvalidOperationException(L.T("Não foi possível supervisionar o processo.")); }
                 child.BeginOutputReadLine(); child.BeginErrorReadLine(); Log("Processo iniciado: " + child.Id);
             } catch (Exception error) { Log("Falha ao iniciar: " + error.Message); if (child != null) { child.Dispose(); child = null; } nextStart = DateTime.UtcNow.AddSeconds(15); }
         }
@@ -258,7 +272,7 @@ internal static class Job {
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetInformationJobObject(IntPtr job, int type, IntPtr info, uint length);
     [DllImport("kernel32.dll", SetLastError = true)] private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
     [DllImport("kernel32.dll")] private static extern bool CloseHandle(IntPtr handle);
-    internal static IntPtr Create() { IntPtr job = CreateJobObject(IntPtr.Zero, null); if (job == IntPtr.Zero) throw new InvalidOperationException("Job Object indisponível."); var limits = new Extended(); limits.Basic.Flags = 0x2000; int size = Marshal.SizeOf(limits); IntPtr pointer = Marshal.AllocHGlobal(size); try { Marshal.StructureToPtr(limits, pointer, false); if (!SetInformationJobObject(job, 9, pointer, (uint)size)) { CloseHandle(job); throw new InvalidOperationException("Falha no supervisor de processos."); } } finally { Marshal.FreeHGlobal(pointer); } return job; }
+    internal static IntPtr Create() { IntPtr job = CreateJobObject(IntPtr.Zero, null); if (job == IntPtr.Zero) throw new InvalidOperationException(L.T("Job Object indisponível.")); var limits = new Extended(); limits.Basic.Flags = 0x2000; int size = Marshal.SizeOf(limits); IntPtr pointer = Marshal.AllocHGlobal(size); try { Marshal.StructureToPtr(limits, pointer, false); if (!SetInformationJobObject(job, 9, pointer, (uint)size)) { CloseHandle(job); throw new InvalidOperationException(L.T("Falha no supervisor de processos.")); } } finally { Marshal.FreeHGlobal(pointer); } return job; }
     internal static bool Assign(IntPtr job, IntPtr process) { return AssignProcessToJobObject(job, process); }
     internal static void Close(IntPtr job) { CloseHandle(job); }
 }

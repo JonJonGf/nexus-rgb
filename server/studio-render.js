@@ -79,6 +79,10 @@ class StudioRenderer {
     this.tick = this.result(this.vm.evalCode(fs.readFileSync(path.join(__dirname, 'studio-sandbox.txt'), 'utf8'), 'nexus-sandbox.js'));
     this.setValues(parameters(effect, values));
     this.result(this.vm.evalCode(effect.source, 'imported-effect.js')).dispose();
+    // Lightscripts often declare defaults with `var` in their own source.
+    // Reapply the selected controls before the first animation callback so
+    // those declarations cannot silently undo the user's direction/color.
+    this.setValues(parameters(effect, values));
   }
   setValues(values) {
     for (const [key, value] of Object.entries(values)) {

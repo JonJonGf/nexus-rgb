@@ -69,7 +69,18 @@ function layout(value) {
     if (!Number.isInteger(item.start) || item.start < 0 || !Number.isInteger(item.count) || item.count < 1 || item.start + item.count > 4096 || (total += item.count) > 32768) throw Error('Faixa de LEDs inválida.');
     for (let i = item.start; i < item.start + item.count; i++) { const key = item.deviceId + ':' + i; if (covered.has(key)) throw Error('Dois componentes estão usando os mesmos LEDs.'); covered.add(key); }
     if (!number(item.x, 0, 1) || !number(item.y, 0, 1) || !number(item.width, 0.01, 1) || !number(item.height, 0.01, 1) || !number(item.rotation, -360, 360) || !['strip', 'fan', 'matrix'].includes(item.shape) || typeof item.reverse !== 'boolean' || !Number.isInteger(item.columns) || item.columns < 1 || item.columns > 128) throw Error('Posição ou formato inválido.');
-    return { key: item.key, deviceId: item.deviceId, name: clean(item.name, 60), start: item.start, count: item.count, x: item.x, y: item.y, width: item.width, height: item.height, rotation: item.rotation, shape: item.shape, reverse: item.reverse, columns: item.columns };
+    const extra = {};
+    if (item.rings !== undefined) {
+      if (!Array.isArray(item.rings) || !item.rings.length || item.rings.length > 8 || item.rings.some(r => !object(r) || !Number.isInteger(r.count) || r.count < 1 || r.count > item.count || !Number.isInteger(r.offset) || r.offset < 0 || r.offset >= r.count || typeof r.reverse !== 'boolean') || item.rings.reduce((n,r) => n+r.count,0) !== item.count) throw Error('Anéis: a soma deve corresponder à quantidade de LEDs da peça.');
+      extra.rings = item.rings.map(r => ({count:r.count,offset:r.offset,reverse:r.reverse}));
+    }
+    if (item.ledOrder !== undefined) {
+      if (!Array.isArray(item.ledOrder) || item.ledOrder.length !== item.count || new Set(item.ledOrder).size !== item.count || item.ledOrder.some(n => !Number.isInteger(n) || n < 0 || n >= item.count)) throw Error('Ordem física: informe cada LED da peça uma única vez.');
+      extra.ledOrder = [...item.ledOrder];
+    }
+    if (item.group !== undefined) { if (typeof item.group !== 'string' || item.group.length > 40) throw Error('Grupo: limite de 40 caracteres.'); extra.group = clean(item.group,40); }
+    if (item.wiring !== undefined) { if (!['unknown','sequential','mirrored'].includes(item.wiring)) throw Error('Tipo de ligação inválido.'); extra.wiring = item.wiring; }
+    return { key: item.key, deviceId: item.deviceId, name: clean(item.name, 60), start: item.start, count: item.count, x: item.x, y: item.y, width: item.width, height: item.height, rotation: item.rotation, shape: item.shape, reverse: item.reverse, columns: item.columns, ...extra };
   });
 }
 module.exports = { parseHTML, recipe, parameters, layout, LIMIT };

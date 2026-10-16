@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('./fixture');
 test.use({ serviceWorkers: 'block' });
 test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após as atualizações', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
@@ -9,7 +9,7 @@ test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após 
   await expect(page.locator('#studio-state')).not.toHaveText('Prévia');
   // Use the same default layout helper as the product, with virtual fixture devices.
   const layout = await page.evaluate(ds => NexusSpatial.defaults(ds), devices);
-  await page.request.post('/api/studio', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { layout, enabled: true } });
+  await page.request.post('/api/studio', { headers: { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' }, data: { layout, enabled: true } });
   await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
   await expect(page.locator('.studio-item')).toHaveCount(3);
   await page.locator('#studio-device-chips button').last().click();
@@ -91,7 +91,7 @@ test('configurações permitem escolher e persistir FPS sem reiniciar o servidor
 test('mapa compartilha movimentos e perfis e mostra a saída comum sem um fundo espacial antigo', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
-  const headers = { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' };
+  const headers = { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' };
   await page.request.post('/api/control', { headers, data: { effect: 'rainbow', power: true } });
   const device = { id: '9'.repeat(24), name: 'ARGB compartilhado', kind: 'argb', ledCount: 12, type: 2 };
   const layout = await page.evaluate(ds => NexusSpatial.defaults(ds), [device]);
@@ -136,7 +136,7 @@ test('mapa compartilha movimentos e perfis e mostra a saída comum sem um fundo 
 test('resposta antiga de um comando não remove um perfil recebido pelo stream', async ({ page }) => {
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
   await page.locator('[data-page=studio]').click(); await page.locator('#studio-choose').click();
-  const name='Perfil durante comando '+Date.now(),headers={Origin:'http://127.0.0.1:5071','X-Nexus-Client':'web'};
+  const name='Perfil durante comando '+Date.now(),headers={Origin:new URL(page.url()).origin,'X-Nexus-Client':'web'};
   await page.route('**/api/control',async route=>{
     const response=await route.fetch(),old=await response.json();
     expect((await page.request.post('/api/profiles',{headers,data:{name}})).status()).toBe(200);

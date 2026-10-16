@@ -13,6 +13,7 @@ const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-setup-fixture-'))
 try {
   const source = fs.readFileSync(path.join(root, 'installer', 'NexusRGB.iss'), 'utf8');
   const variables = source.slice(source.indexOf('[Code]') + '[Code]'.length, source.indexOf('function PowerShellPath'));
+  const localization = source.slice(source.indexOf('function LocalText'),source.indexOf('function PrepareToInstall'));
   const exit = source.slice(source.indexOf('function GetCustomSetupExitCode'), source.indexOf('procedure CurPageChanged'));
   const postInstall = source.slice(source.indexOf('procedure CurStepChanged'), source.indexOf('procedure CurUninstallStepChanged'))
     .replace(/\bExec\(/g, 'FixtureExec(').replace(/\bLoadStringFromFile\(/g, 'FixtureLoad(');
@@ -28,11 +29,15 @@ DisableDirPage=yes
 DisableProgramGroupPage=yes
 OutputDir=${directory}
 OutputBaseFilename=fixture
+[Languages]
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\\BrazilianPortuguese.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
 [Code]
 ${variables}
 var DiagnosticReads: Integer;
 function PowerShellPath: String;
 begin Result := 'fixture-only'; end;
+${localization}
 function FixtureExec(Filename, Params, WorkingDir: String; ShowCmd: Integer; Wait: TExecWait; var ResultCode: Integer): Boolean;
 begin
   Result := True; ResultCode := 0;
@@ -57,13 +62,13 @@ ${postInstall}
   const filename = path.join(directory, 'fixture.iss'); fs.writeFileSync(filename, '\ufeff' + fixture);
   const compiled = spawnSync(compiler, ['/Q', filename], { encoding: 'utf8' });
   assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
-  for (const [mode, expected] of [['success', 0], ['stale', 1], ['fresh', 1], ['restart', 3010], ['runtime-failure', 1], ['launch-failure', 1]]) {
-    const log = path.join(directory, mode + '.log');
-    const result = spawnSync(path.join(directory, 'fixture.exe'), ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LOG=' + log, '/mode=' + mode], { timeout: 20000 });
+  for(const language of ['brazilianportuguese','english']) for (const [mode, expected] of [['success', 0], ['stale', 1], ['fresh', 1], ['restart', 3010], ['runtime-failure', 1], ['launch-failure', 1]]) {
+    const log = path.join(directory, language+'-'+mode + '.log');
+    const result = spawnSync(path.join(directory, 'fixture.exe'), ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/LANG='+language, '/LOG=' + log, '/mode=' + mode], { timeout: 20000 });
     assert.equal(result.status, expected, `mode=${mode}, status=${result.status}, error=${result.error || ''}`);
     const output = fs.readFileSync(log, 'utf8');
-    if (mode === 'stale') { assert.doesNotMatch(output, /OLD-NEXUS-DIAGNOSTIC/); assert.match(output, /diagnóstico novo/); }
+    if (mode === 'stale') { assert.doesNotMatch(output, /OLD-NEXUS-DIAGNOSTIC/); assert.match(output, language==='english'?/new diagnostic/:/diagnóstico novo/); }
     if (mode === 'fresh') assert.match(output, /CURRENT-NEXUS-DIAGNOSTIC/);
-    console.log(`Installer fixture: ${mode} returned ${expected}`);
+    console.log(`Installer fixture: ${language} ${mode} returned ${expected}`);
   }
 } finally { fs.rmSync(directory, { recursive: true, force: true }); }

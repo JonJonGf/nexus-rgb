@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.14/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.14">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.15/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.15">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.14 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.15 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, organização da biblioteca, backup e diagnóstico local. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -43,7 +43,11 @@
 - **Um efeito atravessando o setup:** organize as peças no mapa, divida faixas de LEDs e ajuste rotação, tamanho e ordem.
 - **Mapa compartilhado:** acompanhe Iluminação e Perfis pelas cores enviadas a cada LED. Escolha perfis e cenas no mapa; nos efeitos espaciais, solte a peça para aplicar e salvar sua posição sem reiniciar a animação.
 - **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada.
-- **Português e inglês:** escolha em **Configurações → Idioma da interface**. A preferência é salva por navegador e não muda as luzes, seus perfis ou nomes de dispositivos. A tradução é local e cobre o painel web; instalador e janelas nativas do Windows continuam em português.
+- **Português e inglês:** escolha em **Configurações → Idioma da interface**. A preferência é salva por navegador e não muda as luzes ou os nomes dos seus perfis. O instalador também oferece os dois idiomas; na bandeja do Windows, use **Idioma / Language** para as janelas nativas. As preferências do navegador e do Windows são independentes, sem serviço de tradução externo.
+- **Mapa calibrado:** vários anéis, primeiro LED, sentido e ordem física por peça; grupos, seleção múltipla, grade e desfazer/refazer. [Veja como configurar](docs/MAPA-E-CALIBRACAO.md).
+- **Biblioteca organizada:** favoritos, categorias e cópias de perfis/efeitos. A transição entre perfis é opcional; desligar as luzes continua imediato.
+- **Backup completo:** exporte ajustes, mapa e efeitos; revise antes de restaurar. O Nexus guarda uma cópia anterior à restauração e à atualização.
+- **Saúde e versão:** acompanhe os processos da instalação e revise um diagnóstico antes de compartilhar. A consulta opcional de atualizações no GitHub funciona por clique, sem baixar nem instalar automaticamente. [Backup, diagnóstico e atualizações](docs/BACKUP-E-DIAGNOSTICO.md).
 - **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
 - **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
 - **Recuperação pelo próprio app:** reinicie Nexus e OpenRGB pelas Configurações no PC, pelo ícone da bandeja ou pelo menu Iniciar. Os perfis e configurações são preservados; o Windows pede administrador.
@@ -71,7 +75,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.14/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.14) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.15/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.15) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -254,14 +258,14 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 - **Fechar a janela:** os serviços continuam funcionando. A opção **Fechar ícone (manter as luzes)** também mantém o controle ativo.
 - **Iniciar com o Windows:** o instalador configura os serviços e a restauração dos ajustes. Não é necessário abrir o painel para ativar os serviços.
 - **Atualizar:** no ícone ao lado do relógio, escolha **Fechar ícone (manter as luzes)** e execute o instalador da nova versão. Fechar apenas a aba do navegador não encerra esse ícone. Seus dados locais são mantidos. Reabra pelo atalho e recarregue páginas que já estavam abertas.
-- **Guardar seus perfis:** copie `%ProgramData%\NexusRGB\app\settings.json` e a subpasta `effects` para outro local. O arquivo guarda os ajustes, mapa, FPS e perfis; a subpasta guarda os efeitos importados referenciados por eles. Recarregar a página não apaga esses dados. Atualização, reinstalação e desinstalação padrão os preservam.
+- **Guardar seus perfis:** em Configurações, use **Exportar backup**. Para recuperar, escolha **Revisar arquivo de backup**, confira o resumo e confirme a restauração no PC. Os arquivos locais continuam em `%ProgramData%\NexusRGB\app`; cópias automáticas ficam na subpasta `backups`. Recarregar a página não apaga seus dados. Atualização, reinstalação e desinstalação padrão os preservam. [Detalhes e limites](docs/BACKUP-E-DIAGNOSTICO.md).
 - **Desinstalar:** use o [assistente de desinstalação](#desinstalar), o atalho **Desinstalar Nexus RGB** no menu Iniciar ou as configurações de aplicativos do Windows.
 
 <a id="desinstalar"></a>
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.14/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.15/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -272,6 +276,11 @@ A remoção desativa e remove os serviços e as regras próprias de firewall. Se
 <a id="desempenho"></a>
 
 ## 📊 Quanto o Nexus consome?
+
+**Alpha.15 — medição de 16/10/2026:** o navegador com o mapa usou **0,62% de CPU / 489,39 MiB**, contra **0,54% / 486,05 MiB** na interface alpha.14. Em outro ensaio, **somente servidor + motor** com Aurora somaram **0,41% / 132,71 MiB a 20 FPS** e **0,83% / 157,11 MiB a 60 FPS**. CPU considera as 12 threads; RAM soma conjuntos residentes. São janelas curtas com SDK simulado, sem medir LEDs físicos. **OpenRGB, serviços, bandeja e driver ficam fora dessas somas.** Os escopos são separados; veja [método, sete cenários e dados](docs/DESEMPENHO.md#alpha15).
+
+<details>
+<summary>Ensaios anteriores e consumo da instalação medida em 2026</summary>
 
 Medição real em **13/10/2026**, em um PC com **Ryzen 5 3600 (6 núcleos / 12 threads), 32 GB de RAM e Windows 11 Pro**, controlando **92 LEDs em 3 controladoras e 5 componentes**. Foram amostrados os serviços, Node.js, OpenRGB e o ícone da bandeja, com o painel do navegador fora da soma.
 
@@ -292,6 +301,8 @@ Os números são uma referência da configuração medida em 13/10/2026, anterio
 **Prévia compartilhada — alpha.10:** com Arco-íris comum e SDK simulado de 92 LEDs, o servidor usou **0,065% de CPU / 51,27 MiB** sem prévia e **0,104% / 54,45 MiB** com prévia. Observar o efeito comum não abriu processo Canvas. Esses números **não incluem OpenRGB, serviços, bandeja ou navegador**. Consulte o [ensaio da prévia e seus limites](docs/DESEMPENHO.md#prévia-compartilhada--v010-alpha10).
 
 **Mapa e inglês — candidata alpha.13, incorporada na alpha.14:** em duas rodadas com Edge isolado, o mapa anterior usou **0,58% de CPU / 520,53 MiB**, o novo em português **0,53% / 519,43 MiB**, em inglês **0,54% / 523,68 MiB** e com a biblioteca aberta **0,60% / 525,54 MiB**. Aqui a RAM é do navegador inteiro, somando processos; o heap JavaScript da página ficou entre **3,54 e 3,91 MiB** em média. CPU é a fração das 12 threads. São janelas curtas de cerca de 13 segundos, com SDK simulado e Aurora a 20 FPS; **não incluem os serviços ou OpenRGB**, não medem LEDs físicos e não comprovam ganho de desempenho ou estabilidade prolongada. Veja o [método e os dados](docs/DESEMPENHO.md#interface-do-mapa-e-inglês--v010-alpha13).
+
+</details>
 
 Os testes de lógica, interface, instalação e recuperação estão descritos no [relatório de validação](docs/VALIDACAO.md), com data, ambiente e limites de cada ensaio. Cada medição informa quais processos foram somados; os ensaios isolados não representam o consumo do aplicativo completo.
 

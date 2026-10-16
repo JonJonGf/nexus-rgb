@@ -38,6 +38,10 @@ test('API bloqueia ataques de origem/Host, limita payload e mantém controles ap
     const lanState = await fetch(lan + '/api/state'); assert.equal(lanState.status, 200);
     assert.equal((await fetch(lan + '/api/control', { method: 'POST', headers: { Origin: lan, 'X-Nexus-Client': 'web', 'Content-Type': 'application/json' }, body: JSON.stringify({ color: '#ff0055' }) })).status, 200);
     assert.equal((await fetch(lan + '/api/network')).status, 403);
+    assert.equal((await fetch(lan + '/api/backups')).status, 403);
+    assert.equal((await fetch(lan + '/api/resources')).status, 403);
+    assert.equal((await fetch(lan + '/api/diagnostics')).status, 403);
+    for(const route of ['/api/backups/review','/api/backups/restore','/api/devices/'+'a'.repeat(24)+'/identify'])assert.equal((await fetch(lan+route,{method:'POST',headers:{Origin:lan,'X-Nexus-Client':'web','Content-Type':'application/json'},body:'{}'})).status,403);
     assert.equal((await fetch(lan + '/api/session/local', { method: 'POST', headers: { Origin: lan, 'X-Nexus-Client': 'web' } })).status, 403);
     const firstLink = await (await request('/api/link', {}, {}, cookie)).json(); const secondLink = await (await request('/api/link', {}, {}, cookie)).json();
     assert.equal(firstLink.link, secondLink.link); assert.equal(new URL(firstLink.link).hash, ''); assert.match(firstLink.qr, /^data:image\/png;base64,/);

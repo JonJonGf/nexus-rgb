@@ -76,6 +76,7 @@
     document.querySelectorAll('.nav').forEach(button => button.classList.toggle('active', button.dataset.page === name));
     $('page-title').textContent = { control: T('Iluminação'), devices: T('Dispositivos'), profiles: T('Perfis'), connect: T('Conexões'), studio: T('Mapa do setup'), settings: T('Configurações') }[name];
     window.NexusStudio?.open(name);
+    if (name === 'settings') api('/api/about').then(build=>{$('settings-build').textContent=(build.tag||T('Desenvolvimento'))+' · '+(build.commit?.slice(0,12)||build.version);}).catch(error=>toast(error.message));
     if (name === 'connect' && admin) loadNetwork();
   }
   document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => page(button.dataset.page)));
@@ -164,6 +165,7 @@
       const apply = el('button', 'button primary', T('Ativar perfil')); apply.addEventListener('click', () => action(`/api/profiles/${p.id}`, {})); card.append(apply);
       if (admin) {
         const edit = el('button', 'button subtle', T('Editar')); edit.addEventListener('click', () => openProfile('custom', p)); card.append(edit);
+        const copy = el('button','button subtle',T('Criar cópia'));copy.addEventListener('click',()=>action('/api/profiles/'+p.id+'/duplicate',{name:p.name.slice(0,40)+T(' cópia')}));card.append(copy);
         const remove = el('button', 'button subtle', T('Excluir')); remove.addEventListener('click', async () => { if (await action(`/api/profiles/${p.id}`, {}, 'DELETE')) { if (profileEditId === p.id) closeProfile(); } }); card.append(remove);
       }
       container.append(card);

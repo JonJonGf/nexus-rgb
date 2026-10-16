@@ -5,7 +5,7 @@
   const effectNames = T.map({ static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso', strobe: 'Estrobo', sequence: 'Sequência', comet: 'Cometa', scanner: 'Vai e vem', sparkle: 'Cintilação' });
   let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, stream, poll, dragging = false, loading = false;
   const item = () => data?.layout.find(i => i.key === selected);
-  let liveFrame, ports;
+  let liveFrame, ports, workspace, calibration, backups, health, library;
   function renderPorts() { if (ports) $('settings-ports').textContent = T('Painel TCP ') + ports.panel + ' · SDK TCP ' + ports.sdk + ' · Alexa TCP ' + ports.alexa + T(' · descoberta UDP 1900.'); }
   let inspector = 'device', libraryFilter = 'all', controlSignature = '', gallerySignature = '', stateRevision = 0, libraryApplying = false;
   function inspectorTab(name) {
@@ -18,7 +18,7 @@
   document.querySelector('.studio-inspector-tabs').addEventListener('keydown', e => { if (!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return; e.preventDefault(); inspectorTab(e.key === 'Home' ? 'device' : e.key === 'End' ? 'effect' : inspector === 'device' ? 'effect' : 'device'); $('studio-tab-' + inspector).focus(); });
   inspectorTab('device');
   let editVersion = 0, savedVersion = 0, saving = false, saveTimer, lastSave = 0;
-  function mark() { editVersion++; dirty = true; $('studio-dirty').textContent = dragging ? T('Solte para salvar a posição') : T('Salvando posição…'); $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
+  function mark() { editVersion++; dirty = true; if (!dragging) workspace?.record(); $('studio-dirty').textContent = dragging ? T('Solte para salvar a posição') : T('Salvando posição…'); $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
   function scheduleSave() {
     clearTimeout(saveTimer);
     if (saving || !dirty || dragging) return;
@@ -48,14 +48,15 @@
   function paintPiece(ctx, entry, bytes, stride) {
     if (!bytes) return;
     const width = entry.width * 960, height = entry.height * 600;
+    const geometry = NexusSpatial.leds(entry);
     ctx.save(); ctx.translate(entry.x * 960, entry.y * 600); ctx.rotate(entry.rotation * Math.PI / 180);
     for (let n = 0; n < entry.count; n += stride) {
-      const offset = (entry.start + n) * 3; if (bytes.length < offset + 3) continue;
+      const offset = geometry[n].index * 3; if (bytes.length < offset + 3) continue;
       const i = entry.reverse ? entry.count - 1 - n : n, group = Math.min(stride, entry.count - n);
       ctx.fillStyle = 'rgb(' + [0, 1, 2].map(channel => bytes.charCodeAt(offset + channel)).join(',') + ')';
       if (entry.shape === 'fan') {
-        const start = (entry.reverse ? i - group + 0.5 : i - 0.5) / entry.count * Math.PI * 2 - Math.PI / 2, end = start + group / entry.count * Math.PI * 2;
-        ctx.save(); ctx.scale(width, height); ctx.beginPath(); ctx.arc(0, 0, 0.49, start, end); ctx.arc(0, 0, 0.30, end, start, true); ctx.closePath(); ctx.fill(); ctx.restore();
+        const circle = geometry[n].circle, step = Math.PI * 2 / circle.size, start = circle.angle - step / 2, end = start + Math.min(group,circle.size) * step, thickness = Math.min(.07,.16 / circle.rings);
+        ctx.save(); ctx.scale(width, height); ctx.beginPath(); ctx.arc(0, 0, circle.radius + thickness, start, end); ctx.arc(0, 0, Math.max(.01,circle.radius - thickness), end, start, true); ctx.closePath(); ctx.fill(); ctx.restore();
       } else if (entry.shape === 'matrix') {
         const rows = Math.ceil(entry.count / entry.columns);
         ctx.fillRect(((i % entry.columns) / entry.columns - 0.5) * width, (Math.floor(i / entry.columns) / rows - 0.5) * height, width / entry.columns, height / rows);
@@ -91,6 +92,7 @@
     $('studio-current-effect').textContent = !liveFrame.connected ? T('Controlador desconectado') : !liveFrame.power ? T('Luzes apagadas') : spatial ? effectName(data?.effects.find(e => e.id === data.activeId)) || liveFrame.playback?.name || T('Efeito espacial') : effectNames[liveFrame.playback?.effect || state?.master.effect] || T('Ajustes dos componentes');
     $('studio-live-note').textContent = (!liveFrame.connected ? T('Saída indisponível: controlador desconectado. ') : !liveFrame.power ? T('Luzes desligadas. ') : liveFrame.error ? T('Efeito espacial pausado; mostrando a saída dos ajustes comuns. ') : spatial ? T('Fundo: campo espacial ativo. ') : T('Iluminação e Perfis: saída atual de cada componente. '))
       + T('Cores: últimos comandos enviados, sem leitura física. Modos nativos ficam sem cor por LED.')
+      + ' ' + T(spatial?'Movimento por posição no mapa (X/Y).':'Movimentos comuns seguem a ordem do cabo; o formato sozinho não muda a direção.')
       + (dirty ? dragging ? T(' Solte para salvar a posição.') : T(' Salvando posição…') : '');
   }
   function error(e) { toast?.(e.message || String(e)); }
@@ -107,34 +109,37 @@
     $('studio-columns-field').hidden = value.shape !== 'matrix';
     document.querySelectorAll('.studio-shapes [data-shape]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.shape === value.shape)); b.disabled = !isAdmin; });
     $('studio-device-form').querySelectorAll('input,select,button').forEach(e => { e.disabled = !isAdmin; });
-    $('studio-device-chips').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.key === selected)));
+    workspace?.paint();
   }
-  function position(button, value) { button.style.left = value.x * 100 + '%'; button.style.top = value.y * 100 + '%'; button.style.width = value.width * 100 + '%'; button.style.height = value.height * 100 + '%'; button.style.setProperty('--rotation', value.rotation + 'deg'); }
+  function position(button, value) { if (!button) return; button.style.left = value.x * 100 + '%'; button.style.top = value.y * 100 + '%'; button.style.width = value.width * 100 + '%'; button.style.height = value.height * 100 + '%'; button.style.setProperty('--rotation', value.rotation + 'deg'); }
   function map() {
     if (!data) return;
     const container = $('studio-items'); container.replaceChildren(); $('studio-empty').hidden = Boolean(data.layout.length);
     for (const value of data.layout) {
       const button = make('button', undefined, 'studio-item' + (value.key === selected ? ' selected' : '')); button.type = 'button'; button.dataset.key = value.key; button.dataset.shape = value.shape; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count); position(button, value);
       button.append(make('i'), make('span', value.name)); container.append(button);
-      button.addEventListener('click', () => { selected = value.key; inspectorTab('device'); selection(true); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b === button)); });
+      button.addEventListener('click', event => { if(event.shiftKey||event.ctrlKey||event.metaKey)workspace.select(value.key,true); selected = workspace.keys.has(value.key)?value.key:[...workspace.keys][0]||value.key; inspectorTab('device'); selection(true); map(); });
       button.addEventListener('pointerdown', event => {
         if (!isAdmin || event.button !== 0) return;
+        if (event.shiftKey || event.ctrlKey || event.metaKey) return;
+        workspace?.select(value.key);
         event.preventDefault(); document.activeElement?.blur(); selected = value.key; dragging = true; inspectorTab('device'); selection(true); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b === button)); button.setPointerCapture(event.pointerId);
-        const rect = $('studio-stage').getBoundingClientRect(), origin = { x: event.clientX, y: event.clientY, px: value.x, py: value.y };
-        const move = e => { value.x = Math.max(0, Math.min(1, origin.px + (e.clientX - origin.x) / rect.width)); value.y = Math.max(0, Math.min(1, origin.py + (e.clientY - origin.y) / rect.height)); position(button, value); selection(); mark(); };
-        const finish = () => { dragging = false; scheduleSave(); button.removeEventListener('pointermove', move); button.removeEventListener('pointerup', finish); button.removeEventListener('pointercancel', finish); };
+        const rect = $('studio-stage').getBoundingClientRect(), origin = { x: event.clientX, y: event.clientY, pieces:workspace.origin(value.key) };
+        const move = e => { workspace.move(origin.pieces,(e.clientX-origin.x)/rect.width,(e.clientY-origin.y)/rect.height); selection(); workspace.paint(); mark(); };
+        const finish = () => { dragging = false; workspace.record(); scheduleSave(); button.removeEventListener('pointermove', move); button.removeEventListener('pointerup', finish); button.removeEventListener('pointercancel', finish); };
         button.addEventListener('pointermove', move); button.addEventListener('pointerup', finish); button.addEventListener('pointercancel', finish);
       });
       button.addEventListener('keydown', event => {
         if (!isAdmin || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
         event.preventDefault(); selected = value.key;
-        value.x = Math.max(0, Math.min(1, value.x + (event.key === 'ArrowRight' ? 0.01 : event.key === 'ArrowLeft' ? -0.01 : 0)));
-        value.y = Math.max(0, Math.min(1, value.y + (event.key === 'ArrowDown' ? 0.01 : event.key === 'ArrowUp' ? -0.01 : 0))); position(button, value); selection(); mark();
+        workspace.move(workspace.origin(value.key),event.key === 'ArrowRight' ? .01 : event.key === 'ArrowLeft' ? -.01 : 0,event.key === 'ArrowDown' ? .01 : event.key === 'ArrowUp' ? -.01 : 0); selection(); mark();
       });
+      workspace?.decorate(button,value);
     }
     $('studio-map-summary').textContent = data.layout.length + T(' posições · ') + data.layout.reduce((n, i) => n + i.count, 0) + T(' LEDs mapeados');
     const chips = $('studio-device-chips'); chips.replaceChildren();
-    for (const value of data.layout) { const chip = make('button', value.name); chip.type = 'button'; chip.dataset.key = value.key; chip.setAttribute('aria-pressed', String(value.key === selected)); chip.addEventListener('click', () => { selected = value.key; inspectorTab('device'); selection(); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b.dataset.key === selected)); }); chips.append(chip); }
+    for (const value of data.layout) { const chip = make('button', value.name); chip.type = 'button'; chip.dataset.key = value.key; chip.setAttribute('aria-pressed', String(value.key === selected)); chip.addEventListener('click', event => { workspace.select(value.key,event.shiftKey || event.ctrlKey || event.metaKey); selected=workspace.keys.has(value.key)?value.key:[...workspace.keys][0]||value.key; inspectorTab('device'); map(); selection(true); }); chips.append(chip); }
+    workspace?.sync(data.layout);
   }
   function controls() {
     const effect = data?.effects.find(e => e.id === data.activeId); if (!effect) return;
@@ -187,10 +192,10 @@
     ];
     const norm = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
     const query = norm($('studio-library-search').value.trim()), grid = $('studio-library');
-    const signature = JSON.stringify([T.locale(), libraryFilter, query, cards, data.enabled, data.activeId, state.master.effect]);
+    const signature = JSON.stringify([T.locale(), libraryFilter, query, cards, data.enabled, data.activeId, state.master.effect,state.library]);
     if (!force && signature === gallerySignature) return;
     gallerySignature = signature; grid.replaceChildren();
-    for (const card of cards.filter(c => (libraryFilter === 'all' || (libraryFilter === 'ready' ? ['preset', 'motion'].includes(c.kind) : libraryFilter === c.kind)) && norm(c.name).includes(query))) {
+    for (const card of library.filter(cards).filter(c => (libraryFilter === 'all' || (libraryFilter === 'ready' ? ['preset', 'motion'].includes(c.kind) : libraryFilter === c.kind)) && norm(c.name).includes(query))) {
       const button = make('button', undefined, 'library-card'); button.type = 'button'; button.dataset.kind = card.kind; button.dataset.id = card.id;
       const colors = card.palette.filter(c => /^#[a-f0-9]{6}$/i.test(c));
       button.style.setProperty('--card-palette', 'linear-gradient(120deg,' + (colors.length > 1 ? colors : [colors[0] || '#7954ff', colors[0] || '#00c8ff']).join(',') + ')');
@@ -208,7 +213,7 @@
           if (ok) $('studio-picker-dialog').close();
         } finally { libraryApplying = false; $('studio-choose').disabled = false; $('studio-library').querySelectorAll('button').forEach(b => { b.disabled = false; }); }
       });
-      grid.append(button);
+      grid.append(library.decorate(button,card,isAdmin));
     }
     $('studio-library-empty').hidden = Boolean(grid.childElementCount);
   }
@@ -251,7 +256,7 @@
     // Change only the edited property: rounded display values must not move
     // a component when the user merely renames it or changes its shape.
     if (field === 'item-name') value.name = $('studio-item-name').value;
-    else if (['rotation', 'count', 'columns'].includes(field)) value[field] = Number($('studio-' + field).value);
+    else if (['rotation', 'count', 'columns'].includes(field)) { const next=Number($('studio-' + field).value); if (field==='count'&&next!==value.count) NexusMapModel.clearCalibration(value); value[field] = next; }
     else if (['x', 'y', 'width', 'height'].includes(field)) value[field] = Number($('studio-' + field).value) / 100;
     else if (field === 'start') value.start = Number($('studio-start').value) - 1;
     else if (field === 'shape') value.shape = $('studio-shape').value;
@@ -269,12 +274,13 @@
   $('studio-split').addEventListener('click', () => {
     const value = item(); if (!value || value.count < 2) return toast(T('Este componente não tem LEDs suficientes para dividir.'));
     const first = Math.floor(value.count / 2), second = { ...value, key: crypto.randomUUID(), start: value.start + first, count: value.count - first, x: Math.min(0.94, value.x + 0.14), name: value.name.slice(0, 48) + ' · 2' };
+    NexusMapModel.clearCalibration(value); NexusMapModel.clearCalibration(second);
     value.count = first; data.layout.push(second); selected = second.key; mark(); map(); selection();
   });
   $('studio-merge').addEventListener('click', () => {
     const value = item(), other = value && data.layout.find(i => i.key !== value.key && i.deviceId === value.deviceId && (i.start + i.count === value.start || value.start + value.count === i.start));
     if (!other) return toast(T('Selecione uma divisão com faixa de LEDs vizinha.'));
-    value.start = Math.min(value.start, other.start); value.count += other.count; data.layout = data.layout.filter(i => i !== other); mark(); map(); selection();
+    value.start = Math.min(value.start, other.start); value.count += other.count; NexusMapModel.clearCalibration(value); data.layout = data.layout.filter(i => i !== other); mark(); map(); selection();
   });
   $('studio-fan-split').addEventListener('click', () => {
     const value = item(), size = Number($('studio-fan-leds').value);
@@ -282,6 +288,7 @@
     const count = value.count / size;
     if (count + data.layout.length - 1 > 256) return toast(T('Limite de 256 posições no mapa.'));
     const parts = Array.from({ length: count }, (_, n) => ({ ...value, key: n ? crypto.randomUUID() : value.key, name: value.name.slice(0, 45) + ' · fan ' + (n + 1), start: value.start + n * size, count: size, shape: 'fan', x: Math.min(0.94, value.x + (n % 4) * 0.15), y: Math.min(0.88, value.y + Math.floor(n / 4) * 0.24) }));
+    parts.forEach(NexusMapModel.clearCalibration);
     data.layout = data.layout.flatMap(i => i === value ? parts : [i]); selected = parts[0].key; mark(); map(); selection();
   });
   async function importSource(source) {
@@ -339,6 +346,7 @@
   $('settings-fps-form').addEventListener('submit', async event => { event.preventDefault(); const result = await request('/api/settings', { fps: Number($('settings-fps').value) }, 'POST'); if (result) { fpsDirty = false; $('settings-fps').value = result.performance.fps; fpsLabel(); toast(T('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.')); } });
   function open(name) {
     current = name; clearInterval(poll); stream?.close(); stream = null;
+    health?.open(name);
     if (!api || !['studio', 'settings'].includes(name) || document.hidden) return;
     refresh();
     poll = setInterval(refresh, 3000);
@@ -366,10 +374,25 @@
   });
   document.addEventListener('visibilitychange', () => open(current));
   window.addEventListener('pagehide', () => { clearInterval(poll); stream?.close(); stream = null; });
+  workspace = window.NexusWorkspace.create({get:()=>data,selected:()=>selected,position,selection,mark,gesture:value=>{dragging=value;},save:()=>{mark();map();selection(true);}});
+  calibration = window.NexusCalibration.create({item,devices:()=>state?.hardware.devices||[],selectFirst:()=>{selected=data?.layout[0]?.key;map();selection(true);},api:(...args)=>api(...args),save:()=>{mark();map();selection(true);}});
+  backups = window.NexusBackups.create({api:(...args)=>api(...args),refresh:()=>location.reload()});
+  health = window.NexusHealth.create({api:(...args)=>api(...args)});
+  library = window.NexusLibrary.create({state:()=>state,toast:message=>toast(message),refresh:()=>renderGallery(true),patch:body=>sharedPlay('/api/library',body),duplicate:async card=>{
+    const name=(card.name.slice(0,card.kind==='profile'?40:52)+T(' cópia'));
+    if(card.kind==='profile')await sharedPlay('/api/profiles/'+card.id+'/duplicate',{name});
+    else {const next=await api('/api/studio/effects/'+card.id+'/duplicate',{name},'POST');next.layout=data.layout;data=next;renderLibrary();const copy=next.effects.find(e=>e.id===next.id);if(copy?.format==='nexus-effect/1'){formulaColors=[...copy.palette];for(const field of ['name','pattern','speed','angle','scale'])$('formula-'+field).value=copy[field];formulaPalette();$('studio-picker-dialog').close();$('studio-formula-dialog').showModal();}}
+    renderGallery(true);
+  }});
   window.NexusStudio = {
     open,
     update(next, admin, requestApi, showToast, page) {
       const first = !api; state = next; stateRevision++; isAdmin = admin; api = requestApi; toast = showToast;
+      workspace.update(admin);
+      calibration.update(admin);
+      backups.update(admin);
+      health.update(admin,next);
+      library.update(admin);
       renderGallery();
       document.querySelectorAll('.studio-admin').forEach(e => { if (!e.closest('#studio-formula-form')) e.hidden = !admin; }); $('settings-fps-save').disabled = !admin; $('settings-fps').disabled = !admin;
       document.querySelectorAll('[data-fps]').forEach(e => { e.disabled = !admin; }); $('settings-admin-note').hidden = admin;

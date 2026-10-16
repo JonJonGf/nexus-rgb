@@ -1,0 +1,6 @@
+.updates-page {min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at top,#00394940,transparent 70%),var(--bg);}
+.updates-card {width:min(100%,650px);padding:clamp(20px,5vw,44px);}
+.updates-card h1 {font-size:36px;margin:15px 0;}
+.updates-card p {line-height:1.65;}
+#update-installed {font-family:var(--mono);color:var(--accent);font-size:12px;}
+#update-result {min-height:30px;}

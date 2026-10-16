@@ -12,6 +12,10 @@ const QRCode = require('qrcode');
 const VERSION = require('../package.json').version;
 const { ports } = require('./ports');
 const { Studio } = require('./studio');
+const { about } = require('./about');
+const { Backups, MAX: BACKUP_MAX } = require('./backup');
+const { Resources } = require('./resources');
+const { diagnostics } = require('./diagnostics');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -44,7 +48,7 @@ async function createApp(options = {}) {
   const localPort = configuredPorts.panel;
   const clients = new Set(); const rate = new RateLimiter(240); const assetRate = new RateLimiter(512); const globalRate = new RateLimiter(2000);
   let local, heartbeat;
-  const snapshot = () => ({ version: VERSION, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices, studio: savedStudio }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length, spatial: Boolean(savedStudio?.enabled) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
+  const snapshot = () => ({ version: VERSION, library: store.data.library || {favorites:[],categories:{},transitionMs:0}, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices, studio: savedStudio }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length, spatial: Boolean(savedStudio?.enabled) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
   const broadcast = () => {
     const message = `data: ${JSON.stringify(snapshot())}\n\n`;
     for (const client of clients) {
@@ -54,6 +58,8 @@ async function createApp(options = {}) {
   };
   const alexa = new Alexa(store, hardware, directory, broadcast, { port: configuredPorts.alexa, getInterfaces });
   const studio = new Studio(store, hardware, directory, broadcast); hardware.studio = studio;
+  const backups = new Backups(store,studio,directory);
+  const resources = new Resources();
   hardware.on('change', broadcast);
   function headers(res) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
@@ -64,6 +70,13 @@ async function createApp(options = {}) {
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
     ['/en.js', ['en.js', 'application/javascript; charset=utf-8']], ['/i18n.js', ['i18n.js', 'application/javascript; charset=utf-8']],
+    ['/map-model.js', ['map-model.js', 'application/javascript; charset=utf-8']], ['/workspace.js', ['workspace.js', 'application/javascript; charset=utf-8']],
+    ['/calibration.js', ['calibration.js', 'application/javascript; charset=utf-8']],
+    ['/backups.js', ['backups.js','application/javascript; charset=utf-8']],
+    ['/health.js', ['health.js','application/javascript; charset=utf-8']],
+    ['/library.js', ['library.js','application/javascript; charset=utf-8']],
+    ['/updates', ['updates.html','text/html; charset=utf-8']], ['/updates.html', ['updates.html','text/html; charset=utf-8']],
+    ['/updates.js', ['updates.js','application/javascript; charset=utf-8']], ['/updates.css', ['updates.css','text/css; charset=utf-8']], ['/release-model.js', ['release-model.js','application/javascript; charset=utf-8']],
     ['/', ['index.html', 'text/html; charset=utf-8']], ['/index.html', ['index.html', 'text/html; charset=utf-8']],
     ['/app.js', ['app.js', 'application/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']],
     ['/studio.js', ['studio.js', 'application/javascript; charset=utf-8']], ['/studio.css', ['studio.css', 'text/css; charset=utf-8']], ['/spatial.js', ['spatial.js', 'application/javascript; charset=utf-8']],
@@ -97,7 +110,25 @@ async function createApp(options = {}) {
     if (route.startsWith('/api/')) {
       if (!session) return json(res, 401, { error: 'Abra o painel neste computador para iniciar a sessão local.' });
       const admin = () => { if (!session.admin || !isLocal) throw Object.assign(new Error('Este ajuste só pode ser feito no PC.'), { status: 403 }); };
+      if (route === '/api/about' && req.method === 'GET') return json(res,200,about());
+      if (route === '/api/resources' && req.method === 'GET') {admin();return json(res,200,await resources.sample());}
+      if (route === '/api/diagnostics' && req.method === 'GET') {admin();return json(res,200,diagnostics(hardware,studio,store,resources));}
+      if (route === '/api/backups' && req.method === 'GET') {admin();return json(res,200,backups.export());}
+      if (route === '/api/backups/review' && req.method === 'POST') {admin();return json(res,200,await backups.review(await readBody(req,BACKUP_MAX)));}
+      if (route === '/api/backups/restore' && req.method === 'POST') {admin();const body=await readBody(req);if(Object.keys(body).length!==1||!Object.hasOwn(body,'token'))throw Error('Comando de restauração inválido.');const result=backups.apply(body.token);if(store.data.alexaEnabled)alexa.start();else alexa.stop();broadcast();return json(res,200,result);}
       if (route === '/api/settings' && req.method === 'POST') { admin(); store.performance(await readBody(req)); hardware.setFps?.(); broadcast(); return json(res, 200, snapshot()); }
+      if(route==='/api/library'&&req.method==='POST'){admin();const keys=[...store.data.profiles.map(p=>'profile:'+p.id),...presets.map(p=>'preset:'+p.id),...require('./store').effects.map(e=>'motion:'+e),...[...studio.effects.keys()].map(e=>'spatial:'+e)];store.library(await readBody(req),keys);broadcast();return json(res,200,snapshot());}
+      const cloneEffect=route.match(/^\/api\/studio\/effects\/([a-f0-9]{24})\/duplicate$/);
+      if(cloneEffect&&req.method==='POST'){admin();const body=await readBody(req);if(Object.keys(body).some(k=>k!=='name'))throw Error('Comando de cópia inválido.');const id=await studio.duplicate(cloneEffect[1],body.name);return json(res,200,{id,...studio.snapshot(true)});}
+      const cloneProfile=route.match(/^\/api\/profiles\/([a-f0-9-]{36})\/duplicate$/);
+      if(cloneProfile&&req.method==='POST'){admin();const body=await readBody(req);if(Object.keys(body).some(k=>k!=='name'))throw Error('Comando de cópia inválido.');store.duplicateProfile(cloneProfile[1],body.name);broadcast();return json(res,200,snapshot());}
+      const identifyRoute = route.match(/^\/api\/devices\/([a-f0-9]{24})\/identify$/);
+      if (identifyRoute && req.method === 'POST') {
+        admin(); const body = await readBody(req);
+        if (Object.keys(body).some(k => !['led','stop'].includes(k)) || body.stop !== undefined && typeof body.stop !== 'boolean') throw Error('Comando de identificação inválido.');
+        hardware.identify(identifyRoute[1],body.led,body.stop); await hardware.tick();
+        return json(res,200,{active:hardware.identification || null});
+      }
       if (route === '/api/studio' && req.method === 'GET') return json(res, 200, studio.snapshot(true));
       if (route === '/api/studio/play' && req.method === 'POST') { const body = await readBody(req); if (!body || Object.keys(body).some(k => !['activeId', 'values', 'enabled'].includes(k))) throw Error('Comando de efeito inválido.'); studio.configure(body); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/studio' && req.method === 'POST') { admin(); studio.configure(await readBody(req, 128 * 1024)); return json(res, 200, studio.snapshot(true)); }
@@ -114,7 +145,7 @@ async function createApp(options = {}) {
         res.write(`retry: 3000\ndata: ${JSON.stringify(snapshot())}\n\n`); const client = { req, res }; clients.add(client);
         res.on('close', () => clients.delete(client)); res.on('error', () => clients.delete(client)); return;
       }
-      if (route === '/api/control' && req.method === 'POST') { store.master(await readBody(req)); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
+      if (route === '/api/control' && req.method === 'POST') { const body = await readBody(req); store.master(body); if (body.power === false) hardware.cancelIdentification?.(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
       const presetRoute = route.match(/^\/api\/presets\/([a-z]{1,24})$/);
       if (presetRoute && req.method === 'POST') { await readBody(req); applyPreset(store, presetRoute[1]); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
       const deviceRoute = route.match(/^\/api\/devices\/([a-f0-9]{24})(\/resize)?$/);
@@ -126,13 +157,13 @@ async function createApp(options = {}) {
         else {
           if (body.effect !== undefined && !device.effects.includes(body.effect)) throw new Error('Efeito não disponível neste dispositivo.');
           if (body.nativeMode !== undefined && !device.modes.some(m => m.id === body.nativeMode)) throw new Error('Modo não disponível neste dispositivo.');
-          store.device(device.id, body, hardware.snapshot().devices.map(item => item.id)); hardware.changed();
+          store.device(device.id, body, hardware.snapshot().devices.map(item => item.id)); if (body.power === false) hardware.cancelIdentification?.(device.id); hardware.changed();
         }
         broadcast(); return json(res, 200, snapshot());
       }
       if (route === '/api/profiles' && req.method === 'POST') { admin(); const body = await readBody(req); store.profile(body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       const profileRoute = route.match(/^\/api\/profiles\/([a-f0-9-]{36})$/);
-      if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); studio.reset(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
+      if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); hardware.transition?.(store.data.library?.transitionMs||0); studio.reset(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin(); store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
@@ -156,6 +187,7 @@ async function createApp(options = {}) {
     }
     const asset = assets.get(route);
     if (!asset || !['GET', 'HEAD'].includes(req.method)) return json(res, 404, { error: 'Página não encontrada.' });
+    if (route === '/updates' || route === '/updates.html') res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self' https://api.github.com; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     res.writeHead(200, { 'Content-Type': asset[1] });
     if (req.method === 'HEAD') return res.end();
     res.end(fs.readFileSync(path.join(__dirname, '..', 'public', asset[0])));

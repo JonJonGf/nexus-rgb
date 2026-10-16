@@ -13,3 +13,4 @@ native/*.pdb
 *.key
 *.pem
 .env*
+server/build-info.json

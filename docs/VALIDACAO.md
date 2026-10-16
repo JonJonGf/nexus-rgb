@@ -4,6 +4,7 @@ Os relatórios registram os cenários testados, seus resultados e limitações. 
 
 | Data | Escopo | Relatório |
 | --- | --- | --- |
+| 16/10/2026 | Calibração, edição do mapa, backup, biblioteca, diagnóstico, consulta opcional e idiomas nativos | [Melhorias e recuperação](validation/2026-10-16-improvements.md) |
 | 15/10/2026 | Mapa espacial, importação isolada, FPS, perfis e respostas Alexa; lógica e interface | [Mapa e motor de efeitos](validation/2026-10-15-studio.md) |
 | 15/10/2026 | Perfis com cores ordenadas, editor, interface e persistência após reiniciar o serviço | [Perfis e movimentos](validation/2026-10-15-profiles.md) |
 | 15/10/2026 | Portas configuráveis, recuperação de falhas e atualização do instalador; 62 testes de lógica/integração e 10 de interface | [Portas e confiabilidade](validation/2026-10-15-ports-and-reliability.md) |

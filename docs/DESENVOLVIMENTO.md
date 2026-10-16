@@ -35,6 +35,8 @@ O instalador configura o firewall para seus próprios executáveis. No desenvolv
 
 ## Verificar as alterações
 
+Os testes de interface usam uma instância da API, porta aleatória, sessões e dados temporários por teste. O limitador HTTP de produção permanece ativo. Os ensaios de desempenho também usam SDK simulado e processos próprios; não escrevem nas luzes da instalação.
+
 ```powershell
 npm test
 npm run test:ui

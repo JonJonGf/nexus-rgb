@@ -45,6 +45,21 @@ test('Canvas importado roda sem APIs do Node/rede e produz amostras de cor', asy
   } finally { renderer.close(); }
 });
 
+test('parâmetros escolhidos prevalecem sobre defaults declarados no HTML e respeitam o círculo da ventoinha', async () => {
+  const renderer = new StudioRenderer();
+  const effect = schema.parseHTML(source('var vertical=false,ink="#ff0000";var ctx=document.getElementById("exCanvas").getContext("2d");function tick(){ctx.fillStyle="#000000";ctx.fillRect(0,0,320,200);ctx.fillStyle=ink;if(vertical)ctx.fillRect(0,0,320,100);else ctx.fillRect(0,0,160,200);requestAnimationFrame(tick)}requestAnimationFrame(tick)', '<meta property="vertical" type="boolean" default="0"><meta property="ink" type="color" default="#ff0000">'));
+  const fan = {deviceId:'a'.repeat(24),start:0,count:36,x:0.5,y:0.5,width:0.3,height:0.48,rotation:0,shape:'fan',columns:8,reverse:false};
+  try {
+    await renderer.load(effect,{vertical:true,ink:'#00ff00'});
+    const colors=renderer.sample(spatial.points(fan),renderer.frame(100));
+    assert.deepEqual(colors[0],[0,255,0]); assert.deepEqual(colors[18],[0,0,0]);
+    for(const n of [1,2,3,5,7,11,13,16]) assert.deepEqual(colors[n],colors[36-n]);
+    await renderer.load(effect,{vertical:false,ink:'#0000ff'});
+    const horizontal=renderer.sample(spatial.points(fan),renderer.frame(100));
+    assert.deepEqual(horizontal[9],[0,0,0]); assert.deepEqual(horizontal[27],[0,0,255]);
+  } finally {renderer.close();}
+});
+
 test('booleanos SignalRGB entram no script como 0/1, inclusive comparação estrita', async () => {
   const renderer = new StudioRenderer();
   const effect = schema.parseHTML(source('var ctx=document.getElementById("exCanvas").getContext("2d");function run(){ctx.fillStyle=enabled===1?"#ff0000":"#00ff00";ctx.fillRect(0,0,320,200);requestAnimationFrame(run)}requestAnimationFrame(run)', '<meta property="enabled" type="boolean" default="1">'));

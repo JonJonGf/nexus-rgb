@@ -1,0 +1,55 @@
+NEXUS RGB — FREE 0.1.0 PREVIEW FOR VALIDATION
+
+Installs Nexus, the Node.js runtime and OpenRGB 1.0 on your computer.
+The network service runs with limited permissions; only the hardware
+controller uses elevated privileges. RGB starts automatically with Windows.
+
+Devices on the same private network can control lights using the local link
+and configured port (5050 by default), without an account, password or pairing.
+The QR code is optional. Reserve your PC's IP on the router for a stable link.
+
+Choose different network ports if the defaults are busy. You can change them
+later through Configure ports in the Nexus tray icon, even if the dashboard
+does not open. This requires administrator approval to update services and
+firewall rules. Update phone bookmarks after changing the dashboard port.
+Alexa discovery uses UDP 1900; some Echos require HTTP port 80.
+
+Close older Nexus, other OpenRGB instances and manufacturer RGB apps before
+installing. Avoid running two controllers for the same hardware.
+For updates, exit the Nexus tray icon using Exit tray (keep lights running).
+Closing the browser does not exit the tray icon.
+
+Profiles, map, calibration and settings are stored in
+%ProgramData%\NexusRGB\app\settings.json; imports are in its effects folder.
+Updating, uninstalling and reinstalling preserve these data. Setup creates a
+backup before updating existing settings. The dashboard can export a complete
+backup and review one before restoring. Backups contain private user content;
+do not post them publicly.
+
+The setup map shares profiles and effects with Lighting. Arrange each device
+and calibrate its LED order to match the actual hardware. Mirrored signals
+cannot control connected fans independently. Reported counts come from OpenRGB;
+do not increase them without knowing the actual controller and wiring limits.
+Imported Canvas HTML support is partial; audio and SignalRGB-specific
+integrations are not supported. Imported code runs in an isolated renderer.
+
+Settings provides 5–60 FPS (default 20); actual throughput depends on hardware
+and effect complexity. Map preview refreshes at up to 10 FPS.
+Language can be selected separately in the browser and the Windows tray menu.
+The optional update page contacts GitHub only after an explicit click; no
+automatic downloads or installation occur. RGB operation remains local.
+
+For RGB RAM and some motherboards, use the official signed PawnIO installer.
+Never disable Windows protections or antivirus. This package has no WinRing0.
+If Defender detects that driver in another app, keep it blocked and complete
+the removal recommended by Windows.
+
+Alexa is optional and requires a compatible Echo on the same network. Hue
+emulation varies by firmware; remote control through Alexa depends on Amazon.
+An Echo may apply a command while reporting failure; physical compatibility
+still requires testing. Compatibility depends on OpenRGB-supported hardware.
+
+This preview needs volunteer testing before broad distribution. Nexus binaries
+are currently unsigned. The original Nexus code is public under MIT by
+JonJonGf; third-party components retain their own licenses. MIT is not a
+digital signature and does not remove the unknown publisher prompt.

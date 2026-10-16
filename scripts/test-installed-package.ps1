@@ -75,6 +75,13 @@ try {
   $unrelated=Get-CimInstance Win32_Service -Filter "Name='RpcSs'" | Select-Object Name,State,StartMode,PathName
   New-NetFirewallRule -DisplayName $sentinel -Group $sentinel -Direction Inbound -Action Block -Protocol TCP -LocalPort 59999 | Out-Null
   Setup 'fresh'; VerifyServices; VerifyPermissions
+  $build=Invoke-RestMethod ($origin+'/api/about') -WebSession $session
+  Check ($build.version -eq '0.1.0') 'Installed package exposes its own build metadata'
+  if($env:GITHUB_REF_TYPE -eq 'tag') {Check ($build.tag -eq $env:GITHUB_REF_NAME -and $build.commit -eq $env:GITHUB_SHA -and -not $build.development) 'Installed build matches the exact release tag and commit'}
+  $resources=Invoke-RestMethod ($origin+'/api/resources') -WebSession $session
+  Check (@($resources.processes | Where-Object role -eq 'server').Count -eq 1) 'Resource monitor includes the dedicated server and tolerates partial permission access'
+  $diagnostic=Invoke-RestMethod ($origin+'/api/diagnostics') -WebSession $session
+  Check ($diagnostic.format -eq 'nexus-diagnostics/1' -and -not ($diagnostic | ConvertTo-Json -Depth 12).Contains($root)) 'Shareable diagnostic omits installation paths'
   $headers=@{Origin=$origin;'X-Nexus-Client'='web'}
   Invoke-RestMethod ($origin+'/api/settings') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"fps":60}' -WebSession $session | Out-Null
   Check ((State).performance.fps -eq 60) 'Installed API saves configurable FPS'
@@ -93,11 +100,17 @@ try {
   } finally {if($previewResponse){$previewResponse.Close()};$previewRequest.Abort()}
   Invoke-RestMethod ($origin+'/api/control') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"color":"#22aa77","brightness":61,"power":false}' -WebSession $session | Out-Null
   Invoke-RestMethod ($origin+'/api/profiles') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"name":"VM preservation check"}' -WebSession $session | Out-Null
+  $profileKey='profile:'+(State).profiles[0].id
+  Invoke-RestMethod ($origin+'/api/library') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{key=$profileKey;favorite=$true;category='VM';transitionMs=300} | ConvertTo-Json -Compress) -WebSession $session | Out-Null
   $settings=Join-Path $data 'app\settings.json'; $before=(Get-FileHash -LiteralPath $settings).Hash
   $firstDiagnostic=[IO.File]::ReadAllText((Join-Path $data 'installation.log'))
   Setup 'upgrade'; VerifyServices
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Upgrade preserves settings and profiles byte for byte'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Upgrade preserves imported effects byte for byte'
+  $upgradeBackups=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json')
+  Check ($upgradeBackups.Count -ge 1) 'Upgrade creates a complete backup before replacing payload'
+  $upgradeBackup=[IO.File]::ReadAllText($upgradeBackups[0].FullName) | ConvertFrom-Json
+  Check ($upgradeBackup.format -eq 'nexus-backup/1' -and $upgradeBackup.effects[0].id -eq $import.id -and $upgradeBackup.settings.library.transitionMs -eq 300) 'Automatic backup includes effects and library organization'
   Check ([IO.File]::ReadAllText((Join-Path $data 'installation.log')) -ne $firstDiagnostic) 'Upgrade replaces the existing diagnostic'
   $service=Get-CimInstance Win32_Service -Filter "Name='NexusRGB'"
   $children=@(Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq $service.ProcessId -and $_.ExecutablePath -eq (Join-Path $root 'runtime\node.exe')})

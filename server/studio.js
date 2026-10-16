@@ -17,7 +17,7 @@ class Studio {
         const full = path.join(this.directory, file), stat = fs.lstatSync(full);
         if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) continue;
         const saved = readJson(full), effect = this.parse(saved.original);
-        if (effect.id + '.json' === file) this.effects.set(effect.id, effect);
+        if (effect.id + '.json' === file && !this.effects.get(effect.id)?.builtin) this.effects.set(effect.id, effect);
       } catch { /* An invalid local import does not block startup. */ }
     }
     if (store.data.studio) {
@@ -61,6 +61,7 @@ class Studio {
     // Probe through the same isolated worker used for playback before accepting.
     await this.probe(effect);
     if (this.stopped) throw Error('O aplicativo está encerrando.');
+    if(this.effects.get(effect.id)?.builtin)return effect.id;
     fs.mkdirSync(this.directory, { recursive: true });
     writeJson(path.join(this.directory, effect.id + '.json'), { original });
     this.effects.set(effect.id, effect); this.changed(); return effect.id;
@@ -107,6 +108,13 @@ class Studio {
     const effect = this.effects.get(id); if (!effect || effect.builtin) throw Error('Este efeito não pode ser removido.');
     if (this.config.activeId === id) this.configure({ activeId: builtin[0].id, enabled: false });
     fs.unlinkSync(path.join(this.directory, id + '.json')); this.effects.delete(id); this.changed();
+  }
+  async duplicate(id,name) {
+    const effect=this.effects.get(id);if(!effect||typeof name!=='string'||!name.trim()||name.trim().length>60)throw Error('Nome do efeito: 1 a 60 caracteres.');
+    let original;
+    if(effect.format==='nexus-effect/1')original=JSON.stringify({...effect,name:name.trim()});
+    else {const file=path.join(this.directory,id+'.json'),stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024)throw Error('Arquivo de efeito inválido.');original=readJson(file).original;const safe=name.trim().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');original=/<title[^>]*>[\s\S]*?<\/title>/i.test(original)?original.replace(/<title[^>]*>[\s\S]*?<\/title>/i,()=>'<title>'+safe+'</title>'):'<title>'+safe+'</title>'+original;}
+    return this.import(original);
   }
   profile(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['name', 'activeId', 'values'].includes(k))) throw Error('Perfil do mapa inválido.');

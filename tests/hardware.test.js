@@ -4,6 +4,24 @@ const { Hardware, frame } = require('../server/hardware'); const { defaults } = 
 function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
 class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
 
+test('transição de perfil é limitada, termina no alvo e desligamento não espera a mistura',async t=>{
+  const store={data:{master:{...defaults,brightness:100,color:'#0000ff'},devices:{}}},mock=new Mock([controller('Alvo','transition')]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();await hardware.tick();const id=hardware.devices[0].id;
+  store.data.master.color='#ff0000';hardware.transition(1000);hardware.transitionState.started-=500;await hardware.tick();const mixed=hardware.outputFor(id).colors[0];assert.ok(mixed.red>100&&mixed.red<200);assert.ok(mixed.blue>50&&mixed.blue<155);
+  store.data.master.power=false;hardware.changed();await hardware.tick();assert.deepEqual(hardware.outputFor(id).colors[0],{red:0,green:0,blue:0});
+  store.data.master.power=true;hardware.transitionState.started-=1000;hardware.changed();await hardware.tick();assert.deepEqual(hardware.outputFor(id).colors[0],{red:255,green:0,blue:0});assert.equal(hardware.transitionState,null);mock.calls=[];await hardware.tick();assert.equal(mock.calls.length,0);
+});
+
+test('identificação afeta somente o alvo, não salva ajustes e restaura desligamento e modo nativo', async t => {
+  const store={data:{master:{...defaults,power:false},devices:{}}},mock=new Mock([controller('Alvo','one'),controller('Outro','two')]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());
+  hardware.stopped=false;await hardware.connect();await hardware.tick();const id=hardware.devices[0].id,before=JSON.stringify(store.data);mock.calls=[];
+  hardware.identify(id,2);await hardware.tick();
+  assert.deepEqual(mock.calls.filter(c=>c[0]==='leds').map(c=>c[1]),[0]);assert.deepEqual(mock.calls.at(-1)[2].map(c=>c.green),[0,0,64,0]);assert.equal(hardware.outputFor(id).source,'identify');
+  hardware.identify(id,undefined,true);await hardware.tick();assert.ok(hardware.outputFor(id).colors.every(c=>!c.red&&!c.green&&!c.blue));assert.equal(JSON.stringify(store.data),before);
+  store.data.master.power=true;store.data.devices[id]={nativeMode:0};hardware.changed();await hardware.tick();
+  hardware.identify(id);await hardware.tick();hardware.identify(id,undefined,true);await hardware.tick();assert.equal(hardware.outputFor(id).source,'native');assert.deepEqual(mock.calls.at(-1),['mode',0,0]);
+  assert.throws(()=>hardware.identify(id,4));assert.throws(()=>hardware.identify('f'.repeat(24),0));
+});
+
 test('conexao so fica pronta apos ler os componentes e lista vazia tenta novamente rapidamente', async t => {
   const store = { data: { master: defaults, devices: {} } }, mock = new Mock([]), hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
   hardware.stopped = false; await hardware.connect();
