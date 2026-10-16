@@ -1,6 +1,6 @@
 # Mapa, recuperação e diagnóstico — 16/10/2026
 
-Validação da candidata v0.1.0-alpha.15. Testes automatizados do projeto não equivalem a auditoria independente ou certificação de compatibilidade universal.
+Validação da candidata v0.1.0-alpha.16. Testes automatizados do projeto não equivalem a auditoria independente ou certificação de compatibilidade universal.
 
 Na execução local, passaram **102 testes de lógica/integração**, **25 de interface**, o supervisor real do Windows e **12 fixtures do instalador** nos dois idiomas. O ensaio isolado de sustentação de 60 segundos completou 168 requisições, oito streams simultâneos e dez reinícios abruptos do processo de teste, preservando os dados. Compilação local e auditoria das dependências de produção também passaram. Pequenas correções finais de importação/backup foram verificadas novamente em testes direcionados; o workflow da tag repete a bateria sobre o código exato do pacote.
 

@@ -37,6 +37,8 @@ O instalador configura o firewall para seus próprios executáveis. No desenvolv
 
 Os testes de interface usam uma instância da API, porta aleatória, sessões e dados temporários por teste. O limitador HTTP de produção permanece ativo. Os ensaios de desempenho também usam SDK simulado e processos próprios; não escrevem nas luzes da instalação.
 
+A bateria Node limita a execução a dois arquivos de teste por vez. Compilação C#, inicialização de módulos Windows e vários motores Canvas simultâneos podem disputar recursos de runners frios; limitar a bateria evita relaxar o prazo de validação e os limites de memória do produto.
+
 ```powershell
 npm test
 npm run test:ui
