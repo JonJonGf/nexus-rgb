@@ -26,7 +26,8 @@ function searchTargets(message, uuid) {
 }
 function huePatch(body) {
   if (!body || Array.isArray(body) || typeof body !== 'object' || !Object.keys(body).length) throw new Error('Estado inválido');
-  if ('on' in body && typeof body.on !== 'boolean') throw new Error('on inválido');
+  if (Object.hasOwn(body, 'on') && typeof body.on !== 'boolean') throw new Error('on inválido');
+  if (Object.hasOwn(body, 'bri') && (!Number.isInteger(body.bri) || body.bri < 0 || body.bri > 254)) throw new Error('bri inválido');
   return Object.hasOwn(body, 'on') ? { power: body.on } : {};
 }
 class Alexa {
@@ -35,6 +36,9 @@ class Alexa {
     this.getInterfaces = options.getInterfaces || net.adapters;
     this.file = path.join(directory, 'alexa.json'); this.data = readJson(this.file, { uuid: crypto.randomUUID(), peers: [] });
     this.identity = bridgeIdentity(this.data.uuid);
+    // Hue compatibility state is separate from the user's RGB brightness.
+    // A brightness-only request must never turn an explicitly off setup on.
+    this.hueBrightness = 254;
     this.diagnostics = { lastSearch: null, lastHttp: null, lastCommand: null, recent: [] };
     this.candidates = new Map(); this.discoveryUntil = 0; this.status = 'Desativada'; this.rate = new RateLimiter(60);
     this.multicastInterfaces = new Set();
@@ -46,10 +50,9 @@ class Alexa {
   snapshot() { return { enabled: this.store.data.alexaEnabled, status: this.status, lightName: LIGHT_NAME, discoveryUntil: this.discoveryUntil, candidates: [...this.candidates.keys()].filter(ip => !this.ownAddress(ip)), peers: [...this.data.peers], diagnostics: structuredClone(this.diagnostics) }; }
   lights() {
     const state = this.store.data.master;
-    // Echo firmware can report a failed command for a pure On/Off resource even
-    // after accepting its success response. A fixed Hue brightness is metadata
-    // compatibility only: voice commands still never change RGB brightness.
-    return { '1': { type: 'Dimmable light', modelid: 'HASS123', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, bri: 254, mode: 'homeautomation', alert: 'none', reachable: this.hardware.connected } } };
+    // Retain the dimmable descriptor used for discovery, but keep its virtual
+    // brightness coherent between PUT and GET without changing RGB settings.
+    return { '1': { type: 'Dimmable light', modelid: 'HASS123', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, bri: this.hueBrightness, mode: 'homeautomation', alert: 'none', reachable: this.hardware.connected } } };
   }
   description(ip) {
     return `<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>http://${xmlEscape(ip)}:${this.port}/</URLBase><device><deviceType>${HUE_DEVICE_TYPE}</deviceType><friendlyName>Nexus RGB (${xmlEscape(ip)})</friendlyName><manufacturer>Royal Philips Electronics</manufacturer><modelDescription>Philips hue Personal Wireless Lighting</modelDescription><modelName>Philips hue bridge 2012</modelName><modelNumber>929000226503</modelNumber><serialNumber>${this.identity.serial}</serialNumber><UDN>uuid:${this.data.uuid}</UDN><presentationURL>http://${xmlEscape(ip)}:${this.port}/</presentationURL></device></root>`;
@@ -100,28 +103,32 @@ class Alexa {
     const localIp = net.normalize(req.socket.localAddress);
     if (req.headers.host !== localIp && req.headers.host !== `${localIp}:${this.port}`) return send(403, {});
     const url = new URL(req.url, 'http://nexus.invalid');
+    const pathname = url.pathname.replace(/\/+$/, '') || '/';
     // Fixed labels keep Hue usernames and arbitrary request text out of diagnostics.
-    const resource = url.pathname === '/description.xml' ? 'Descrição da ponte' : /\/lights\/\d+\/state$/.test(url.pathname) ? 'Estado da luz' : /\/lights\/\d+$/.test(url.pathname) ? 'Luz individual' : /\/lights$/.test(url.pathname) ? 'Lista de luzes' : url.pathname === '/api' ? 'Cadastro Hue' : 'Configuração da ponte';
+    const resource = pathname === '/description.xml' ? 'Descrição da ponte' : /\/lights\/\d+\/state$/.test(pathname) ? 'Estado da luz' : /\/lights\/\d+$/.test(pathname) ? 'Luz individual' : /\/lights$/.test(pathname) ? 'Lista de luzes' : pathname === '/api' ? 'Cadastro Hue' : 'Configuração da ponte';
     recordHttp = (status, value) => {
       if (this.ownAddress(ip)) return;
       const event = { at: Date.now(), ip, resource, status, method: ['GET', 'POST', 'PUT'].includes(req.method) ? req.method : 'OTHER' };
       const state = value?.state || value?.['1']?.state || value?.lights?.['1']?.state;
       if (req.method === 'GET' && typeof state?.on === 'boolean') { event.power = state.on; event.reachable = state.reachable; }
+      if (req.method === 'GET' && Number.isInteger(state?.bri)) event.hueBrightness = state.bri;
       const acceptedPower = value?.[0]?.success?.['/lights/1/state/on'];
       if (typeof acceptedPower === 'boolean') event.power = acceptedPower;
+      const acceptedBrightness = Array.isArray(value) ? value.find(item => Object.hasOwn(item.success || {}, '/lights/1/state/bri'))?.success['/lights/1/state/bri'] : undefined;
+      if (Number.isInteger(acceptedBrightness)) event.hueBrightness = acceptedBrightness;
       res.once('finish', () => { event.finished = true; event.responseMs = Math.round(performance.now() - started); });
       this.diagnostics.lastHttp = event; this.diagnostics.recent.push(event);
       if (this.diagnostics.recent.length > 32) this.diagnostics.recent.shift();
     };
-    if (url.pathname === '/description.xml' && req.method === 'GET') { if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now()); recordHttp(200); res.writeHead(200, { 'Content-Type': 'text/xml' }); return res.end(this.description(localIp)); }
+    if (pathname === '/description.xml' && req.method === 'GET') { if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now()); recordHttp(200); res.writeHead(200, { 'Content-Type': 'text/xml' }); return res.end(this.description(localIp)); }
     // Hue discovery reads public bridge metadata before creating a user.
-    if (url.pathname === '/api/config' && req.method === 'GET') { if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now()); return send(200, this.config(localIp)); }
+    if (pathname === '/api/config' && req.method === 'GET') { if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now()); return send(200, this.config(localIp)); }
     if (!this.data.peers.includes(ip)) {
       if (Date.now() < this.discoveryUntil && !this.ownAddress(ip)) this.candidates.set(ip, Date.now());
       return send(403, [{ error: { type: 101, description: 'Approve this Echo in the Nexus RGB PC panel.' } }]);
     }
-    if (url.pathname === '/api' && req.method === 'POST') return send(200, [{ success: { username: 'nexus_local' } }]);
-    const route = url.pathname.match(/^\/api\/([a-zA-Z0-9_-]{1,80})(?:\/lights(?:\/(\d+)(?:\/(state))?)?|\/(config|groups|scenes))?$/);
+    if (pathname === '/api' && req.method === 'POST') return send(200, [{ success: { username: 'nexus_local' } }]);
+    const route = pathname.match(/^\/api\/([a-zA-Z0-9_-]{1,80})(?:\/lights(?:\/(\d+)(?:\/(state))?)?|\/(config|groups|scenes))?$/);
     if (!route) return send(404, {});
     const [, , light, change, section] = route;
     if (req.method === 'GET') {
@@ -129,7 +136,7 @@ class Alexa {
       if (section === 'config') return send(200, this.config(localIp));
       if (section) return send(200, {});
       if (light) return send(lights[light] ? 200 : 404, lights[light] || {});
-      if (/\/lights$/.test(url.pathname)) return send(200, lights);
+      if (/\/lights$/.test(pathname)) return send(200, lights);
       return send(200, { lights, config: this.config(localIp), groups: {}, scenes: {} });
     }
     if (change && req.method === 'PUT') {
@@ -139,15 +146,21 @@ class Alexa {
         for await (const chunk of req) { size += chunk.length; if (size > 2048) return send(413, {}); chunks.push(chunk); }
         const body = JSON.parse(Buffer.concat(chunks).toString());
         const patch = huePatch(body);
-        if ('power' in patch) {
-          if (!patch.power) this.hardware.cancelIdentification?.();
-          if (this.store.power(patch.power)) { this.hardware.changed(); this.onChange(); }
+        const hasPower = Object.hasOwn(patch, 'power'), hasBrightness = Object.hasOwn(body, 'bri');
+        if (hasPower || hasBrightness) {
+          if (hasPower) {
+            if (!patch.power) this.hardware.cancelIdentification?.();
+            if (this.store.power(patch.power)) { this.hardware.changed(); this.onChange(); }
+          }
+          if (hasBrightness) this.hueBrightness = body.bri;
           const known = ['on', 'bri', 'hue', 'sat', 'ct', 'xy', 'effect', 'alert', 'transitiontime'];
-          this.diagnostics.lastCommand = { at: Date.now(), ip, name: LIGHT_NAME, power: this.store.data.master.power, fields: known.filter(key => Object.hasOwn(body, key)), otherFieldCount: Object.keys(body).filter(key => !known.includes(key)).length, responseMs: Math.round(performance.now() - started) };
-          // Echo requests may bundle on/off with unsupported Hue attributes.
-          // Confirm the accepted power command without mixed success/errors;
-          // extra attributes never change RGB settings or advertised capabilities.
-          return send(200, [{ success: { [`/lights/${light}/state/on`]: this.store.data.master.power } }]);
+          this.diagnostics.lastCommand = { at: Date.now(), ip, name: LIGHT_NAME, power: this.store.data.master.power, hueBrightness: this.hueBrightness, powerRequested: hasPower, fields: known.filter(key => Object.hasOwn(body, key)), otherFieldCount: Object.keys(body).filter(key => !known.includes(key)).length, responseMs: Math.round(performance.now() - started) };
+          const accepted = [];
+          if (hasPower) accepted.push({ success: { [`/lights/${light}/state/on`]: this.store.data.master.power } });
+          if (hasBrightness) accepted.push({ success: { [`/lights/${light}/state/bri`]: this.hueBrightness } });
+          // Only the accepted on/bri properties are acknowledged. Other Hue
+          // attributes never alter the stored color, effects, or brightness.
+          return send(200, accepted);
         }
         return send(200, Object.keys(body).map(k => ({ error: { type: 6, address: `/lights/${light}/state/${k}`, description: 'Only on/off is supported.' } })));
       } catch { return send(400, [{ error: { type: 7, description: 'Invalid state' } }]); }

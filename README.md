@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.19/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.19">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.20/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.20">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.19 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, organização da biblioteca, backup e diagnóstico local. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.20 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, organização da biblioteca, backup e diagnóstico local. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -81,7 +81,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.19/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.19) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.20/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.20) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -248,7 +248,7 @@ A integração é opcional e vem desativada. Você precisa de um Echo compatíve
 
 A Alexa controla **somente ligar e desligar**. Cores, brilho, efeitos e perfis ficam no painel Nexus. Ao religar pela Alexa, seus ajustes individuais são preservados; componentes que estavam apagados continuam apagados.
 
-A ponte usa uma apresentação Hue de compatibilidade com brilho declarado fixo. O aplicativo Alexa pode exibir 100% ou um controle de brilho; esse valor não representa nem altera o brilho RGB escolhido no Nexus. Os comandos suportados continuam sendo ligar e desligar.
+A ponte usa uma apresentação Hue de compatibilidade com brilho virtual. O controle de brilho que aparece na Alexa não representa nem altera o brilho RGB escolhido no Nexus. Pedidos contendo somente brilho mantêm a energia atual; use os comandos explícitos de ligar/desligar. A alpha.20 confirma separadamente energia e brilho virtual para investigar o aviso de falha de alguns Echos; o resultado ainda depende de teste em equipamento físico. Consulte o [comportamento e o roteiro de teste](docs/ALEXA.md).
 
 Use o nome completo **Iluminação Nexus** para evitar confusão com outros dispositivos cadastrados na Alexa. Caso existam entradas antigas de versões anteriores do Nexus, remova-as no aplicativo Alexa e faça a descoberta novamente.
 
@@ -271,7 +271,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.19/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.20/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 

@@ -2,6 +2,8 @@
 
 O Nexus está em versão alpha. O objetivo é controlar hardware RGB compatível com OpenRGB de forma local, preservar os ajustes e permitir recuperar o aplicativo sem depender de um desenvolvedor. Esta lista distingue recursos disponíveis de trabalho ainda necessário.
 
+O [plano de melhorias revisado em 16/10/2026](PLANO-MELHORIAS.md) registra os próximos ajustes de hardware, mapa e rede. A comunicação Hue da Alexa é a primeira alteração em desenvolvimento; os demais itens aguardam implementação.
+
 ## Estabilidade e recuperação
 
 - **Disponível:** reinício manual do Nexus e OpenRGB pela bandeja, menu Iniciar e Configurações no PC. A operação confere a identidade dos serviços, preserva os dados e verifica o retorno do controlador.
@@ -19,14 +21,15 @@ O Nexus está em versão alpha. O objetivo é controlar hardware RGB compatível
 - **Pendente:** testes com outras placas-mãe, controladoras e periféricos. A compatibilidade não é universal e depende do OpenRGB.
 
 - **Disponível:** biblioteca visual com busca, ajustes contextuais por componente e painel web em português/inglês.
-- **Pendente:** ampliar idiomas e traduzir instalador/janelas nativas do Windows.
+- **Disponível:** instalador e janelas nativas em português/inglês, com preferência independente do navegador.
+- **Pendente:** ampliar os idiomas oferecidos.
 
 ## Perfis, diagnóstico e distribuição
 
 - **Disponível:** perfis, posições e importações preservados pelo instalador e pela desinstalação padrão. Backup manual de `settings.json` junto com `effects`.
-- **Pendente:** exportação e importação de backup pelo painel, com validação, restauração revisável e tratamento de referências a efeitos ausentes.
-- **Pendente:** identificação mais clara da versão alpha instalada e diagnóstico exportável com revisão dos dados antes de compartilhar.
-- **Pendente:** uma visão consolidada de consumo dos processos pertencentes à instalação. Serviços, ícone do usuário e navegador podem aparecer separados no Gerenciador de Tarefas; um agrupamento visual único ali não está implementado nem garantido.
+- **Disponível:** exportação e importação de backup pelo painel, com validação, revisão da restauração e verificação dos efeitos necessários.
+- **Disponível:** versão instalada identificada e diagnóstico exportável com revisão dos dados antes de compartilhar.
+- **Disponível:** consumo consolidado dos processos identificados como pertencentes à instalação, com indicação de leitura parcial quando houver restrições do Windows. Serviços, ícone do usuário e navegador podem aparecer separados no Gerenciador de Tarefas; um agrupamento visual único ali não está implementado nem garantido.
 - **Disponível:** testes automatizados de instalação, atualização, recuperação e remoção em duas VMs Windows antes da publicação do executável correspondente.
 - **Pendente:** assinatura digital dos executáveis e revisão independente de segurança. Licença MIT não substitui assinatura digital.
 

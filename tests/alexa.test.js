@@ -1,11 +1,19 @@
 'use strict';
 const test = require('node:test'); const assert = require('node:assert/strict'); const { huePatch } = require('../server/alexa');
-test('Hue aceita somente ligar/desligar e não transforma cor, brilho ou efeito em ajustes', () => {
+test('Hue aplica somente energia explícita e valida o brilho virtual sem convertê-lo em energia', () => {
   assert.deepEqual(huePatch({ on: false, bri: 0, hue: 0, sat: 254, effect: 'colorloop' }), { power: false });
   assert.deepEqual(huePatch({ on: true }), { power: true });
   assert.deepEqual(huePatch({ bri: 127, xy: [0.3, 0.3] }), {});
+  assert.deepEqual(huePatch({ bri: 0 }), {});
+  assert.deepEqual(huePatch({ on: false, bri: 254 }), { power: false });
+  assert.deepEqual(huePatch({ on: true, bri: 0 }), { power: true });
 });
 test('Hue recusa estados e comandos de energia ambíguos', () => { for (const body of [{ on: 'true' }, { on: 1 }, { on: null }, {}, [], null]) assert.throws(() => huePatch(body)); });
+test('Hue recusa brilho fora da faixa ou de tipo inválido mesmo com energia válida', () => {
+  for (const bri of [-1, 255, 1.5, '127', null, true, [], {}, NaN, Infinity]) {
+    assert.throws(() => huePatch({ bri })); assert.throws(() => huePatch({ on: false, bri }));
+  }
+});
 
 test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o próprio PC', async t => {
   const { Alexa } = require('../server/alexa'); const { Store } = require('../server/store');
@@ -47,12 +55,12 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   const before = structuredClone(store.data);
   const off = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: false, bri: 0, transitiontime: 4, effect: 'colorloop', hue: 0, sat: 254 });
   assert.equal(off.status, 200); assert.equal(store.data.master.power, false);
-  assert.deepEqual(JSON.parse(off.body), [{ success: { '/lights/1/state/on': false } }]);
+  assert.deepEqual(JSON.parse(off.body), [{ success: { '/lights/1/state/on': false } }, { success: { '/lights/1/state/bri': 0 } }]);
   assert.equal(off.headers['Content-Length'], Buffer.byteLength(off.body));
   assert.equal(off.headers['Content-Type'], 'application/json; charset=utf-8');
   assert.equal(writes, 1); assert.equal(broadcasts, 1);
   const reportedOff = JSON.parse((await request('192.168.20.8', '/api/nexus/lights/1')).body);
-  assert.equal(reportedOff.state.on, false); assert.equal(reportedOff.state.bri, 254);
+  assert.equal(reportedOff.state.on, false); assert.equal(reportedOff.state.bri, 0);
   assert.equal(store.data.master.brightness, 37);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.name, 'Iluminação Nexus');
   assert.equal(alexa.snapshot().diagnostics.lastCommand.power, false);
@@ -62,7 +70,7 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   assert.equal(writes, 1); assert.equal(broadcasts, 1);
   assert.equal((await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: 'true' })).status, 400); assert.equal(store.data.master.power, false);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.power, false);
-  const unsupported = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { effect: 'colorloop', bri: 254 });
+  const unsupported = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { effect: 'colorloop' });
   assert.ok(JSON.parse(unsupported.body).every(item => item.error.type === 6)); assert.equal(writes, 1);
   for (let id = 2; id <= 6; id++) {
     assert.equal((await request('192.168.20.8', `/api/nexus/lights/${id}`)).status, 404);
@@ -70,7 +78,7 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   }
   const on = await request('192.168.20.8', '/api/nexus/lights/1/state', 'PUT', { on: true, bri: 254, transitiontime: 0, xy: [0.3, 0.3], privateUsername: 'do-not-log-this' });
   assert.equal(on.status, 200);
-  assert.deepEqual(JSON.parse(on.body), [{ success: { '/lights/1/state/on': true } }]);
+  assert.deepEqual(JSON.parse(on.body), [{ success: { '/lights/1/state/on': true } }, { success: { '/lights/1/state/bri': 254 } }]);
   assert.equal(alexa.snapshot().diagnostics.lastCommand.otherFieldCount, 1);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('do-not-log-this'));
   assert.ok(alexa.snapshot().diagnostics.recent.length <= 32);
@@ -80,6 +88,60 @@ test('ponte Hue exige aprovação, aceita comandos autorizados e exclui o própr
   assert.deepEqual(store.data, before); assert.deepEqual(new Store(directory).data, before);
   assert.equal(writes, 2); assert.equal(broadcasts, 2);
   assert.ok(!JSON.stringify(alexa.snapshot().diagnostics).includes('/api/nexus'));
+});
+
+test('respostas Hue mantêm brilho virtual coerente sem tocar os ajustes ou reativar luzes', async t => {
+  const { Alexa } = require('../server/alexa'), { Store } = require('../server/store');
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), { Readable } = require('node:stream'), { EventEmitter } = require('node:events');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-hue-feedback-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const store = new Store(directory); let writes = 0, cancellations = 0;
+  store.master({ power: false, brightness: 37, color: '#ff0055', effect: 'wave', palette: ['#ff0055', '#6600ff'] });
+  store.device('ram', { color: '#00ff00', brightness: 12, nativeMode: 7 }); store.profile('Preservar');
+  store.data.studio = { enabled: true, activeId: 'a'.repeat(24), values: { speed: 32 }, layout: [], excluded: [] }; store.save();
+  const before = structuredClone(store.data), bytes = fs.readFileSync(store.file);
+  const alexa = new Alexa(store, { connected: true, changed() { writes++; }, cancelIdentification() { cancellations++; } }, directory, () => {}, { getInterfaces: () => [{ address: '192.168.20.5', netmask: '255.255.255.0' }] });
+  const request = async (route, method = 'GET', body, ip = '192.168.20.8', headers = {}) => {
+    const req = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
+    Object.assign(req, { socket: { remoteAddress: ip, localAddress: '192.168.20.5' }, headers: { host: '192.168.20.5', ...headers }, url: route, method });
+    const res = Object.assign(new EventEmitter(), { writeHead(status, headers) { this.status = status; this.headers = headers; }, end(value) { this.body = value; this.emit('finish'); } });
+    await alexa.request(req, res); return { status: res.status, body: JSON.parse(res.body), headers: res.headers };
+  };
+  const stateRoute = '/api/nexus/lights/1/state/';
+  assert.equal((await request('/api/', 'POST', {})).status, 403);
+  assert.deepEqual(store.data, before);
+  alexa.data.peers.push('192.168.20.8');
+  assert.equal((await request('/api/', 'POST', {})).body[0].success.username, 'nexus_local');
+  for (const bri of [127, 0, 254]) {
+    const response = await request(stateRoute, 'PUT', { bri });
+    assert.deepEqual(response.body, [{ success: { '/lights/1/state/bri': bri } }]);
+    const light = (await request('/api/nexus/lights/1/')).body;
+    assert.equal(light.state.bri, bri); assert.equal(light.state.on, false);
+    assert.deepEqual(store.data, before); assert.deepEqual(fs.readFileSync(store.file), bytes);
+  }
+  assert.equal(writes, 0); assert.equal(cancellations, 0);
+  for (const body of [{ on: true, bri: 255 }, { on: true, bri: '254' }, { on: true, bri: -1 }, { on: 'true', bri: 254 }]) {
+    assert.equal((await request(stateRoute, 'PUT', body)).status, 400);
+    assert.deepEqual(store.data, before); assert.equal(alexa.lights()[1].state.bri, 254);
+  }
+  const on = await request(stateRoute, 'PUT', { on: true, bri: 0 });
+  assert.deepEqual(on.body, [{ success: { '/lights/1/state/on': true } }, { success: { '/lights/1/state/bri': 0 } }]);
+  assert.equal(store.data.master.power, true); assert.equal(store.data.master.brightness, 37); assert.equal(writes, 1);
+  const virtualOnly = await request(stateRoute, 'PUT', { bri: 0 });
+  assert.equal(virtualOnly.status, 200); assert.equal(store.data.master.power, true); assert.equal(writes, 1);
+  const off = await request(stateRoute, 'PUT', { on: false, bri: 127 });
+  assert.deepEqual(off.body, [{ success: { '/lights/1/state/on': false } }, { success: { '/lights/1/state/bri': 127 } }]);
+  assert.equal(writes, 2); assert.equal(cancellations, 1); assert.deepEqual(store.data, before);
+  assert.deepEqual((await request('/api/nexus/')).body.lights, (await request('/api/nexus/lights/')).body);
+  assert.equal(alexa.snapshot().diagnostics.lastCommand.hueBrightness, 127);
+  assert.equal((await request(stateRoute, 'PUT', { on: true, bri: 254 }, '10.0.0.2')).status, 403);
+  assert.equal((await request(stateRoute, 'PUT', { on: true, bri: 254 }, '192.168.20.8', { origin: 'http://example.com' })).status, 403);
+  assert.equal((await request('/api/nexus//lights/1/state/', 'PUT', { on: true })).status, 404);
+  assert.equal((await request('/api/nexus/lights/2/state/', 'PUT', { on: true })).status, 404);
+  assert.equal((await request('/api/nexus/lights/1/state/', 'POST', { on: true })).status, 405);
+  assert.equal((await request(stateRoute, 'PUT', { effect: 'colorloop' })).body[0].error.type, 6);
+  assert.deepEqual(store.data, before); assert.equal(writes, 2);
+  assert.equal(new Alexa(store, {}, directory, () => {}).lights()[1].state.bri, 254, 'O brilho virtual reinicia sem alterar o brilho RGB salvo.');
 });
 
 test('identidade Hue é estável, única por instalação e consistente com o MAC', () => {

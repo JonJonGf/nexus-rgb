@@ -4,6 +4,7 @@ Os relatórios registram os cenários testados, seus resultados e limitações. 
 
 | Data | Escopo | Relatório |
 | --- | --- | --- |
+| 16/10/2026 | Confirmações Hue por propriedade, brilho virtual, barra final e transporte HTTP | [Comunicação da Alexa](validation/2026-10-16-alexa-feedback.md) |
 | 16/10/2026 | Doze padrões, código HTML/Canvas com prévia isolada, guia local e primeiro acesso persistente | [Efeitos e primeiro uso](validation/2026-10-16-effects-and-help.md) |
 | 16/10/2026 | JSON sincronizado, prévia sem comandos às luzes, aplicação explícita e guia bilíngue | [Editor e prévia de efeitos](validation/2026-10-16-formula-preview.md) |
 | 16/10/2026 | CodeQL com compilação nativa, triagem de alertas e regressões de arquivos/zonas/empacotamento | [Revisão de segurança](validation/2026-10-16-security-review.md) |
