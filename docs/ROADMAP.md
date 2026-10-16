@@ -18,11 +18,15 @@ O Nexus está em versão alpha. O objetivo é controlar hardware RGB compatível
 - **Pendente:** feedback visual explícito para personalizações individuais, faixas incompatíveis após redimensionamento e alterações ainda não salvas.
 - **Pendente:** testes com outras placas-mãe, controladoras e periféricos. A compatibilidade não é universal e depende do OpenRGB.
 
+- **Disponível:** biblioteca visual com busca, ajustes contextuais por componente e painel web em português/inglês.
+- **Pendente:** ampliar idiomas e traduzir instalador/janelas nativas do Windows.
+
 ## Perfis, diagnóstico e distribuição
 
 - **Disponível:** perfis, posições e importações preservados pelo instalador e pela desinstalação padrão. Backup manual de `settings.json` junto com `effects`.
 - **Pendente:** exportação e importação de backup pelo painel, com validação, restauração revisável e tratamento de referências a efeitos ausentes.
 - **Pendente:** identificação mais clara da versão alpha instalada e diagnóstico exportável com revisão dos dados antes de compartilhar.
+- **Pendente:** uma visão consolidada de consumo dos processos pertencentes à instalação. Serviços, ícone do usuário e navegador podem aparecer separados no Gerenciador de Tarefas; um agrupamento visual único ali não está implementado nem garantido.
 - **Disponível:** testes automatizados de instalação, atualização, recuperação e remoção em duas VMs Windows antes da publicação do executável correspondente.
 - **Pendente:** assinatura digital dos executáveis e revisão independente de segurança. Licença MIT não substitui assinatura digital.
 

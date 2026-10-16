@@ -6,12 +6,20 @@ test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após 
   await page.route('**/api/state', async route => { const response = await route.fetch(); const body = await response.json(); body.hardware = { connected: true, controllerCount: 3, devices }; await route.fulfill({ json: body }); });
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
   await page.locator('.nav[data-page=studio]').click();
-  await expect(page.locator('#studio-effect option')).not.toHaveCount(0);
+  await expect(page.locator('#studio-state')).not.toHaveText('Prévia');
   // Use the same default layout helper as the product, with virtual fixture devices.
   const layout = await page.evaluate(ds => NexusSpatial.defaults(ds), devices);
   await page.request.post('/api/studio', { headers: { Origin: 'http://127.0.0.1:5071', 'X-Nexus-Client': 'web' }, data: { layout, enabled: true } });
   await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
   await expect(page.locator('.studio-item')).toHaveCount(3);
+  await page.locator('#studio-device-chips button').last().click();
+  await page.locator('.studio-shapes [data-shape=fan]').click();
+  await expect(page.locator('.studio-shapes [data-shape=fan]')).toHaveAttribute('aria-pressed','true');
+  await page.locator('#studio-item-name').fill('ARGB editado'); await page.locator('#studio-item-name').press('Tab');
+  await expect(page.locator('#studio-device-chips button').last()).toHaveText('ARGB editado');
+  await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
+  await page.locator('#studio-tab-device').focus(); await page.keyboard.press('ArrowRight'); await expect(page.locator('#studio-tab-effect')).toHaveAttribute('aria-selected','true'); await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#studio-device-form .studio-detail').first()).not.toHaveAttribute('open');
   const target = page.locator('.studio-item').last(); const box = await target.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 - 75, box.y + box.height / 2 + 30, { steps: 8 });
   await expect(page.locator('#studio-dirty')).toHaveText('Solte para salvar a posição');
@@ -26,7 +34,7 @@ test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após 
   await target.press('ArrowRight');
   await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).layout.at(-1).x).toBeCloseTo(moved + 0.02, 5);
   await expect(page.locator('#studio-enabled')).toHaveCount(0); await expect(page.locator('#studio-save')).toHaveCount(0);
-  await page.locator('#studio-fan-leds').fill('8'); await page.locator('#studio-fan-split').click(); await expect(page.locator('.studio-item')).toHaveCount(5);
+  await page.getByText('Conexão e sequência de LEDs', {exact:true}).click(); await page.getByText('Várias ventoinhas neste conector?', {exact:true}).click(); await page.locator('#studio-fan-leds').fill('8'); await page.locator('#studio-fan-split').click(); await expect(page.locator('.studio-item')).toHaveCount(5);
   await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
   await expect(page.locator('#studio-preview')).toBeHidden(); // The SDK is disabled in this fixture.
   await expect(page.locator('#studio-leds')).toBeVisible();
@@ -39,10 +47,10 @@ test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após 
     const ctx = document.getElementById('studio-leds').getContext('2d'), entry = layout.find(i => i.start >= 12), point = NexusSpatial.points(entry)[0];
     return Array.from(ctx.getImageData(Math.round(point.x * 3), Math.round(point.y * 3), 1, 1).data).slice(0, 3);
   }, packet.layout)).toEqual([0, 255, 0]);
-  await page.locator('#studio-new').click(); const recipe = { format: 'nexus-effect/1', name: 'Minha onda no mapa', pattern: 'wave', palette: ['#ff0055', '#00f0ff'], speed: 20, angle: 45, scale: 1 };
+  await page.locator('#studio-choose').click(); await page.locator('#studio-new').click(); const recipe = { format: 'nexus-effect/1', name: 'Minha onda no mapa', pattern: 'wave', palette: ['#ff0055', '#00f0ff'], speed: 20, angle: 45, scale: 1 };
   await expect(page.locator('#studio-formula-dialog')).toBeVisible(); await page.locator('#formula-advanced summary').click();
   await page.locator('#studio-source').fill(JSON.stringify(recipe)); await page.locator('#formula-save').click();
-  await expect(page.locator('#studio-effect')).toContainText('Minha onda no mapa'); await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();
+  await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).effects.some(e => e.name === 'Minha onda no mapa')).toBe(true); await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).profiles.some(p => p.name === 'Minha onda no mapa' && p.spatial)).toBe(true);
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: width > 800 ? 900 : 844 }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -54,8 +62,8 @@ test('mapa salva ao soltar, preserva o efeito e mantém peças associadas após 
 
 test('criador visual fica sobre o mapa no desktop e celular e guarda um perfil sem aplicar', async ({ page }) => {
   await page.goto('/'); await expect(page.locator('#power')).toBeEnabled(); await page.locator('.nav[data-page=studio]').click();
-  await expect(page.locator('#studio-effect option')).not.toHaveCount(0); const before = await (await page.request.get('/api/studio')).json();
-  await page.locator('#studio-new').click();
+  await expect(page.locator('#studio-state')).not.toHaveText('Prévia'); const before = await (await page.request.get('/api/studio')).json();
+  await page.locator('#studio-choose').click(); await page.locator('#studio-new').click();
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: width > 800 ? 900 : 844 });
     const box = await page.locator('#studio-formula-dialog').boundingBox(); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(width); expect(box.y).toBeGreaterThanOrEqual(0); expect(box.y + box.height).toBeLessThanOrEqual(width > 800 ? 900 : 844);
@@ -100,23 +108,23 @@ test('mapa compartilha movimentos e perfis e mostra a saída comum sem um fundo 
   const piece = page.locator('.studio-item'); await piece.press('ArrowLeft'); await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
   expect((await (await page.request.get('/api/studio')).json()).enabled).toBe(false);
   await page.unroute('**/api/studio/preview'); await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
-  await page.locator('#studio-common-effect').selectOption('scanner');
+  await page.locator('#studio-choose').click(); await page.locator('.library-card[data-kind=motion][data-id=scanner]').click();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.effect).toBe('scanner');
   await page.request.post('/api/profiles', { headers, data: { name: 'Paleta compartilhada', settings: { effect: 'sequence', palette: ['#00ff00', '#ff0000'], brightness: 31, speed: 25 } } });
-  await expect(page.locator('#studio-shared-profile')).toContainText('Paleta compartilhada');
+  await page.locator('#studio-choose').click(); await expect(page.locator('#studio-library')).toContainText('Paleta compartilhada');
   const profileId = (await (await page.request.get('/api/state')).json()).profiles.find(p => p.name === 'Paleta compartilhada').id;
-  await page.locator('#studio-shared-profile').selectOption('profile:' + profileId);
+  await page.locator('.library-card[data-kind=profile][data-id="' + profileId + '"]').click();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.effect).toBe('sequence');
-  await expect(page.locator('#studio-common-effect')).toHaveValue('sequence');
-  await page.locator('#studio-shared-profile').selectOption('preset:nebulosa');
+  await expect(page.locator('#studio-effect-heading')).toHaveText('Sequência');
+  await page.locator('#studio-choose').click(); await page.locator('.library-card[data-kind=preset][data-id=nebulosa]').click();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.color).toBe('#b75cff');
   const studio = await (await page.request.get('/api/studio')).json(), effect = studio.effects.find(e => e.builtin);
   await page.request.post('/api/studio/profiles', { headers, data: { name: 'Espacial compartilhado', activeId: effect.id } });
-  await expect(page.locator('#studio-shared-profile')).toContainText('Espacial compartilhado');
+  await page.locator('#studio-choose').click(); await expect(page.locator('#studio-library')).toContainText('Espacial compartilhado');
   const spatialId = (await (await page.request.get('/api/state')).json()).profiles.find(p => p.name === 'Espacial compartilhado').id;
-  await page.locator('#studio-shared-profile').selectOption('profile:' + spatialId);
+  await page.locator('.library-card[data-kind=profile][data-id="' + spatialId + '"]').click();
   await expect.poll(async () => (await (await page.request.get('/api/studio')).json()).enabled).toBe(true);
-  await expect(page.locator('#studio-common-effect')).toHaveValue('');
+  await expect(page.locator('#studio-toggle')).not.toHaveAttribute('hidden');
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: width > 800 ? 900 : 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

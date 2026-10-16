@@ -1,5 +1,27 @@
 # Desempenho do Nexus RGB
 
+## Interface do mapa e inglês — v0.1.0-alpha.13
+
+Comparativo de 15/10/2026 no Ryzen 5 3600, 12 processadores lógicos, Windows 10.0.26300, Node v24.20.0 e Edge sem janela, em 1366 × 900. A aplicação usou SDK simulado com 3 controladoras, 5 componentes, 92 LEDs, 4 perfis e 32 efeitos próprios. Aurora espacial solicitada a 20 FPS, com prévia ativa. Os dois idiomas usam tradução local.
+
+| Cenário | CPU média do navegador¹ | RAM residente média² | Pico de RAM residente² | Heap JavaScript médio³ |
+| --- | ---: | ---: | ---: | ---: |
+| Mapa anterior (alpha.12, português) | 0,58% | 520,53 MiB | 538,11 MiB | 3,54 MiB |
+| Mapa novo (português) | 0,53% | 519,43 MiB | 537,36 MiB | 3,74 MiB |
+| Mapa novo (inglês) | 0,54% | 523,68 MiB | 539,38 MiB | 3,78 MiB |
+| Biblioteca aberta (inglês) | 0,60% | 525,54 MiB | 544,82 MiB | 3,91 MiB |
+
+¹ Percentual da capacidade total dos 12 processadores lógicos, somando os processos do navegador dedicado. Não é o percentual de um único núcleo. ² Soma dos conjuntos residentes dos processos Edge; páginas compartilhadas podem ser contadas mais de uma vez. O navegador inteiro ocupa muito mais que o heap JavaScript da página. ³ Memória do V8 do renderizador, sem imagens, GPU e outras alocações; não deve ser somada à coluna de RAM.
+
+Cada cenário teve duas rodadas, em ordem inversa na segunda, com navegador novo por rodada, aquecimento de 3 segundos e 5 amostras separadas por 3 segundos solicitados. A coleta acrescentou tempo: cada janela medida durou cerca de 13,3 segundos. O servidor e o processo de efeitos foram compartilhados entre cenários; as fontes da interface anterior foram lidas da tag alpha.12. Não houve erros JavaScript e a última métrica do motor foi 20 FPS em todas as rodadas; isso não mede a taxa física dos LEDs.
+
+O mapa novo ficou próximo do anterior nesse ensaio curto. A diferença pequena de CPU/RAM não demonstra um ganho garantido: são apenas duas rodadas, com coleta de lixo, agendamento e variação de memória do navegador. A biblioteca e o inglês acrescentaram pouco consumo observado. O heap oscilou e terminou abaixo do início em cada janela, mas isso não prova ausência de vazamentos durante horas.
+
+**Esta tabela inclui apenas o navegador. Não inclui servidor, motor, OpenRGB, supervisores, bandeja, driver nem o processo de coleta.** Os ensaios abaixo medem outros escopos e datas; não devem ser somados a esta tabela como se fossem uma única medição simultânea. Edge sem janela e SDK simulado não reproduzem exatamente uma janela visível, o celular ou o acesso remoto. GPU, energia, temperatura, inicialização e longa duração não foram medidos.
+
+[Dados das duas rodadas](benchmarks/2026-10-15-map-ui.json). Para repetir no Windows com Edge e dependências de desenvolvimento: `node scripts/benchmark-ui.cjs v0.1.0-alpha.12 data/ui-benchmark.json`. O ensaio cria dados temporários e usa apenas um SDK simulado; não se conecta à instalação ou às luzes reais.
+
+
 ## Prévia compartilhada — v0.1.0-alpha.10
 
 Ensaio de 15/10/2026 com Arco-íris comum, limite solicitado de 60 FPS, SDK simulado de 3 controladoras/5 componentes/92 LEDs, Ryzen 5 3600 e Node 24.20.0. A soma inclui somente o servidor Node. Assistir ao controle comum não iniciou um processo Canvas.

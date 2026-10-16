@@ -8,11 +8,11 @@ Esse controle exige **Direct e cor por LED** no OpenRGB. A posição dos compone
 
 1. Abra **Mapa do setup** no painel do próprio PC.
 2. Arraste as peças para representar o gabinete. As setas do teclado também movem a peça selecionada.
-3. Escolha o formato **Fita**, **Ventoinha/anel** ou **Matriz**, ajuste tamanho e rotação e, se necessário, marque **Inverter ordem dos LEDs**.
+3. Escolha o formato **Linha**, **Ventoinha** ou **Matriz**, ajuste tamanho e rotação e, se necessário, marque **Inverter ordem dos LEDs**.
 4. Solte a peça para salvar a posição automaticamente. Durante o arraste, a geometria muda apenas na tela; as luzes recebem a nova posição ao soltar, além do tempo da conexão/controladora. Edições por teclado e campos são agrupadas em intervalos de até 350 ms. Aguarde **Salvo automaticamente** antes de fechar a página. Em falha, o ajuste fica no navegador e **Tentar novamente** permite reenviá-lo.
 5. Escolha um efeito na biblioteca para ativar o mapa espacial. Alterar seus parâmetros também ativa esse efeito, respeitando a energia geral e individual. Abrir a aba ou editar posições preserva o efeito ativo e os controles individuais. Use **Voltar ao controle comum** para sair do efeito espacial.
 
-**Dividir faixa** separa uma sequência de LEDs em duas peças virtuais. Ajuste **Primeiro LED** e **Quantidade** para que cada peça corresponda a uma ventoinha ou trecho de fita. **Unir faixas** junta trechos vizinhos do mesmo componente. As faixas não podem compartilhar o mesmo LED.
+**Conexão e sequência de LEDs → Dividir componente** separa uma sequência de LEDs em duas peças virtuais. Ajuste **Primeiro LED** e **Quantidade** para que cada peça corresponda a uma ventoinha ou trecho de fita. **Juntar divisão** junta trechos vizinhos do mesmo componente. As faixas não podem compartilhar o mesmo LED.
 
 Exemplo: uma porta com 36 LEDs que alimenta três fans de 12 LEDs pode usar as faixas 1–12, 13–24 e 25–36. Isso só permite efeitos independentes se os LEDs forem endereçáveis em sequência. Um hub que espelha o mesmo sinal em todos os fans continua mostrando as mesmas cores neles.
 
@@ -40,7 +40,7 @@ Peças com o mesmo nome, como duas memórias RAM, são identificadas pelo OpenRG
 - **Cometa no setup:** uma faixa luminosa com rastro.
 - **Anéis de luz:** cores que se expandem a partir do centro.
 
-Em **Perfis e cenas**, no próprio mapa, escolha qualquer perfil salvo ou uma cena pronta. **Movimento da Iluminação** oferece os mesmos movimentos usados no controle comum. São as mesmas configurações das outras abas: ativar um perfil por qualquer uma delas altera as mesmas luzes e a visualização acompanha a saída.
+Abra **Trocar efeito** para escolher um cartão na biblioteca visual. Use a busca por nome ou os filtros **Seus perfis**, **Coleção Nexus** e **Biblioteca**. Perfis, cenas e movimentos comuns compartilham o mesmo seletor. **Ajustar efeito** abre a aba de parâmetros da lateral; **Componente** mostra os ajustes da peça selecionada. Os detalhes de sequência e conexão dos LEDs ficam recolhidos até serem necessários. São as mesmas configurações das outras abas: ativar um perfil por qualquer uma delas altera as mesmas luzes e a visualização acompanha a saída.
 
 Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o efeito espacial. O mapa continua mostrando os componentes e suas cores. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, selecione o efeito espacial outra vez; editar apenas a posição não remove essa personalização.
 
@@ -48,11 +48,11 @@ Ligar/desligar e mudar brilho preservam a seleção do efeito. A Alexa continua 
 
 **Perfis → Guardar ajustes atuais** salva também o efeito ativo e seus parâmetros. As posições do setup são compartilhadas entre todos os perfis. Os arquivos importados devem permanecer na biblioteca: o perfil guarda uma referência ao efeito. Editar esse perfil pelo criador de sequências substitui o efeito espacial por uma sequência comum.
 
-Na biblioteca do mapa, **Salvar como perfil** guarda o efeito selecionado e seus parâmetros com um nome próprio, sem mudar as luzes ao salvar. Ele aparece em **Perfis** como **Efeito no mapa**; **Ativar perfil** recupera esse efeito com os ajustes de energia/brilho e componentes guardados. O criador de efeitos também oferece **Guardar também na aba Perfis**, marcado inicialmente. Não remova o arquivo importado enquanto houver perfis que dependam dele.
+Na aba **Efeito** da lateral, **Salvar como perfil** guarda o efeito selecionado e seus parâmetros com um nome próprio, sem mudar as luzes ao salvar. Ele aparece em **Perfis** como **Efeito no mapa**; **Ativar perfil** recupera esse efeito com os ajustes de energia/brilho e componentes guardados. O criador de efeitos também oferece **Guardar também na aba Perfis**, marcado inicialmente. Não remova o arquivo importado enquanto houver perfis que dependam dele.
 
 ## Importar HTML de efeitos
 
-No próprio PC, use **Importar efeito** e selecione arquivos HTML com JavaScript incorporado e Canvas 2D. É possível selecionar vários arquivos. A importação valida uma primeira renderização e adiciona o efeito à biblioteca; ela não o aplica às luzes automaticamente. Escolha-o na lista para visualizar e ativar.
+No próprio PC, abra **Trocar efeito → Importar** e selecione arquivos HTML com JavaScript incorporado e Canvas 2D. É possível selecionar vários arquivos. A importação valida uma primeira renderização e adiciona o efeito à biblioteca; ela não o aplica às luzes automaticamente. Escolha-o na lista para visualizar e ativar.
 
 Esta é uma **compatibilidade parcial e experimental** com efeitos Canvas usados no SignalRGB. Não executa o aplicativo SignalRGB nem implementa todas as suas APIs.
 
@@ -73,7 +73,7 @@ Controles booleanos são guardados como ligado/desligado na configuração e env
 
 ## Criar uma fórmula Nexus
 
-**Criar efeito** abre uma janela própria, acima do mapa, com rolagem interna no desktop e no celular. Escolha nome, movimento, até oito cores ordenadas, ritmo, direção e escala. **Salvar na biblioteca** adiciona o modelo sem aplicá-lo às luzes; a opção **Guardar também na aba Perfis** cria um perfil para ativar depois. A faixa colorida do editor representa a paleta, sem simular a animação.
+**Trocar efeito → Criar efeito +** abre uma janela própria, acima do mapa, com rolagem interna no desktop e no celular. Escolha nome, movimento, até oito cores ordenadas, ritmo, direção e escala. **Salvar na biblioteca** adiciona o modelo sem aplicá-lo às luzes; a opção **Guardar também na aba Perfis** cria um perfil para ativar depois. A faixa colorida do editor representa a paleta, sem simular a animação.
 
 **Editar JSON · avançado** permite escrever o formato declarativo `nexus-effect/1`. Alterar os controles visuais substitui esse JSON. Também é possível importar um arquivo JSON nesse formato.
 
@@ -99,6 +99,12 @@ Controles booleanos são guardados como ligado/desligado na configuração e env
 | `scale` | De 0,1 a 10 |
 
 O padrão `gradient` é estático. Essa primeira versão do formato descreve padrões e parâmetros; não é uma linguagem de programação geral.
+
+## Idioma do painel
+
+Em **Configurações → Idioma da interface**, escolha **Português (Brasil)** ou **English**. A primeira abertura segue o idioma do navegador; a escolha é salva apenas nesse navegador. O PC e o celular podem usar idiomas diferentes. Sem armazenamento local disponível, a troca funciona durante a sessão.
+
+A tradução é feita com arquivos do próprio aplicativo, sem serviços externos. Navegação, controles, cenas Nexus e mensagens conhecidas são traduzidos. Nomes de perfis, dispositivos e efeitos importados são preservados. Metadados e controles escritos por autores de efeitos HTML ficam no idioma original. Trocar de idioma não envia comandos às luzes e preserva os rascunhos dos editores, inclusive JSON avançado. Instalador e janelas nativas do Windows continuam em português.
 
 ## FPS e consumo
 

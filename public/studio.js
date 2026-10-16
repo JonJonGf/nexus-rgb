@@ -1,12 +1,24 @@
 'use strict';
 (() => {
+  const T = window.NexusI18n;
   const $ = id => document.getElementById(id), make = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
-  const effectNames = { static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso', strobe: 'Estrobo', sequence: 'Sequência', comet: 'Cometa', scanner: 'Vai e vem', sparkle: 'Cintilação' };
+  const effectNames = T.map({ static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso', strobe: 'Estrobo', sequence: 'Sequência', comet: 'Cometa', scanner: 'Vai e vem', sparkle: 'Cintilação' });
   let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, stream, poll, dragging = false, loading = false;
   const item = () => data?.layout.find(i => i.key === selected);
-  let liveFrame;
+  let liveFrame, ports;
+  function renderPorts() { if (ports) $('settings-ports').textContent = T('Painel TCP ') + ports.panel + ' · SDK TCP ' + ports.sdk + ' · Alexa TCP ' + ports.alexa + T(' · descoberta UDP 1900.'); }
+  let inspector = 'device', libraryFilter = 'all', controlSignature = '', gallerySignature = '';
+  function inspectorTab(name) {
+    inspector = name;
+    for (const key of ['device', 'effect']) { $('studio-tab-' + key).setAttribute('aria-selected', String(name === key)); $('studio-tab-' + key).tabIndex = name === key ? 0 : -1; $('studio-' + key + '-panel').hidden = name !== key; }
+  }
+  $('studio-tab-device').addEventListener('click', () => inspectorTab('device'));
+  $('studio-tab-effect').addEventListener('click', () => inspectorTab('effect'));
+  $('studio-edit-effect').addEventListener('click', () => inspectorTab('effect'));
+  document.querySelector('.studio-inspector-tabs').addEventListener('keydown', e => { if (!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return; e.preventDefault(); inspectorTab(e.key === 'Home' ? 'device' : e.key === 'End' ? 'effect' : inspector === 'device' ? 'effect' : 'device'); $('studio-tab-' + inspector).focus(); });
+  inspectorTab('device');
   let editVersion = 0, savedVersion = 0, saving = false, saveTimer, lastSave = 0;
-  function mark() { editVersion++; dirty = true; $('studio-dirty').textContent = dragging ? 'Solte para salvar a posição' : 'Salvando posição…'; $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
+  function mark() { editVersion++; dirty = true; $('studio-dirty').textContent = dragging ? T('Solte para salvar a posição') : T('Salvando posição…'); $('studio-retry').hidden = true; scheduleSave(); drawOutput(); }
   function scheduleSave() {
     clearTimeout(saveTimer);
     if (saving || !dirty || dragging) return;
@@ -24,10 +36,10 @@
       // An acknowledgement must not swap them for detached JSON objects.
       next.layout = data.layout;
       data = next; status();
-      $('studio-dirty').textContent = dirty ? dragging ? 'Solte para salvar a posição' : 'Salvando posição…' : 'Salvo automaticamente';
+      $('studio-dirty').textContent = dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
       $('studio-retry').hidden = true;
     } catch (e) {
-      $('studio-dirty').textContent = 'Não foi possível salvar'; $('studio-retry').hidden = false; error(e);
+      $('studio-dirty').textContent = T('Não foi possível salvar'); $('studio-retry').hidden = false; error(e);
       // Keep the local edit for an explicit retry; do not flood a failed API.
       return;
     } finally { saving = false; }
@@ -76,32 +88,38 @@
       }
     }
     const spatial = liveFrame.playback?.spatial ?? (liveFrame.enabled && !liveFrame.error);
-    $('studio-current-effect').textContent = !liveFrame.connected ? 'Controlador desconectado' : !liveFrame.power ? 'Luzes apagadas' : spatial ? liveFrame.playback?.name || data?.effects.find(e => e.id === data.activeId)?.name || 'Efeito espacial' : effectNames[liveFrame.playback?.effect || state?.master.effect] || 'Ajustes dos componentes';
-    $('studio-live-note').textContent = (!liveFrame.connected ? 'Saída indisponível: controlador desconectado. ' : !liveFrame.power ? 'Luzes desligadas. ' : liveFrame.error ? 'Efeito espacial pausado; mostrando a saída dos ajustes comuns. ' : spatial ? 'Fundo: campo espacial ativo. ' : 'Iluminação e Perfis: saída atual de cada componente. ')
-      + 'Cores: últimos comandos enviados, sem leitura física. Modos nativos ficam sem cor por LED.'
-      + (dirty ? dragging ? ' Solte para salvar a posição.' : ' Salvando posição…' : '');
+    $('studio-current-effect').textContent = !liveFrame.connected ? T('Controlador desconectado') : !liveFrame.power ? T('Luzes apagadas') : spatial ? effectName(data?.effects.find(e => e.id === data.activeId)) || liveFrame.playback?.name || T('Efeito espacial') : effectNames[liveFrame.playback?.effect || state?.master.effect] || T('Ajustes dos componentes');
+    $('studio-live-note').textContent = (!liveFrame.connected ? T('Saída indisponível: controlador desconectado. ') : !liveFrame.power ? T('Luzes desligadas. ') : liveFrame.error ? T('Efeito espacial pausado; mostrando a saída dos ajustes comuns. ') : spatial ? T('Fundo: campo espacial ativo. ') : T('Iluminação e Perfis: saída atual de cada componente. '))
+      + T('Cores: últimos comandos enviados, sem leitura física. Modos nativos ficam sem cor por LED.')
+      + (dirty ? dragging ? T(' Solte para salvar a posição.') : T(' Salvando posição…') : '');
   }
   function error(e) { toast?.(e.message || String(e)); }
   async function request(route, body, method) { try { return await api(route, body, method); } catch (e) { error(e); return null; } }
-  function selection() {
+  function selection(force = false) {
     const value = item(); $('studio-device-form').hidden = !value;
     $('studio-selection-note').hidden = Boolean(value);
-    if (!value) return;
+    if (!value || !force && $('studio-device-form').contains(document.activeElement)) return;
     for (const key of ['shape', 'rotation', 'count', 'columns']) $('studio-' + key).value = value[key];
     $('studio-item-name').value = value.name; $('studio-start').value = value.start + 1; $('studio-reverse').checked = value.reverse;
     for (const key of ['x', 'y', 'width', 'height']) $('studio-' + key).value = Math.round(value[key] * 1000) / 10;
+    $('studio-rotation-label').textContent = value.rotation + '°';
+    $('studio-piece-summary').textContent = value.count + ' LEDs · ' + (value.start + 1) + '–' + (value.start + value.count);
+    $('studio-columns-field').hidden = value.shape !== 'matrix';
+    document.querySelectorAll('.studio-shapes [data-shape]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.shape === value.shape)); b.disabled = !isAdmin; });
+    $('studio-device-form').querySelectorAll('input,select,button').forEach(e => { e.disabled = !isAdmin; });
+    $('studio-device-chips').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.key === selected)));
   }
   function position(button, value) { button.style.left = value.x * 100 + '%'; button.style.top = value.y * 100 + '%'; button.style.width = value.width * 100 + '%'; button.style.height = value.height * 100 + '%'; button.style.setProperty('--rotation', value.rotation + 'deg'); }
   function map() {
     if (!data) return;
     const container = $('studio-items'); container.replaceChildren(); $('studio-empty').hidden = Boolean(data.layout.length);
     for (const value of data.layout) {
-      const button = make('button', undefined, 'studio-item' + (value.key === selected ? ' selected' : '')); button.type = 'button'; button.dataset.key = value.key; button.dataset.shape = value.shape; button.setAttribute('aria-label', 'Posicionar ' + value.name); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count); position(button, value);
+      const button = make('button', undefined, 'studio-item' + (value.key === selected ? ' selected' : '')); button.type = 'button'; button.dataset.key = value.key; button.dataset.shape = value.shape; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count); position(button, value);
       button.append(make('i'), make('span', value.name)); container.append(button);
-      button.addEventListener('click', () => { selected = value.key; selection(); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b === button)); });
+      button.addEventListener('click', () => { selected = value.key; inspectorTab('device'); selection(true); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b === button)); });
       button.addEventListener('pointerdown', event => {
         if (!isAdmin || event.button !== 0) return;
-        event.preventDefault(); selected = value.key; dragging = true; selection(); button.classList.add('selected'); button.setPointerCapture(event.pointerId);
+        event.preventDefault(); document.activeElement?.blur(); selected = value.key; dragging = true; inspectorTab('device'); selection(true); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b === button)); button.setPointerCapture(event.pointerId);
         const rect = $('studio-stage').getBoundingClientRect(), origin = { x: event.clientX, y: event.clientY, px: value.x, py: value.y };
         const move = e => { value.x = Math.max(0, Math.min(1, origin.px + (e.clientX - origin.x) / rect.width)); value.y = Math.max(0, Math.min(1, origin.py + (e.clientY - origin.y) / rect.height)); position(button, value); selection(); mark(); };
         const finish = () => { dragging = false; scheduleSave(); button.removeEventListener('pointermove', move); button.removeEventListener('pointerup', finish); button.removeEventListener('pointercancel', finish); };
@@ -114,68 +132,82 @@
         value.y = Math.max(0, Math.min(1, value.y + (event.key === 'ArrowDown' ? 0.01 : event.key === 'ArrowUp' ? -0.01 : 0))); position(button, value); selection(); mark();
       });
     }
-    $('studio-map-summary').textContent = data.layout.length + ' posições · ' + data.layout.reduce((n, i) => n + i.count, 0) + ' LEDs mapeados';
+    $('studio-map-summary').textContent = data.layout.length + T(' posições · ') + data.layout.reduce((n, i) => n + i.count, 0) + T(' LEDs mapeados');
+    const chips = $('studio-device-chips'); chips.replaceChildren();
+    for (const value of data.layout) { const chip = make('button', value.name); chip.type = 'button'; chip.dataset.key = value.key; chip.setAttribute('aria-pressed', String(value.key === selected)); chip.addEventListener('click', () => { selected = value.key; inspectorTab('device'); selection(); container.querySelectorAll('.studio-item').forEach(b => b.classList.toggle('selected', b.dataset.key === selected)); }); chips.append(chip); }
   }
   function controls() {
     const effect = data?.effects.find(e => e.id === data.activeId); if (!effect) return;
-    $('studio-publisher').textContent = effect.publisher;
-    $('studio-effect-note').textContent = (effect.warnings || []).join(' ');
-    $('studio-remove-effect').hidden = effect.builtin || !isAdmin;
-    const form = $('studio-parameters'); form.replaceChildren();
-    for (const control of effect.controls) {
-      const label = make('label', control.label); let input;
+    $('studio-publisher').textContent = data.enabled ? effect.format === 'nexus-effect/1' ? T(effect.publisher) : effect.publisher : '';
+    $('studio-effect-note').textContent = data.enabled ? (effect.warnings || []).map(warning => T(warning)).join(' ') : '';
+    $('studio-remove-effect').hidden = !data.enabled || effect.builtin || !isAdmin;
+    const form = $('studio-parameters'), signature = JSON.stringify([T.locale(), data.enabled, effect.id, effect.controls, data.values]);
+    if (signature === controlSignature || form.contains(document.activeElement)) return;
+    controlSignature = signature; form.replaceChildren();
+    for (const control of data.enabled ? effect.controls : []) {
+      const label = make('label', effect.builtin || effect.recipe ? T(control.label) : control.label); let input;
       if (control.type === 'combobox') { input = make('select'); for (const value of control.values) { const option = make('option', value); option.value = value; input.append(option); } }
       else { input = make('input'); input.type = control.type === 'boolean' ? 'checkbox' : control.type === 'color' ? 'color' : 'number'; if (control.type === 'number') { input.min = control.min; input.max = control.max; input.step = 'any'; } }
-      input.dataset.key = control.key; input.dataset.type = control.type; input.setAttribute('aria-label', control.label);
+      input.dataset.key = control.key; input.dataset.type = control.type; input.setAttribute('aria-label', effect.builtin || effect.recipe ? T(control.label) : control.label);
       const value = data.values?.[control.key] ?? control.default; if (control.type === 'boolean') input.checked = value; else input.value = value;
       label.append(input); form.append(label);
     }
   }
   function status() {
-    $('studio-toggle').textContent = data.enabled ? 'Voltar ao controle comum' : 'Usar este efeito';
-    $('studio-error').hidden = !data.error; $('studio-error').textContent = data.error || '';
-    $('studio-state').textContent = data.error ? 'Efeito pausado' : data.enabled ? 'Mapa ao vivo' : 'Controle comum';
-    sharedControls();
+    $('studio-toggle').hidden = !data.enabled;
+    $('studio-common-adjust').hidden = Boolean(data.enabled);
+    $('studio-profile-form').hidden = !isAdmin || !data.enabled;
+    $('studio-effect-heading').textContent = data.enabled ? effectName(data.effects.find(e => e.id === data.activeId)) : effectNames[state?.master.effect] || '';
+    $('studio-error').hidden = !data.error; $('studio-error').textContent = T(data.error || '');
+    $('studio-state').textContent = data.error ? T('Efeito pausado') : data.enabled ? T('Mapa ao vivo') : T('Controle comum');
+    controls();
   }
-  let sharedSignature = '';
-  function sharedControls() {
-    if (!state) return;
-    const signature = JSON.stringify([state.presets, state.profiles]);
-    if (signature !== sharedSignature) {
-      sharedSignature = signature;
-      const select = $('studio-shared-profile'); select.replaceChildren(make('option', 'Escolher perfil ou cena…')); select.firstChild.value = '';
-      for (const [label, prefix, items] of [['Seus perfis', 'profile', state.profiles || []], ['Cenas prontas', 'preset', state.presets || []]]) {
-        if (!items.length) continue;
-        const group = make('optgroup'); group.label = label;
-        for (const entry of items) { const option = make('option', entry.name + (entry.spatial ? ' · espacial' : '')); option.value = prefix + ':' + entry.id; group.append(option); }
-        select.append(group);
-      }
-    }
-    $('studio-common-effect').value = (data?.enabled ?? state.studio?.enabled) ? '' : state.master.effect;
-  }
-  const common = $('studio-common-effect'); common.append(make('option', 'Escolher movimento…')); common.firstChild.value = '';
-  for (const [key, name] of Object.entries(effectNames)) { const option = make('option', name); option.value = key; common.append(option); }
   async function sharedPlay(route, body) {
     const next = await request(route, body, 'POST');
-    if (next) { state = next; await refresh(); sharedControls(); }
+    if (next) { state = next; await refresh(); renderLibrary(); }
+    return Boolean(next);
   }
-  common.addEventListener('change', () => {
-    if (!common.value) return;
-    if (common.value === 'strobe') toast('Estrobo produz flashes. Evite em caso de sensibilidade à luz intermitente.');
-    sharedPlay('/api/control', { effect: common.value });
-  });
-  $('studio-shared-profile').addEventListener('change', async event => {
-    const [type, id] = event.target.value.split(':'); if (!id) return;
-    event.target.disabled = true;
-    try { await sharedPlay('/api/' + (type === 'profile' ? 'profiles/' : 'presets/') + id, {}); }
-    finally { event.target.disabled = false; event.target.value = ''; }
-  });
   function renderLibrary() {
-    const select = $('studio-effect'); select.replaceChildren();
-    for (const effect of data.effects) { const option = make('option', effect.name); option.value = effect.id; select.append(option); }
-    select.value = data.activeId; controls(); status();
+    if (!data || !state) return;
+    status(); renderGallery();
     if (document.activeElement !== $('studio-profile-name')) $('studio-profile-name').value = data.effects.find(e => e.id === data.activeId)?.name.slice(0, 48) || '';
   }
+  function effectName(effect) { return effect ? effect.builtin ? T(effect.name) : effect.name : ''; }
+  function renderGallery(force = false) {
+    if (!data || !state) return;
+    if (!force && !$('studio-picker-dialog').open) return;
+    const cards = [
+      ...(state.profiles || []).map(p => ({ kind: 'profile', id: p.id, name: p.name, note: p.spatial ? T('Usa a posição no mapa') : T('Seu perfil salvo'), palette: p.settings?.palette || [p.color] })),
+      ...(state.presets || []).map(p => ({ kind: 'preset', id: p.id, name: T(p.name), note: T(p.description), palette: p.colors })),
+      ...Object.entries(effectNames).map(([id, name]) => ({ kind: 'motion', id, name, note: T('Segue a sequência de cada componente'), palette: state.master.palette || [state.master.color] })),
+      ...data.effects.map(e => ({ kind: 'spatial', id: e.id, name: effectName(e), note: T('Usa a posição no mapa'), palette: e.palette || (e.controls || []).filter(c => c.type === 'color').map(c => data.values?.[c.key] || c.default) }))
+    ];
+    const norm = s => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+    const query = norm($('studio-library-search').value.trim()), grid = $('studio-library');
+    const signature = JSON.stringify([T.locale(), libraryFilter, query, cards, data.enabled, data.activeId, state.master.effect]);
+    if (!force && signature === gallerySignature) return;
+    gallerySignature = signature; grid.replaceChildren();
+    for (const card of cards.filter(c => (libraryFilter === 'all' || (libraryFilter === 'ready' ? ['preset', 'motion'].includes(c.kind) : libraryFilter === c.kind)) && norm(c.name).includes(query))) {
+      const button = make('button', undefined, 'library-card'); button.type = 'button'; button.dataset.kind = card.kind; button.dataset.id = card.id;
+      const colors = card.palette.filter(c => /^#[a-f0-9]{6}$/i.test(c));
+      button.style.setProperty('--card-palette', 'linear-gradient(120deg,' + (colors.length > 1 ? colors : [colors[0] || '#7954ff', colors[0] || '#00c8ff']).join(',') + ')');
+      const active = card.kind === 'spatial' ? data.enabled && card.id === data.activeId : card.kind === 'motion' ? !data.enabled && card.id === state.master.effect : false;
+      button.classList.toggle('active', Boolean(active)); button.setAttribute('aria-pressed', String(Boolean(active)));
+      button.append(make('span', undefined, 'library-art'), make('small', { profile: T('PERFIL'), preset: T('CENA'), motion: T('MOVIMENTO'), spatial: T('MAPA') }[card.kind]), make('strong', card.name), make('span', card.note, 'library-note'));
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        if (card.kind === 'motion' && card.id === 'strobe') toast(T('Estrobo produz flashes. Evite em caso de sensibilidade à luz intermitente.'));
+        const ok = card.kind === 'spatial' ? await play({ activeId: card.id, enabled: true }) : await sharedPlay(card.kind === 'motion' ? '/api/control' : '/api/' + (card.kind === 'profile' ? 'profiles/' : 'presets/') + card.id, card.kind === 'motion' ? { effect: card.id } : {});
+        if (ok) $('studio-picker-dialog').close(); else button.disabled = false;
+      });
+      grid.append(button);
+    }
+    $('studio-library-empty').hidden = Boolean(grid.childElementCount);
+  }
+  $('studio-choose').addEventListener('click', () => { renderGallery(true); $('studio-picker-dialog').showModal(); $('studio-library-search').focus(); });
+  $('studio-picker-close').addEventListener('click', () => $('studio-picker-dialog').close());
+  $('studio-library-search').addEventListener('input', () => renderGallery());
+  document.querySelectorAll('[data-library]').forEach(b => b.addEventListener('click', () => { libraryFilter = b.dataset.library; document.querySelectorAll('[data-library]').forEach(e => e.setAttribute('aria-pressed', String(e === b))); renderGallery(); }));
   async function refresh(keepDraft = true) {
     if (!api || loading || document.hidden || !['studio', 'settings'].includes(current)) return;
     loading = true;
@@ -190,12 +222,11 @@
         else status();
         if (layoutChanged && !dirty && !dragging) { map(); selection(); }
       }
-      const text = data.metrics.fps ? data.metrics.fps + ' FPS renderizados · ' + data.metrics.renderMs + ' ms/quadro · motor ' + data.metrics.memoryMB + ' MiB' : 'Motor em repouso';
+      const text = data.metrics.fps ? data.metrics.fps + T(' FPS renderizados · ') + data.metrics.renderMs + T(' ms/quadro · motor ') + data.metrics.memoryMB + ' MiB' : T('Motor em repouso');
       $('studio-metrics').textContent = text; $('settings-metrics').textContent = text;
     } catch (e) { error(e); } finally { loading = false; }
   }
-  async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty || dragging) next.layout = data.layout; data = next; renderLibrary(); if (!dragging) { map(); selection(); } } }
-  $('studio-effect').addEventListener('change', () => play({ activeId: $('studio-effect').value, enabled: true }));
+  async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty || dragging) next.layout = data.layout; data = next; renderLibrary(); if (!dragging) { map(); selection(); } } return Boolean(next); }
   $('studio-toggle').addEventListener('click', () => play({ enabled: !data.enabled }));
   function parameters(event) {
     event.preventDefault(); const values = {};
@@ -207,39 +238,51 @@
   $('studio-retry').addEventListener('click', scheduleSave);
   $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
   $('studio-device-form').addEventListener('submit', e => e.preventDefault());
-  $('studio-device-form').addEventListener('change', () => {
+  function editPiece(field) {
     const value = item(); if (!value) return;
-    value.name = $('studio-item-name').value;
-    for (const key of ['rotation', 'count', 'columns']) value[key] = Number($('studio-' + key).value);
-    for (const key of ['x', 'y', 'width', 'height']) value[key] = Number($('studio-' + key).value) / 100;
-    value.start = Number($('studio-start').value) - 1; value.shape = $('studio-shape').value; value.reverse = $('studio-reverse').checked;
-    mark(); map();
-  });
+    // Change only the edited property: rounded display values must not move
+    // a component when the user merely renames it or changes its shape.
+    if (field === 'item-name') value.name = $('studio-item-name').value;
+    else if (['rotation', 'count', 'columns'].includes(field)) value[field] = Number($('studio-' + field).value);
+    else if (['x', 'y', 'width', 'height'].includes(field)) value[field] = Number($('studio-' + field).value) / 100;
+    else if (field === 'start') value.start = Number($('studio-start').value) - 1;
+    else if (field === 'shape') value.shape = $('studio-shape').value;
+    else if (field === 'reverse') value.reverse = $('studio-reverse').checked;
+    else return;
+    const button = [...$('studio-items').children].find(e => e.dataset.key === value.key);
+    if (button) { position(button, value); button.dataset.shape = value.shape; button.querySelector('span').textContent = value.name; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count); }
+    const chip = [...$('studio-device-chips').children].find(e => e.dataset.key === value.key); if (chip) chip.textContent = value.name;
+    mark(); selection(true);
+  }
+  $('studio-device-form').addEventListener('change', e => editPiece(e.target.id.slice(7)));
+  document.querySelectorAll('.studio-shapes [data-shape]').forEach(b => b.addEventListener('click', () => { $('studio-shape').value = b.dataset.shape; editPiece('shape'); }));
+  $('studio-rotate').addEventListener('click', () => { $('studio-rotation').value = (Number($('studio-rotation').value) + 90) % 360; editPiece('rotation'); });
+  $('studio-rotation').addEventListener('input', () => { $('studio-rotation-label').textContent = $('studio-rotation').value + '°'; });
   $('studio-split').addEventListener('click', () => {
-    const value = item(); if (!value || value.count < 2) return toast('Este componente não tem LEDs suficientes para dividir.');
-    const first = Math.floor(value.count / 2), second = { ...value, key: crypto.randomUUID(), start: value.start + first, count: value.count - first, x: Math.min(0.94, value.x + 0.14), name: value.name.slice(0, 48) + ' · parte 2' };
+    const value = item(); if (!value || value.count < 2) return toast(T('Este componente não tem LEDs suficientes para dividir.'));
+    const first = Math.floor(value.count / 2), second = { ...value, key: crypto.randomUUID(), start: value.start + first, count: value.count - first, x: Math.min(0.94, value.x + 0.14), name: value.name.slice(0, 48) + ' · 2' };
     value.count = first; data.layout.push(second); selected = second.key; mark(); map(); selection();
   });
   $('studio-merge').addEventListener('click', () => {
     const value = item(), other = value && data.layout.find(i => i.key !== value.key && i.deviceId === value.deviceId && (i.start + i.count === value.start || value.start + value.count === i.start));
-    if (!other) return toast('Selecione uma divisão com faixa de LEDs vizinha.');
+    if (!other) return toast(T('Selecione uma divisão com faixa de LEDs vizinha.'));
     value.start = Math.min(value.start, other.start); value.count += other.count; data.layout = data.layout.filter(i => i !== other); mark(); map(); selection();
   });
   $('studio-fan-split').addEventListener('click', () => {
     const value = item(), size = Number($('studio-fan-leds').value);
-    if (!value || !Number.isInteger(size) || size < 1 || value.count % size || size > value.count) return toast('Use a quantidade real de LEDs por fan, que deve dividir a faixa selecionada sem sobrar LEDs.');
+    if (!value || !Number.isInteger(size) || size < 1 || value.count % size || size > value.count) return toast(T('Use a quantidade real de LEDs por fan, que deve dividir a faixa selecionada sem sobrar LEDs.'));
     const count = value.count / size;
-    if (count + data.layout.length - 1 > 256) return toast('Limite de 256 posições no mapa.');
+    if (count + data.layout.length - 1 > 256) return toast(T('Limite de 256 posições no mapa.'));
     const parts = Array.from({ length: count }, (_, n) => ({ ...value, key: n ? crypto.randomUUID() : value.key, name: value.name.slice(0, 45) + ' · fan ' + (n + 1), start: value.start + n * size, count: size, shape: 'fan', x: Math.min(0.94, value.x + (n % 4) * 0.15), y: Math.min(0.88, value.y + Math.floor(n / 4) * 0.24) }));
     data.layout = data.layout.flatMap(i => i === value ? parts : [i]); selected = parts[0].key; mark(); map(); selection();
   });
   async function importSource(source) {
     const result = await request('/api/studio/import', { source }, 'POST');
-    if (result) { result.layout = data.layout; data = result; renderLibrary(); toast('Efeito adicionado à biblioteca. Escolha-o na lista para visualizar.'); }
+    if (result) { result.layout = data.layout; data = result; renderLibrary(); toast(T('Efeito adicionado à biblioteca. Escolha-o na lista para visualizar.')); }
   }
   $('studio-import').addEventListener('change', async event => {
     const input = event.target; input.disabled = true;
-    try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + ': limite de 128 KiB.'); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
+    try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + T(': limite de 128 KiB.')); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
   });
   let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'];
   function formulaSource() {
@@ -250,10 +293,10 @@
   function formulaPalette() {
     const container = $('formula-colors'); container.replaceChildren();
     formulaColors.forEach((value, i) => {
-      const wrap = make('div', undefined, 'formula-color'), input = make('input'); input.type = 'color'; input.value = value; input.setAttribute('aria-label', 'Cor ' + (i + 1) + ' do efeito');
+      const wrap = make('div', undefined, 'formula-color'), input = make('input'); input.type = 'color'; input.value = value; input.setAttribute('aria-label', T`Cor ${i + 1} do efeito`);
       input.addEventListener('input', () => { formulaColors[i] = input.value; formulaSource(); }); wrap.append(input);
       for (const [delta, text] of [[-1, '←'], [1, '→'], [0, '×']]) {
-        const button = make('button', text); button.type = 'button'; button.setAttribute('aria-label', (delta ? 'Mover' : 'Remover') + ' cor ' + (i + 1) + (delta ? delta < 0 ? ' para esquerda' : ' para direita' : ''));
+        const button = make('button', text); button.type = 'button'; button.setAttribute('aria-label', (delta ? T('Mover') : T('Remover')) + T(' cor ') + (i + 1) + (delta ? delta < 0 ? T(' para esquerda') : T(' para direita') : ''));
         button.disabled = delta ? i + delta < 0 || i + delta >= formulaColors.length : formulaColors.length === 1;
         button.addEventListener('click', () => { if (delta) [formulaColors[i], formulaColors[i + delta]] = [formulaColors[i + delta], formulaColors[i]]; else formulaColors.splice(i, 1); formulaPalette(); }); wrap.append(button);
       }
@@ -263,8 +306,7 @@
   }
   $('formula-add-color').addEventListener('click', () => { if (formulaColors.length < 8) { formulaColors.push('#ffffff'); formulaPalette(); } });
   for (const key of ['name', 'pattern', 'speed', 'angle', 'scale']) $('formula-' + key).addEventListener('input', formulaSource);
-  $('studio-new').textContent = 'Criar efeito';
-  $('studio-new').addEventListener('click', () => { $('formula-error').hidden = true; formulaPalette(); $('studio-formula-dialog').showModal(); $('formula-name').focus(); });
+  $('studio-new').addEventListener('click', () => { $('studio-picker-dialog').close(); $('formula-error').hidden = true; formulaPalette(); $('studio-formula-dialog').showModal(); $('formula-name').focus(); });
   $('studio-formula-close').addEventListener('click', () => $('studio-formula-dialog').close());
   $('studio-formula-form').addEventListener('submit', async event => {
     event.preventDefault(); $('formula-save').disabled = true; $('formula-error').hidden = true;
@@ -273,20 +315,20 @@
       result.layout = data.layout; data = result; renderLibrary();
       const effect = result.effects.find(e => e.id === result.id);
       if ($('formula-profile').checked) await api('/api/studio/profiles', { name: effect.name.slice(0, 48), activeId: effect.id, values: {} }, 'POST');
-      $('studio-formula-dialog').close(); toast($('formula-profile').checked ? 'Efeito guardado na biblioteca e em Perfis.' : 'Efeito guardado na biblioteca.');
-    } catch (e) { $('formula-error').textContent = e.message; $('formula-error').hidden = false; }
+      $('studio-formula-dialog').close(); toast($('formula-profile').checked ? T('Efeito guardado na biblioteca e em Perfis.') : T('Efeito guardado na biblioteca.'));
+    } catch (e) { $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
     finally { $('formula-save').disabled = false; }
   });
   $('studio-profile-form').addEventListener('submit', async event => {
     event.preventDefault(); const button = event.submitter; button.disabled = true;
-    try { const result = await request('/api/studio/profiles', { name: $('studio-profile-name').value, activeId: data.activeId, values: data.values }, 'POST'); if (result) toast('Efeito guardado na aba Perfis.'); }
+    try { const result = await request('/api/studio/profiles', { name: $('studio-profile-name').value, activeId: data.activeId, values: data.values }, 'POST'); if (result) toast(T('Efeito guardado na aba Perfis.')); }
     finally { button.disabled = false; }
   });
   $('studio-remove-effect').addEventListener('click', async () => { const result = await request('/api/studio/effects/' + data.activeId, undefined, 'DELETE'); if (result) { result.layout = data.layout; data = result; renderLibrary(); } });
   function fpsLabel() { const fps = Number($('settings-fps').value); $('settings-fps-label').textContent = fps + ' FPS'; document.querySelectorAll('[data-fps]').forEach(b => b.classList.toggle('active', Number(b.dataset.fps) === fps)); }
   $('settings-fps').addEventListener('input', () => { fpsDirty = true; fpsLabel(); });
   document.querySelectorAll('[data-fps]').forEach(button => button.addEventListener('click', () => { fpsDirty = true; $('settings-fps').value = button.dataset.fps; fpsLabel(); }));
-  $('settings-fps-form').addEventListener('submit', async event => { event.preventDefault(); const result = await request('/api/settings', { fps: Number($('settings-fps').value) }, 'POST'); if (result) { fpsDirty = false; $('settings-fps').value = result.performance.fps; fpsLabel(); toast('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.'); } });
+  $('settings-fps-form').addEventListener('submit', async event => { event.preventDefault(); const result = await request('/api/settings', { fps: Number($('settings-fps').value) }, 'POST'); if (result) { fpsDirty = false; $('settings-fps').value = result.performance.fps; fpsLabel(); toast(T('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.')); } });
   function open(name) {
     current = name; clearInterval(poll); stream?.close(); stream = null;
     if (!api || !['studio', 'settings'].includes(name) || document.hidden) return;
@@ -294,7 +336,7 @@
     poll = setInterval(refresh, 3000);
     if (name === 'studio') {
       liveFrame = null; $('studio-preview').hidden = true; $('studio-preview').removeAttribute('src'); drawOutput();
-      $('studio-current-effect').textContent = 'Aguardando saída';
+      $('studio-current-effect').textContent = T('Aguardando saída');
       stream = new EventSource('/api/studio/preview');
       stream.onmessage = event => { try {
         const frame = JSON.parse(event.data), image = $('studio-preview'); liveFrame = frame;
@@ -305,18 +347,26 @@
         // being sampled. It describes sent colors, never editable positions.
         drawOutput();
       } catch {} };
-    } else if (isAdmin) api('/api/network').then(n => { $('settings-ports').textContent = 'Painel TCP ' + n.ports.panel + ' · SDK TCP ' + n.ports.sdk + ' · Alexa TCP ' + n.ports.alexa + ' · descoberta UDP 1900.'; }).catch(error);
+    } else if (isAdmin) api('/api/network').then(n => { ports = n.ports; renderPorts(); }).catch(error);
   }
+  window.addEventListener('nexus:languagechange', () => {
+    if (data) { status(); renderGallery(); map(); selection(); if (liveFrame) drawOutput(); }
+    $('studio-dirty').textContent = !$('studio-retry').hidden ? T('Não foi possível salvar') : dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
+    renderPorts();
+    // Translating palette buttons must not replace an advanced JSON draft.
+    const source = $('studio-source').value; formulaPalette(); $('studio-source').value = source;
+  });
   document.addEventListener('visibilitychange', () => open(current));
   window.addEventListener('pagehide', () => { clearInterval(poll); stream?.close(); stream = null; });
   window.NexusStudio = {
     open,
     update(next, admin, requestApi, showToast, page) {
       const first = !api; state = next; isAdmin = admin; api = requestApi; toast = showToast;
-      sharedControls();
+      renderGallery();
       document.querySelectorAll('.studio-admin').forEach(e => { if (!e.closest('#studio-formula-form')) e.hidden = !admin; }); $('settings-fps-save').disabled = !admin; $('settings-fps').disabled = !admin;
       document.querySelectorAll('[data-fps]').forEach(e => { e.disabled = !admin; }); $('settings-admin-note').hidden = admin;
       if (!fpsDirty && document.activeElement !== $('settings-fps')) { $('settings-fps').value = next.performance?.fps || 20; fpsLabel(); }
+      $('studio-readonly-note').hidden = admin; if (data) status(); selection();
       if (first) open(page);
     }
   };

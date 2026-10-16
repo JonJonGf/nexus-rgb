@@ -63,6 +63,7 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/en.js', ['en.js', 'application/javascript; charset=utf-8']], ['/i18n.js', ['i18n.js', 'application/javascript; charset=utf-8']],
     ['/', ['index.html', 'text/html; charset=utf-8']], ['/index.html', ['index.html', 'text/html; charset=utf-8']],
     ['/app.js', ['app.js', 'application/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']],
     ['/studio.js', ['studio.js', 'application/javascript; charset=utf-8']], ['/studio.css', ['studio.css', 'text/css; charset=utf-8']], ['/spatial.js', ['spatial.js', 'application/javascript; charset=utf-8']],
