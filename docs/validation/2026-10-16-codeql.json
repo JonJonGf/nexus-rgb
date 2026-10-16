@@ -1,0 +1,56 @@
+{
+  "repository": "JonJonGf/nexus-rgb",
+  "commit": "23dff2821a973f3fd31df6efbcb68ea1380ec0a2",
+  "tag": "v0.1.0-alpha.17",
+  "run": 38898025870,
+  "buildMode": "manual",
+  "files": [
+    "native/NexusRGB.cs",
+    "native/NexusRGBUninstall.cs",
+    "native/AppInfo.cs",
+    "native/Locale.cs"
+  ],
+  "tool": "2.27.2",
+  "metrics": [
+    {
+      "name": "Percentage of calls with call target",
+      "value": 100
+    },
+    {
+      "name": "Percentage of expressions with known type",
+      "value": 100
+    },
+    {
+      "name": "Number of files with extension exe",
+      "value": 2
+    },
+    {
+      "name": "Number of files with extension cs",
+      "value": 4
+    },
+    {
+      "name": "Number of lines of code with extension cs",
+      "value": 404
+    },
+    {
+      "name": "Total number of lines with extension cs",
+      "value": 413
+    },
+    {
+      "name": "Percentage of access with target",
+      "value": 99.57784184514003
+    },
+    {
+      "name": "Percentage of expressions with known kind",
+      "value": 100
+    },
+    {
+      "name": "Percentage of type mentions with known type",
+      "value": 100
+    }
+  ],
+  "diagnostics": [],
+  "artifactId": 12044931542,
+  "artifactSHA256": "a17f4a6c573bdb36fd9137bbfd4e661612266599ef96b6b238c0905d1dd8613e",
+  "scope": "Extraction quality, not a security score or coverage guarantee"
+}

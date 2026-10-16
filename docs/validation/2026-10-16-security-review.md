@@ -6,6 +6,8 @@ Revisão mantida pelo próprio projeto, sem equivaler a auditoria independente o
 
 O workflow [CodeQL](../../.github/workflows/codeql.yml) compila os dois executáveis com o mesmo [script nativo](../../scripts/build-native.ps1) usado pelo empacotamento. A [primeira execução com compilação](https://github.com/JonJonGf/nexus-rgb/actions/runs/38895899454) passou em C#, JavaScript/TypeScript e Actions. A verificação de C# não gerou o aviso anterior de baixa qualidade de análise. As consultas estendidas e a inclusão de fontes locais foram mantidas. Nenhuma regra ou pasta de testes foi excluída para reduzir alertas.
 
+Na análise da alpha.17, o SARIF original registrou **100% das chamadas com destino identificado e 100% das expressões com tipo conhecido**, ante os 75% e 82% exibidos no aviso inicial. Foram identificados quatro arquivos C# e dois executáveis, sem diagnóstico de baixa qualidade ou erro de extração. Os [indicadores e a origem do artefato](2026-10-16-codeql.json) ficam registrados separadamente: medem a qualidade da extração, não uma porcentagem de segurança do produto.
+
 ## Mudanças e limites
 
 - Efeitos em disco: leitura limitada pelo mesmo descritor conferido, recusando arquivos não regulares, links e substituição do nome antes da leitura. Usado na carga inicial, cópia e backup de efeitos. Isso não substitui as ACLs nem promete isolamento contra um administrador que controla o sistema.
@@ -80,7 +82,11 @@ As localizações abaixo correspondem ao código analisado inicialmente; número
 
 ## Validação
 
-O build local e os 12 cenários do instalador em português/inglês passaram, assim como o teste real do supervisor com processo filho de teste. Após retomar uma queda de energia, a bateria local passou em 107 testes de lógica/integração e 25 de interface. Dois testes específicos adicionais de zonas/metadados e dois do bloqueio de publicação passaram depois disso; a versão publicada executa a bateria completa de 111 testes novamente no CI. Os resultados do pacote ficam registrados na execução indicada nas notas da versão.
+O build local e os 12 cenários do instalador em português/inglês passaram, assim como o teste real do supervisor com processo filho de teste. Após retomar uma queda de energia, a bateria local passou em 107 testes de lógica/integração e 25 de interface. Dois testes específicos adicionais de zonas/metadados e dois do bloqueio de publicação passaram depois disso.
+
+A [execução publicada da alpha.17](https://github.com/JonJonGf/nexus-rgb/actions/runs/38898025870), no commit `23dff2821a973f3fd31df6efbcb68ea1380ec0a2`, passou em **111 testes, 25 de interface, 12 cenários do instalador e 67 verificações completas em cada uma de duas VMs Windows**. A análise das três linguagens e o bloqueio de publicação também passaram: a tag tinha zero alertas abertos na consulta. Isso inclui alertas encerrados com justificativa e não significa ausência garantida de vulnerabilidades. Os [resultados e as 134 verificações de instalação](2026-10-16-security-installer.json) ficam disponíveis para consulta.
+
+O [ensaio de sustentação](https://github.com/JonJonGf/nexus-rgb/actions/runs/38898025880) rodou por 60 segundos, com 171 requisições e dez reinícios abruptos do processo de teste. Esses ensaios usam hardware simulado; não medem a durabilidade do hardware físico nem substituem testes em outros computadores.
 
 Os testes de regressão de arquivos incluem troca antes/depois da conferência, hardlinks, limite de leitura, colisão de temporário, chaves especiais de zonas e traversal nos metadados do build. A publicação exige análises das três linguagens no mesmo commit/tag, C# com compilação acompanhada e nenhum alerta aberto nessa referência; falha ao consultar o GitHub bloqueia a publicação. Justificativas de falsos positivos permanecem no histórico do alerta e nas tabelas deste relatório. Nenhuma regra de análise foi desligada.
 
@@ -115,3 +121,4 @@ A nova análise do commit `3ace202fecc611f47296f94a990120db676cf8dd` gerou novos
 | 59 | `scripts/licenses.js:9` | SARIF inicia em argv do coletor de licenças: destino do build escolhido pelo chamador local, sem elevação. Nomes de metadados são validados separadamente e não aceitam separadores. Teste de traversal/hardlink passou. |
 | 46 | `server/hardware.js:274` | O índice da zona é validado por Number.isInteger e faixa 0..65535 antes do acesso, além de exigir zona real do SDK. Não pode ser __proto__/constructor. Testes recusam chaves especiais sem alteração de estado ou SDK writes. |
 | 45 | `server/hardware.js:267` | O índice da zona é validado por Number.isInteger e faixa 0..65535 antes do acesso, além de exigir zona real do SDK. Não pode ser __proto__/constructor. Testes recusam chaves especiais sem alteração de estado ou SDK writes. |
+| 80 | `scripts/check-security-gate.cjs:4` | O verificador usa o destino fixo `https://api.github.com/repos/`, valida repository/ref por expressões ancoradas e recusa redirecionamentos. A origem rastreada é o contexto do workflow do GitHub; não existe URL recebida pela API Nexus. Os testes conferem o host das requisições e recusam contexto inválido. A suspeita de SSRF foi revisada e registrada como falso positivo. |
