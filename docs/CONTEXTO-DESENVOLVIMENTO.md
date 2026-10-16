@@ -22,6 +22,18 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 - Perguntar antes de abrir instalador/UAC ou reiniciar serviços no PC real, pois o usuário pode estar em acesso remoto. Não reiniciar/desligar Windows automaticamente.
 - Projeto público MIT; sem assinatura digital própria no momento. Não prometer compatibilidade universal ou certificação de segurança.
 
+## Passos para o próximo agente
+
+1. **Ler e conferir:** `AGENTS.md`, este contexto e [PLANO-MELHORIAS.md](PLANO-MELHORIAS.md). Conferir `git status`, branch e histórico; respeitar mudanças locais sem sobrescrevê-las. A alpha.20 já foi publicada e instalada no PC de validação; não repetir instalação, recadastro da Alexa ou os testes concluídos sem motivo.
+2. **Preservar o resultado da Alexa:** ela executa energia; o usuário relatou suprimir o anúncio de erro por um pedido à Alexa+. Não tentar outra correção de protocolo automaticamente. Se o usuário quiser investigar novamente, partir dos pedidos com somente `on`, dos retornos 200/GET e da incerteza no estado do app.
+3. **Retomar o próximo bloco quando o usuário solicitar as melhorias adiadas:** começar por estabilidade/hardware, nesta ordem: descoberta gradual e eventos com recuperação limitada; evitar reenvios com luzes apagadas; Off nativo apenas com todas as zonas apagadas; encerramento normal dos serviços; mensagem de detecção em andamento no reinício. A justificativa e os limites estão no plano.
+4. **Trabalhar em mudanças pequenas:** reproduzir o problema com SDK/ambiente isolado, corrigir um comportamento e testar preservação dos dados antes de avançar. Não depender de um número fixo de LEDs, modelo de placa-mãe ou ordem de descoberta. O próximo bloco visual/rede e os recursos opcionais vêm depois.
+5. **Validar e distribuir:** executar verificações pertinentes, registrar os resultados, e, se a tarefa autorizada incluir publicação, gerar uma nova versão com executáveis correspondentes e passar pelas duas VMs e pelo bloqueio de segurança. Não mover a tag alpha.20 nem substituir seus assets. Mudanças exclusivamente documentais não exigem outro instalador.
+6. **Antes de alterar a instalação real:** pedir autorização para instalador/UAC/reinício de serviços e permitir que o usuário aceite o Windows, inclusive por acesso remoto. Depois conferir versão, detecção gradual e preservação dos dados. Não reiniciar o PC automaticamente.
+7. **Antes de parar ou trocar de ferramenta:** atualizar este documento com mudanças, arquivos, testes, Git/release/instalação, falhas e próximo passo. Se parar no meio, indicar exatamente o que ficou incompleto. O registro deve continuar suficiente para outro agente retomar sem o chat anterior.
+
+Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
+
 ## Histórico de entregas
 
 ### 16/10/2026 — Alpha.20: respostas Hue da Alexa
