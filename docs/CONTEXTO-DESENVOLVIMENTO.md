@@ -10,7 +10,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 - **Resultado físico (Alexa na alpha.20):** usuário testou a alpha.20 e confirmou aviso de falha nos dois comandos, acender e apagar. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados de desligamento, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
 - **Resultado posterior em Alexa+:** o usuário pediu por voz para a Alexa deixar de anunciar o erro e informou que funcionou. Nenhuma outra mudança de código ou reinstalação ocorreu. Registrar como preferência de resposta/solução prática relatada pelo usuário, sem concluir que o protocolo foi corrigido. O estado do aplicativo Alexa após esse pedido não foi retestado.
 - **Pendência técnica (Alexa):** a causa do aviso no protocolo permanece desconhecida. Investigar caso o usuário queira retomar; a confirmação de brilho não é causa comprovada. Grupos, rotinas e estado no aplicativo precisam de teste separado. Não iniciar novas tentativas de alteração ou recadastro automaticamente após a solução prática relatada.
-- **Demais melhorias:** bloco de estabilidade e hardware (itens 1 a 5) concluído, publicado, instalado e confirmado fisicamente pelo usuário na `v0.1.0-alpha.21`. Próxima etapa planejada: bloco de clareza visual e rede (quando solicitado pelo usuário).
+- **Demais melhorias:** bloco de estabilidade e hardware (itens 1 a 5) concluído, publicado, instalado e confirmado fisicamente pelo usuário na `v0.1.0-alpha.21`. Após a `alpha.21`, foi corrigido na branch `codex/settings-layout` (e mesclado em `main`) o alinhamento visual da aba **Configurações** (`public/index.html`, `public/studio.css`, `tests/ui/language.spec.js`); essa mudança de layout ainda está apenas no repositório (a instalação local permanece no binário da `v0.1.0-alpha.21` até nova publicação ou atualização). Próxima etapa planejada: bloco de clareza visual e rede (quando solicitado pelo usuário).
 - **Mudança documental após o instalador alpha.20:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`. O registro posterior incorpora a confirmação das duas direções e a solução prática na Alexa+.
 
 ## Decisões de produto que devem ser preservadas
@@ -42,6 +42,25 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 16/10/2026 — Correção do layout da aba Configurações (branch `codex/settings-layout`)
+
+**Objetivo:** corrigir o desalinhamento visual na aba **Configurações** relatado pelo usuário (espaço vazio ao lado de **Rede e serviços**, cartão **Seu idioma** esticado verticalmente, ausência de margem vertical entre os cartões principais da página e quebra de linha no rótulo **Transição entre perfis**).
+
+**Mudanças e arquivos:**
+- `public/index.html` e `public/studio.css`: agrupamento de **Seu idioma** e **Rede e serviços** em uma coluna esquerda empilhada (`.settings-stack`, com `flex: 1` no último cartão) ao lado de **Atualização do RGB**, eliminando a célula vazia ao lado de **Rede e serviços** e alinhando a base das duas colunas; adição de margem vertical (`18px`) entre os blocos visíveis de `.page[data-view=settings]`; `white-space: nowrap` no texto de `#library-transition-label` e `flex: 1` no `<select>` para manter **Transição entre perfis** em uma única linha.
+- `tests/ui/language.spec.js`: verificação automatizada do alinhamento da base das duas colunas (`bottomDiff <= 1`), do espaçamento vertical antes de **Reiniciar Nexus e OpenRGB** (`restartGap >= 16`) e da altura de linha única do rótulo de transição (`labelHeight <= 20`).
+
+**Testes executados e resultados:**
+- `npx.cmd playwright test tests/ui/language.spec.js`: 3/3 aprovados (incluindo verificação geométrica desktop e mobile).
+- `npm.cmd test`: 125/125 aprovados.
+- Inspeção visual em servidor isolado (1366×900, 1920×1000 e 390×844) confirmando o alinhamento das colunas e o espaçamento entre os cartões.
+
+**Git / Release / Instalação:**
+- Código commitado em `codex/settings-layout` e mesclado em `main`.
+- A release publicada e a versão instalada no PC real continuam na `v0.1.0-alpha.21` (nenhum serviço local foi reiniciado ou reinstalado sem confirmação do usuário).
+
+**Pendências e próximo passo:** se o usuário quiser aplicar o novo CSS imediatamente na instalação local sem esperar o próximo bloco, pedir confirmação antes de atualizar/reiniciar; caso contrário, incluir na próxima versão junto com o bloco de **clareza visual e rede**.
 
 ### 16/10/2026 — Alpha.21: estabilidade e hardware (branch `codex/hardware-stability`)
 

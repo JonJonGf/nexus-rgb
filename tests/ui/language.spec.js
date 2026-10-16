@@ -31,6 +31,12 @@ test('idioma persiste sem alterar luzes, perfis ou o rascunho do editor', async 
   await expect(page.locator('#page-title')).toHaveText('Lighting');
   await page.locator('[data-page=settings]').click(); await expect(page.locator('#settings-language')).toHaveValue('en');
   await page.locator('#settings-language').selectOption('pt-BR'); await expect(page.locator('#page-title')).toHaveText('Configurações');
+  const layout = await page.evaluate(() => {
+    const r = s => document.querySelector(s).getBoundingClientRect();
+    const net = r('.settings-stack > .panel:last-child'), fps = r('.settings-grid > .panel'), restart = r('.page[data-view=settings] > .panel:last-child'), label = r('#library-transition-label > span');
+    return { bottomDiff: Math.abs(net.bottom - fps.bottom), restartGap: Math.round(restart.top - fps.bottom), labelHeight: Math.round(label.height) };
+  });
+  expect(layout.bottomDiff).toBeLessThanOrEqual(1); expect(layout.restartGap).toBeGreaterThanOrEqual(16); expect(layout.labelHeight).toBeLessThanOrEqual(20);
   expect(errors).toEqual([]);
 });
 
