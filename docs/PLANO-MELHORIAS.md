@@ -2,7 +2,7 @@
 
 Este registro mantém as melhorias aceitas para avaliação e implementação futura. Ele não anuncia recursos disponíveis nem uma data de entrega. A revisão do código identificou diferenças em relação às hipóteses do relatório externo; cada alteração precisa de reprodução e testes próprios.
 
-## Em desenvolvimento: comunicação da Alexa
+## Implementado na alpha.20, aguardando teste físico: comunicação da Alexa
 
 - Confirmar separadamente energia e brilho virtual no protocolo Hue, sem mudar o brilho RGB, cores, perfis ou parâmetros do mapa.
 - Preservar a energia em pedidos que contêm somente brilho. Um `on` explícito determina a energia, mesmo com `bri: 0`.

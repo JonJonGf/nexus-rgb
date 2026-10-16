@@ -19,6 +19,23 @@ Nove testes de Alexa passaram localmente. Incluem:
 
 A suíte local completa passou em **124 testes de lógica/integração**, sem falhas ou testes ignorados. Os resultados completos do CI e das VMs devem ser conferidos na execução vinculada à versão publicada. Estes testes não medem consumo do aplicativo completo.
 
+## Validação automatizada do commit da versão
+
+O [CI 38957323136](https://github.com/JonJonGf/nexus-rgb/actions/runs/38957323136) executou o commit `b00c3f687bdd9509dd3d9d9d79a362034cb7c397`: **124 testes de lógica/integração e 34 de interface aprovados**, além do supervisor nativo. O teste de estabilidade de 60 segundos passou com 171 requisições e dez reinícios abruptos do processo de teste.
+
+As três análises CodeQL da [execução da alpha.20](https://github.com/JonJonGf/nexus-rgb/actions/runs/38957323137), para o mesmo commit/tag, concluíram sem erros ou avisos de análise e sem alertas abertos. C# foi analisado com compilação manual acompanhada. As regras e o bloqueio de publicação foram preservados; não houve descarte de novos alertas para esta alteração. Isso não equivale a auditoria independente ou certificação.
+
+## Instaladores publicados
+
+As duas VMs Windows passaram em **75 verificações cada, sem falhas**, nas portas painel/SDK/Alexa `5050/6743/80` e `5151/6754/8081`. Incluem instalação, atualização, recuperação, preservação dos dados, desinstalação e reinstalação. Essas VMs não possuem RGB físico nem um Echo.
+
+A [alpha.20](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.20) foi publicada pelo workflow acima a partir do commit documentado. Os quatro assets oficiais foram baixados e conferidos: tag, commit, execução, tamanhos e hashes coincidem com `BUILD-INFO.json`, `SHA256SUMS.txt` e os digests do GitHub. Essa verificação não executou o instalador no PC em uso.
+
+| Arquivo | Bytes | SHA256 |
+| --- | ---: | --- |
+| `NexusRGB-Setup-0.1.0.exe` | 94583500 | `3764a31f34170d346875abc0c980af83a5d19722c23b27151fd257c94f84b264` |
+| `NexusRGB-Uninstall-0.1.0.exe` | 240640 | `84709a3a84a2beeea326a27a8e56bb70395523e07da28ae567e977b8c6111648` |
+
 ## Limites e validação pendente
 
 Ainda não foi validado o desaparecimento do aviso no Echo físico. O [roteiro de teste](../ALEXA.md#teste-com-um-echo-físico) separa app, voz, grupos e rotinas. Um firmware que dependa de brilho para ligar/desligar continua sem esse comportamento: esta adaptação exige `on` explícito para mudar energia.

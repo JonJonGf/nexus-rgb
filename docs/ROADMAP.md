@@ -2,7 +2,7 @@
 
 O Nexus está em versão alpha. O objetivo é controlar hardware RGB compatível com OpenRGB de forma local, preservar os ajustes e permitir recuperar o aplicativo sem depender de um desenvolvedor. Esta lista distingue recursos disponíveis de trabalho ainda necessário.
 
-O [plano de melhorias revisado em 16/10/2026](PLANO-MELHORIAS.md) registra os próximos ajustes de hardware, mapa e rede. A comunicação Hue da Alexa é a primeira alteração em desenvolvimento; os demais itens aguardam implementação.
+O [plano de melhorias revisado em 16/10/2026](PLANO-MELHORIAS.md) registra os próximos ajustes de hardware, mapa e rede. A alpha.20 ajusta a comunicação Hue da Alexa e aguarda teste físico do aviso de falha; os demais itens do plano aguardam implementação.
 
 ## Estabilidade e recuperação
 
