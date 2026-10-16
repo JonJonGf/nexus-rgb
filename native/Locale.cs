@@ -18,6 +18,8 @@ internal static class L {
         { "Nexus RGB — Reiniciar controlador", "Nexus RGB — Restart controller" },
         { "Reiniciando Nexus e OpenRGB", "Restarting Nexus and OpenRGB" },
         { "Aguarde. As luzes podem parar por alguns segundos.\nPerfis, posições, efeitos importados e configurações serão preservados.", "Please wait. Lights may pause for a few seconds.\nProfiles, positions, imported effects and settings will be preserved." },
+        { "Painel pronto. Aguardando conexão do OpenRGB…\nPerfis, posições, efeitos importados e configurações serão preservados.", "Dashboard ready. Waiting for OpenRGB connection…\nProfiles, positions, imported effects and settings will be preserved." },
+        { "Painel pronto e OpenRGB conectado. Detectando componentes RGB…\nPerfis, posições, efeitos importados e configurações serão preservados.", "Dashboard ready and OpenRGB connected. Detecting RGB components…\nProfiles, positions, imported effects and settings will be preserved." },
         { "Fechar", "Close" },
         { "A recuperação demorou além do limite. Confira os serviços e diagnósticos.", "Recovery timed out. Check services and diagnostics." },
         { "Concluído.\n", "Completed.\n" },

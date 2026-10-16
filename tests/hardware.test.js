@@ -22,17 +22,33 @@ test('identificação afeta somente o alvo, não salva ajustes e restaura deslig
   assert.throws(()=>hardware.identify(id,4));assert.throws(()=>hardware.identify('f'.repeat(24),0));
 });
 
-test('conexao so fica pronta apos ler os componentes e lista vazia tenta novamente rapidamente', async t => {
+test('conexao so fica pronta apos ler os componentes e descoberta em etapas mantem varredura antes de recuar', async t => {
   const store = { data: { master: defaults, devices: {} } }, mock = new Mock([]), hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
   hardware.stopped = false; await hardware.connect();
   assert.equal(hardware.connected, true); assert.ok(hardware.nextDiscovery - Date.now() <= 1500);
   let resume; const pending = new Promise(resolve => { resume = resolve; });
-  mock.devices.push(controller('Detectado depois', 'USB:late')); mock.getControllerData = () => pending;
+  mock.devices.push(controller('Detectado primeiro', 'USB:first')); mock.getControllerData = () => pending;
   hardware.connected = false; const connecting = hardware.connect();
   await new Promise(resolve => setImmediate(resolve)); assert.equal(hardware.connected, false);
   resume(mock.devices[0]); await connecting;
   assert.equal(hardware.connected, true); assert.equal(hardware.snapshot().devices.length, 1);
-  assert.ok(hardware.nextDiscovery - Date.now() > 25000);
+  assert.ok(hardware.nextDiscovery - Date.now() <= 1500, 'Primeira peça detectada não encerra as etapas iniciais.');
+  mock.getControllerData = i => mock.devices[i]; await hardware.tick(); mock.calls = [];
+  // A second controller finishing its scan without deviceListUpdated is still picked up on the next staged check.
+  mock.devices.push(controller('Detectado depois', 'SMBus:ram'));
+  hardware.nextDiscovery = 0; await hardware.tick();
+  assert.equal(hardware.snapshot().devices.length, 2);
+  assert.deepEqual(mock.calls.map(c => c[1]), [1, 1], 'Apenas a controladora nova deve ser configurada.');
+  assert.ok(hardware.nextDiscovery - Date.now() <= 1500);
+  assert.equal(hardware.detecting, true);
+  let changes = 0; hardware.on('change', () => changes++);
+  hardware.nextDiscovery = 0; await hardware.tick();
+  assert.equal(hardware.detecting, false);
+  assert.equal(changes, 1, 'Fim da detecção inicial avisa a interface uma única vez.');
+  for (let stage = 0; stage < 5; stage++) { hardware.nextDiscovery = 0; await hardware.tick(); }
+  assert.equal(changes, 1, 'Redescoberta sem mudanças não deve reemitir eventos para a interface.');
+  assert.ok(hardware.nextDiscovery - Date.now() > 50000);
+  assert.equal(typeof hardware.discoveryMs, 'number');
 });
 
 test('mapa atualiza LEDs uma vez por quadro e restaura estático ou modo nativo ao sair', async t => {
@@ -214,4 +230,46 @@ test('energia geral apaga zonas e modos nativos sem perder ajustes ou religar co
   assert.deepEqual(mock.calls.find(call => call[0] === 'mode'), ['mode', 1, 0]);
   assert.equal(hardware.snapshot().devices.find(device => device.id === board.id).settings.power, true);
   assert.deepEqual(store.data.devices, overrides);
+});
+
+test('controladora multizona usa Off nativo somente quando todas as zonas estão apagadas e não reenvia preto em revisões espaciais', async t => {
+  const multi = zonedController(); multi.modes.push({ id: 7, name: 'Off', flagList: [] });
+  const single = controller('Fita', 'USB:strip');
+  const store = { data: { master: { ...defaults, effect: 'wave', brightness: 100 }, devices: {} } };
+  const mock = new Mock([multi, single]);
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect();
+  const [board, port1, port2, strip] = hardware.snapshot().devices;
+  hardware.studio = { revision: 1, hasDevice: () => true, colorsFor(id, settings, count) { const scale = settings.power ? settings.brightness / 100 : 0; return Array(count).fill({ red: Math.round(200 * scale), green: 0, blue: 0 }); } };
+  await hardware.tick(); mock.calls = [];
+  // Turning off only two of three zones keeps Direct mode so the remaining zone stays independent.
+  store.data.devices[board.id] = { power: false };
+  store.data.devices[port1.id] = { power: false };
+  hardware.changed(); await hardware.tick();
+  assert.equal(mock.calls.filter(c => c[0] === 'mode').length, 0);
+  assert.deepEqual(mock.calls.find(c => c[0] === 'leds' && c[1] === 0)[2], [{ red: 0, green: 0, blue: 0 }, { red: 0, green: 0, blue: 0 }, { red: 0, green: 0, blue: 0 }, { red: 200, green: 0, blue: 0 }]);
+  mock.calls = [];
+  // Turning off the last zone (or setting brightness to 0) switches the multi-zone controller to native Off.
+  store.data.devices[port2.id] = { brightness: 0 };
+  store.data.devices[strip.id] = { power: false };
+  hardware.changed(); await hardware.tick();
+  assert.deepEqual(mock.calls.filter(c => c[0] === 'mode'), [['mode', 0, 7]]);
+  assert.ok(mock.calls.find(c => c[0] === 'leds' && c[1] === 0)[2].every(c => !c.red && !c.green && !c.blue));
+  mock.calls = [];
+  // Advancing spatial revisions or ticking while off must not resend black frames.
+  hardware.studio.revision++; hardware.changed(); await hardware.tick(true); await hardware.tick();
+  assert.equal(mock.calls.length, 0);
+  // Temporary LED identification exits native Off to Direct, lights only the target LED, and restores native Off after stopping.
+  hardware.identify(port1.id, 1); await hardware.tick();
+  assert.deepEqual(mock.calls.filter(c => c[0] === 'mode'), [['mode', 0, 2]]);
+  assert.deepEqual(mock.calls.find(c => c[0] === 'leds' && c[1] === 0)[2].map(c => c.green), [0, 0, 64, 0]);
+  mock.calls = [];
+  hardware.identify(port1.id, undefined, true); await hardware.tick();
+  assert.deepEqual(mock.calls.filter(c => c[0] === 'mode'), [['mode', 0, 7]]);
+  mock.calls = [];
+  // Turning on a single zone returns the controller to Direct without lighting the other off zones.
+  store.data.devices[port1.id] = { power: true, brightness: 50 };
+  hardware.changed(); await hardware.tick();
+  assert.deepEqual(mock.calls.filter(c => c[0] === 'mode'), [['mode', 0, 2]]);
+  assert.deepEqual(mock.calls.find(c => c[0] === 'leds' && c[1] === 0)[2], [{ red: 0, green: 0, blue: 0 }, { red: 100, green: 0, blue: 0 }, { red: 100, green: 0, blue: 0 }, { red: 0, green: 0, blue: 0 }]);
 });

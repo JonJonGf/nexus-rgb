@@ -151,12 +151,15 @@ class Studio {
   }
   stopWorker() { clearTimeout(this.deadline); this.worker?.kill(); this.worker = null; this.busy = false; this.ready = false; this.frames = 0; this.windowAt = Date.now(); this.nextFrame = 0; this.metrics.fps = 0; this.metrics.memoryMB = 0; }
   fail(message) { this.stopWorker(); this.error = String(message).slice(0, 160); this.changed(); this.hardware.changed(); }
+  hasActiveDevices() {
+    return Boolean(this.config.enabled && !this.error && this.store.data.master.power && this.hardware.connected && this.devices().some(d => this.hasDevice(d.id) && d.settings?.power !== false && (d.settings?.brightness ?? 100) > 0));
+  }
   pump() {
     for (const c of this.clients) if (c.res.destroyed || !c.authorized() || c.res.writableLength > 512 * 1024) { c.res.end(); this.clients.delete(c); }
-    const running = this.config.enabled && this.store.data.master.power && this.hardware.connected && this.devices().some(d => d.settings?.power !== false && !(this.config.excluded || []).includes(d.id));
+    const running = this.hasActiveDevices();
     // Common effects already run in Hardware. Watching their output must not
     // start a second animation clock or keep an unrelated Canvas worker alive.
-    if (!this.config.enabled || this.error) {
+    if (!this.config.enabled || !this.store.data.master.power || this.error) {
       if (this.worker) this.stopWorker();
       if (this.clients.size && performance.now() - (this.lastPreview || 0) >= 100) { this.lastPreview = performance.now(); this.publishPreview(); }
       return;
@@ -183,10 +186,12 @@ class Studio {
             const p = this.points[i]; if (!this.colors.has(p.deviceId)) this.colors.set(p.deviceId, []);
             this.colors.get(p.deviceId)[p.index] = message.colors[i];
           }
-          this.hardware.changed();
-          // Submit a completed spatial frame without waiting for a second timer.
-          // Hardware's busy guard and SDK backpressure still serialize writes.
-          if (this.config.enabled && this.hardware.tick) await this.hardware.tick(true);
+          if (this.hasActiveDevices()) {
+            this.hardware.changed();
+            // Submit a completed spatial frame without waiting for a second timer.
+            // Hardware's busy guard and SDK backpressure still serialize writes.
+            if (this.config.enabled && this.hardware.tick) await this.hardware.tick(true);
+          }
           if (this.worker !== child) return;
           this.busy = false;
           this.metrics.renderMs = Math.round(message.renderMs * 100) / 100; this.metrics.memoryMB = Math.round(message.memoryMB);

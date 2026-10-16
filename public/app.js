@@ -113,10 +113,11 @@
     $('summary-power').textContent = master.power ? T('Ligada') : T('Desligada'); $('summary-brightness').textContent = `${master.brightness}%`; $('summary-devices').textContent = devices.filter(d => d.status === 'online').length;
     $('brightness-label').textContent = `${master.brightness}%`; $('speed-label').textContent = `${master.speed}%`;
     document.querySelectorAll('.effect').forEach(b => { b.classList.toggle('active', b.dataset.effect === master.effect); b.setAttribute('aria-pressed', String(b.dataset.effect === master.effect)); });
-    const online = state.hardware.connected; $('connection').textContent = online ? T('● Controlador conectado') : T('● Aguardando hardware'); $('connection').className = `badge ${online ? 'online' : 'offline'}`;
+    const online = state.hardware.connected, detecting = Boolean(online && state.hardware.detecting);
+    $('connection').textContent = !online ? T('● Aguardando hardware') : detecting ? T('● Detectando componentes…') : T('● Controlador conectado'); $('connection').className = `badge ${online ? 'online' : 'offline'}`;
     $('device-count').textContent = devices.length; $('hardware-summary').textContent = online ? `${devices.length} componentes · ${state.hardware.controllerCount ?? devices.length} controladoras` : T('Controlador RGB desconectado');
     const failures = devices.filter(d => d.error);
-    const notice = !online ? T('O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ') + T(state.hardware.error || '') : !devices.length ? T('Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.') : failures.length ? T`${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
+    const notice = !online ? T('O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ') + T(state.hardware.error || '') : detecting ? (devices.length ? T`Detectando componentes RGB (${devices.length} encontrado(s) até agora). Outras peças podem aparecer em instantes.` : T('Painel pronto. Detectando componentes RGB no controlador…')) : !devices.length ? T('Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.') : failures.length ? T`${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
     $('notice').textContent = notice; $('notice').hidden = !notice;
     renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
     window.NexusStudio?.update(state, admin, api, toast, currentPage);
@@ -128,13 +129,13 @@
   function renderMini(devices) {
     const container = $('hardware-mini'); container.replaceChildren();
     container.style.setProperty('--component-count', Math.min(devices.length || 1, 6));
-    if (!devices.length) return empty(container, T('Aguardando o controlador. Seus componentes aparecerão aqui.'));
+    if (!devices.length) return empty(container, T(state.hardware.connected && state.hardware.detecting ? 'Detectando componentes RGB. Suas peças aparecerão aqui em instantes.' : 'Aguardando o controlador. Seus componentes aparecerão aqui.'));
     for (const d of devices.slice(0, 6)) { const card = el('button', 'mini'); card.title = d.controllerName && d.controllerName !== d.name ? `${d.name} · ${d.controllerName}` : d.name; card.addEventListener('click', () => page('devices')); const text = el('div'); text.append(el('h3', '', d.name), el('p', '', `${d.ledCount} LEDs / ${d.kind === 'argb' ? 'ARGB' : d.kind === 'port' ? T('PORTA RGB') : d.type === 1 ? 'RAM' : d.type === 0 ? T('PLACA-MÃE') : 'RGB'}`), el('span', `device-status ${d.status === 'online' && !d.error ? 'online' : ''}`, d.error ? T('VERIFICAR AJUSTE') : d.status === 'online' ? T('● CONECTADO') : T('● DESCONECTADO'))); const artwork = el('span', 'device-icon'); artwork.append(icon(d.kind === 'argb' || d.kind === 'port' ? 'rgb' : d.type === 1 ? 'ram' : d.type === 0 ? 'board' : 'rgb')); card.append(artwork, text); container.append(card); }
   }
   function renderDevices(devices) {
     if ($('devices').contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
     const container = $('devices'); container.replaceChildren();
-    if (!devices.length) return empty(container, T('Nenhum dispositivo detectado. Não mostramos componentes simulados.'));
+    if (!devices.length) return empty(container, T(state.hardware.connected && state.hardware.detecting ? 'Detectando componentes RGB no controlador…' : 'Nenhum dispositivo detectado. Não mostramos componentes simulados.'));
     for (const d of devices) {
       const card = el('article', 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div'); title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), el('span', `sync-label ${d.customized ? 'customized' : ''}`, d.customized ? T('Ajuste individual') : T('Segue o controle geral')));
       const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', T`Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);

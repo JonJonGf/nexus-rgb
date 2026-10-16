@@ -54,6 +54,7 @@ function frame(settings, count, seconds) {
     return Object.fromEntries(Object.entries(color).map(([k, v]) => [k, Math.round(v * factor * pulse * motion)]));
   });
 }
+const DISCOVERY_STAGES = [1500, 1500, 3000, 6000, 15000, 30000, 60000];
 class Hardware extends EventEmitter {
   constructor(store, options = {}) {
     super(); this.store = store; this.port = options.port || 6743;
@@ -61,7 +62,7 @@ class Hardware extends EventEmitter {
     // native modes, brightness, matrices and segments without that broken parser.
     this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
     this.devices = []; this.output = new Map(); this.client = null; this.connected = false; this.busy = false; this.stopped = true;
-    this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.retry = 1000; this.dirty = true;
+    this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.discoveryStage = 0; this.discoverySignature = ''; this.discoveryMs = 0; this.retry = 1000; this.dirty = true;
   }
   async operation(promise, timeout = 4000) {
     let timer;
@@ -73,11 +74,11 @@ class Hardware extends EventEmitter {
     this.busy = true;
     const client = this.makeClient(); this.client = client;
     client.on('error', error => { if (this.client === client) this.lost(error); }); client.on('disconnect', () => { if (this.client === client) this.lost(new Error('Controlador desconectado.')); });
-    client.on('deviceListUpdated', () => { if (this.client === client) { this.nextDiscovery = 0; this.dirty = true; } });
+    client.on('deviceListUpdated', () => { if (this.client === client) { this.discoveryStage = 0; this.nextDiscovery = 0; this.dirty = true; } });
     try {
       await this.operation(client.connect(2500));
       if (this.stopped) { client.socket?.destroy(); return; }
-      this.modes.clear(); this.applied.clear(); await this.discover(); this.connected = true;
+      this.modes.clear(); this.applied.clear(); this.discoveryStage = 0; this.discoverySignature = ''; await this.discover(); this.connected = true;
       this.retry = 1000; this.error = null; this.dirty = true;
     } catch (error) { this.connected = false; this.error = error.message; client.socket?.destroy(); }
     finally {
@@ -92,10 +93,12 @@ class Hardware extends EventEmitter {
   }
   lost(error) {
     this.cancelIdentification();
-    this.connected = false; this.error = error.message; this.modes.clear(); this.emit('change');
+    this.connected = false; this.error = error.message; this.modes.clear(); this.discoveryStage = 0; this.discoverySignature = ''; this.emit('change');
     if (!this.busy) this.scheduleReconnect();
   }
+  get detecting() { return Boolean(!this.stopped && this.connected && this.discoveryStage < (this.devices.length ? 1 : 3)); }
   async discover() {
+    const started = performance.now(), wasDetecting = this.detecting;
     const count = await this.operation(this.client.getControllerCount());
     if (count > 128) throw new Error('Quantidade de controladores acima do limite.');
     const devices = []; const seen = new Map(); let leds = 0;
@@ -125,12 +128,19 @@ class Hardware extends EventEmitter {
     const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
     for (const id of this.animations.keys()) if (!channels.has(id)) this.animations.delete(id);
     for (const id of this.output.keys()) if (!channels.has(id)) this.output.delete(id);
-    // The SDK can open before OpenRGB finishes scanning. Retry an empty list
-    // promptly instead of hiding newly detected components for 30 seconds.
-    this.devices = devices; this.nextDiscovery = Date.now() + (devices.length ? 30000 : 1500); this.dirty = true; this.emit('change');
+    const signature = JSON.stringify(devices.map(d => [d.id, d.sdkId, d.name, d.vendor, d.type, d.ledCount, d.modes, d.zones, d.components?.map(c => [c.id, c.name, c.kind, c.zoneId, c.ledCount, c.offset])]));
+    const changed = signature !== this.discoverySignature;
+    this.discoverySignature = signature;
+    // The first detected controller does not mean OpenRGB finished scanning.
+    // Probe in gradual stages after changes, then back off to bounded recovery.
+    this.discoveryStage = changed ? 0 : Math.min(this.discoveryStage + 1, DISCOVERY_STAGES.length - 1);
+    this.devices = devices; this.discoveryMs = Math.round((performance.now() - started) * 100) / 100;
+    this.nextDiscovery = Date.now() + DISCOVERY_STAGES[this.discoveryStage];
+    if (changed) this.dirty = true;
+    if (changed || wasDetecting !== this.detecting) this.emit('change');
   }
   snapshot() {
-    return { connected: this.connected, error: this.error, controllerCount: this.devices.length, devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
+    return { connected: this.connected, detecting: this.detecting, error: this.error, controllerCount: this.devices.length, devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
       const { offset, ...component } = channel;
       return { ...device, ...component, ...(channels ? { modes: [], splitZone: true } : {}), status: this.connected ? 'online' : 'offline', customized: Object.hasOwn(this.store.data.devices, component.id), settings: this.settings(component.id, !!channels) };
     })) };
@@ -201,7 +211,7 @@ class Hardware extends EventEmitter {
     if (this.identification && Date.now() >= this.identification.until) this.cancelIdentification();
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
-      return s.power && d.direct && !('nativeMode' in s) && (this.transitionState?.from.has(component.id) || !this.studio?.hasDevice(component.id) && s.effect !== 'static');
+      return s.power && s.brightness > 0 && d.direct && !('nativeMode' in s) && (this.transitionState?.from.has(component.id) || !this.studio?.hasDevice(component.id) && s.effect !== 'static');
     }));
     if (!this.dirty && !animated && Date.now() < this.nextDiscovery) return;
     this.busy = true; let changedErrors = false;
@@ -212,20 +222,41 @@ class Hardware extends EventEmitter {
       const seconds = performance.now() / 1000;
       for (const d of this.devices) {
         const channels = d.components || [d];
-        const signature = JSON.stringify(channels.map(component => ({ id: component.id, count: component.ledCount, ...this.settings(component.id, !!d.components), identify:this.identification?.id === component.id ? this.identification : null, spatial: this.studio?.hasDevice(component.id) ? this.studio.revision : null })));
+        const signature = JSON.stringify(channels.map(component => {
+          const s = this.settings(component.id, !!d.components);
+          const identify = this.identification?.id === component.id ? this.identification : null;
+          const lit = Boolean(identify || (s.power && (s.brightness > 0 || s.nativeMode !== undefined)));
+          return lit
+            ? { id: component.id, count: component.ledCount, ...s, identify, spatial: !identify && this.studio?.hasDevice(component.id) ? this.studio.revision : null }
+            : { id: component.id, count: component.ledCount, lit: false, power: Boolean(s.power) };
+        }));
         const changed = this.applied.get(d.id) !== signature;
-        const animation = channels.some(component => { const s = this.settings(component.id, !!d.components); return s.power && d.direct && s.nativeMode === undefined && (this.transitionState?.from.has(component.id)||!spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'); });
+        const animation = channels.some(component => {
+          const s = this.settings(component.id, !!d.components);
+          return s.power && s.brightness > 0 && d.direct && s.nativeMode === undefined && (this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static');
+        });
         if (!changed && !animation) continue;
         if (d.components) {
           const oldError = d.error;
-          // One Direct mode; independent brightness stays in each zone's colors.
-          await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
           const colors = Array(d.ledCount);
           for (const component of d.components) {
             const zoneColors = this.renderFrame(component.id, this.settings(component.id, true), component.ledCount, seconds);
             for (let index = 0; index < zoneColors.length; index++) colors[component.offset + index] = zoneColors[index];
           }
-          this.client.updateLeds(d.sdkId, colors); d.error = null; this.applied.set(d.id, signature);
+          const allOff = d.components.every(component => {
+            if (this.identification?.id === component.id) return false;
+            const s = this.settings(component.id, true);
+            return !s.power || s.brightness === 0;
+          });
+          if (allOff && d.off) {
+            this.client.updateLeds(d.sdkId, colors);
+            await this.applyMode(d, d.off, { ...this.store.data.master, power: false }, false);
+          } else {
+            // One Direct mode; independent brightness stays in each zone's colors.
+            await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
+            this.client.updateLeds(d.sdkId, colors);
+          }
+          d.error = null; this.applied.set(d.id, signature);
           for (const component of d.components) this.rememberOutput(component.id, colors.slice(component.offset, component.offset + component.ledCount), this.settings(component.id, true));
           if (oldError !== d.error) changedErrors = true;
           continue;

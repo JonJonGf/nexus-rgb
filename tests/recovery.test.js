@@ -3,15 +3,17 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), { spawnSync } = require('node:child_process');
 const { fixture } = require('./helpers/http-app');
 
-test('saude local distingue painel pronto de controlador desconectado sem expor configuracoes', async t => {
+test('saude local distingue painel pronto de controlador desconectado e deteccao em andamento sem expor configuracoes', async t => {
   const hardware = { connected: false, on() {}, changed() {}, stop() {}, snapshot() { return { connected: this.connected, devices: this.connected ? [{ id: 'a'.repeat(24), ledCount: 0 }] : [] }; } };
   const f = await fixture(t, { hardware });
   const first = (await f.request('/api/health')).json(); assert.equal(first.ready, true); assert.deepEqual(first.hardware, { connected: false, devices: 0 });
-  hardware.connected = true;
-  const next = (await f.request('/api/health')).json(); assert.deepEqual(next.hardware, { connected: true, devices: 1 }); assert.equal(next.master, undefined);
+  hardware.connected = true; hardware.detecting = true;
+  const detecting = (await f.request('/api/health')).json(); assert.deepEqual(detecting.hardware, { connected: true, devices: 1, detecting: true });
+  hardware.detecting = false;
+  const next = (await f.request('/api/health')).json(); assert.deepEqual(next.hardware, { connected: true, devices: 1, detecting: false }); assert.equal(next.master, undefined);
 });
 
-test('recuperacao reinicia apenas os servicos corretos, preserva arquivos e nao anuncia sucesso sem OpenRGB', { skip: process.platform !== 'win32' }, t => {
+test('recuperacao reinicia apenas os servicos corretos, aguarda estabilizacao parcial, preserva arquivos e nao anuncia sucesso sem OpenRGB', { skip: process.platform !== 'win32' }, t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-recovery-fixture-')); t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const source = fs.readFileSync(path.join(__dirname, '../scripts/restart-services.ps1'), 'utf8');
   const setup = String.raw`
@@ -30,7 +32,13 @@ function Stop-Service([string]$Name) {if($Name -notin 'NexusRGB','NexusRGBHardwa
 function Start-Service([string]$Name) {if($Name -notin 'NexusRGB','NexusRGBHardware'){throw 'Foreign service'}; $trace.Add('start:'+ $Name); if($env:NEXUS_TEST_CASE -eq 'start-failure' -and $Name -eq 'NexusRGBHardware'){throw 'Simulated startup failure'}; $states[$Name]='Running'}
 function Start-Sleep {}
 $script:healthCalls=0
-function Invoke-RestMethod([string]$Uri) {if($Uri -ne 'http://127.0.0.1:5151/api/health'){throw 'Unexpected destination'}; $script:healthCalls++; return @{ready=$true;application='nexus-rgb';hardware=@{connected=($env:NEXUS_TEST_CASE -ne 'sdk-failure');devices=$(if($env:NEXUS_TEST_CASE -eq 'delayed' -and $script:healthCalls -lt 4){0}else{7})}}}
+function Invoke-RestMethod([string]$Uri) {
+ if($Uri -ne 'http://127.0.0.1:5151/api/health'){throw 'Unexpected destination'}
+ $script:healthCalls++
+ $devices=$(if($env:NEXUS_TEST_CASE -eq 'delayed' -and $script:healthCalls -lt 4){0}elseif($env:NEXUS_TEST_CASE -eq 'partial-growing' -and $script:healthCalls -lt 3){2}elseif($env:NEXUS_TEST_CASE -eq 'still-detecting'){3}else{7})
+ $detecting=$(if($env:NEXUS_TEST_CASE -eq 'still-detecting'){$true}elseif($env:NEXUS_TEST_CASE -eq 'partial-growing' -and $script:healthCalls -lt 3){$true}else{$false})
+ return @{ready=$true;application='nexus-rgb';hardware=@{connected=($env:NEXUS_TEST_CASE -ne 'sdk-failure');devices=$devices;detecting=$detecting}}
+}
 `;
   const script = setup + source
     .replace(". (Join-Path $PSScriptRoot 'ports.ps1')", '')
@@ -40,13 +48,14 @@ function Invoke-RestMethod([string]$Uri) {if($Uri -ne 'http://127.0.0.1:5151/api
     .replace('Global\\NexusRGB.RestartServices', 'Local\\NexusRGB.RecoveryFixture.' + path.basename(directory))
     .replace('if($mutex){$mutex.Dispose()}', "if($mutex){$mutex.Dispose()}; [IO.File]::WriteAllLines((Join-Path $env:NEXUS_TEST_ROOT 'trace.txt'),$trace)");
   const sentinel = path.join(directory, 'settings.json'); fs.writeFileSync(sentinel, '{"profiles":["preserve"]}');
-  for (const scenario of ['success', 'delayed', 'foreign', 'sdk-failure', 'start-failure']) {
+  for (const scenario of ['success', 'delayed', 'partial-growing', 'still-detecting', 'foreign', 'sdk-failure', 'start-failure']) {
     const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { encoding: 'utf8', timeout: 15000, windowsHide: true, env: { ...process.env, NEXUS_TEST_ROOT: directory, NEXUS_TEST_CASE: scenario } });
-    assert.equal(result.status, ['success', 'delayed'].includes(scenario) ? 0 : 1, result.stderr + result.stdout);
+    assert.equal(result.status, ['success', 'delayed', 'partial-growing', 'still-detecting'].includes(scenario) ? 0 : 1, result.stderr + result.stdout);
     const trace = fs.readFileSync(path.join(directory, 'trace.txt'), 'utf8').trim().split(/\r?\n/).filter(Boolean);
     if (scenario === 'foreign') assert.deepEqual(trace, []);
     else assert.deepEqual(trace.slice(0, 3), ['stop:NexusRGB', 'stop:NexusRGBHardware', 'start:NexusRGBHardware']);
-    if (['success', 'delayed'].includes(scenario)) { assert.equal(trace.at(-1), 'start:NexusRGB'); assert.match(result.stdout, /detectados: 7/); }
+    if (['success', 'delayed', 'partial-growing'].includes(scenario)) { assert.equal(trace.at(-1), 'start:NexusRGB'); assert.match(result.stdout, /detectados: 7/); }
+    if (scenario === 'still-detecting') assert.match(result.stdout, /deteccao ainda em andamento \(componentes detectados ate agora: 3\)/);
     if (scenario === 'sdk-failure') assert.match(result.stdout, /OpenRGB ainda nao confirmou/);
     if (scenario === 'start-failure') assert.ok(trace.includes('start:NexusRGB'), 'Tenta recuperar o painel mesmo se OpenRGB falha.');
     assert.equal(fs.readFileSync(sentinel, 'utf8'), '{"profiles":["preserve"]}');

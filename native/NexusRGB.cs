@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -62,12 +62,13 @@ internal static class Program {
         try { Process.Start(new ProcessStartInfo(Path.Combine(Root, "NexusRGB.exe"), "--restart-rgb") { UseShellExecute = true, Verb = "runas" }); }
         catch (System.ComponentModel.Win32Exception error) { if (error.NativeErrorCode != 1223) MessageBox.Show(error.Message, "Nexus RGB"); }
     }
-    internal static bool PanelReady() {
+    internal static string ReadHealth() {
         try {
             var request = (HttpWebRequest)WebRequest.Create(Panel + "api/health"); request.Proxy = null; request.Timeout = 1000; request.ReadWriteTimeout = 1000;
-            using (var response = request.GetResponse()) using (var reader = new StreamReader(response.GetResponseStream())) { char[] buffer = new char[1024]; int count = reader.Read(buffer, 0, buffer.Length); return new string(buffer, 0, count).Contains("\"application\":\"nexus-rgb\""); }
-        } catch { return false; }
+            using (var response = request.GetResponse()) using (var reader = new StreamReader(response.GetResponseStream())) { char[] buffer = new char[1024]; int count = reader.Read(buffer, 0, buffer.Length); return new string(buffer, 0, count); }
+        } catch { return ""; }
     }
+    internal static bool PanelReady() { return ReadHealth().Contains("\"application\":\"nexus-rgb\""); }
 }
 internal sealed class RecoveryDialog : Form {
     private readonly Label status;
@@ -80,6 +81,20 @@ internal sealed class RecoveryDialog : Form {
         close = new Button { Left = 367, Top = 210, Width = 130, Height = 30, Text = L.T("Fechar"), Enabled = false }; close.Click += (s,e) => Close(); Controls.Add(close);
         FormClosing += (s,e) => { if (busy) e.Cancel = true; };
         Shown += async (s,e) => {
+            var progress = new System.Windows.Forms.Timer { Interval = 750 };
+            bool polling = false;
+            progress.Tick += async (ts, te) => {
+                if (!busy || polling) return;
+                polling = true;
+                try {
+                    string health = await Task.Run(() => Program.ReadHealth());
+                    if (!busy || !health.Contains("\"application\":\"nexus-rgb\"")) return;
+                    status.Text = health.Contains("\"connected\":true")
+                        ? L.T("Painel pronto e OpenRGB conectado. Detectando componentes RGB…\nPerfis, posições, efeitos importados e configurações serão preservados.")
+                        : L.T("Painel pronto. Aguardando conexão do OpenRGB…\nPerfis, posições, efeitos importados e configurações serão preservados.");
+                } finally { polling = false; }
+            };
+            progress.Start();
             try {
                 var result = await Task.Run(() => {
                     string shell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), @"WindowsPowerShell\v1.0\powershell.exe");
@@ -92,7 +107,7 @@ internal sealed class RecoveryDialog : Form {
                 });
                 status.Text = (result.Code == 0 ? L.T("Concluído.\n") : L.T("Não foi possível concluir.\n")) + result.Message.Trim() + L.T("\nRecarregue o painel para conferir o estado atual.");
             } catch (Exception error) { status.Text = L.T("Não foi possível concluir.\n") + error.Message; }
-            finally { busy = false; close.Enabled = true; }
+            finally { busy = false; progress.Stop(); progress.Dispose(); close.Enabled = true; }
         };
     }
 }
@@ -251,8 +266,8 @@ internal sealed class Worker : ServiceBase {
                 var ports = PortSettings.Load();
                 string exe = Path.Combine(Program.Root, hardware ? "openrgb\\OpenRGB.exe" : "runtime\\node.exe");
                 string arguments = hardware ? "--server --server-host 127.0.0.1 --server-port " + ports.SDK + " --noautoconnect --config \"" + data + "\"" : "\"" + Path.Combine(Program.Root, "server", "index.js") + "\"";
-                var info = new ProcessStartInfo(exe, arguments) { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-                if (!hardware) { info.EnvironmentVariables["NEXUS_DATA_DIR"] = data; info.EnvironmentVariables["NEXUS_PORT"] = ports.Panel.ToString(); info.EnvironmentVariables["NEXUS_RGB_PORT"] = ports.SDK.ToString(); info.EnvironmentVariables["NEXUS_ALEXA_PORT"] = ports.Alexa.ToString(); info.EnvironmentVariables["NODE_ENV"] = "production"; info.EnvironmentVariables.Remove("NODE_OPTIONS"); info.EnvironmentVariables.Remove("NODE_PATH"); }
+                var info = new ProcessStartInfo(exe, arguments) { WorkingDirectory = Program.Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                if (!hardware) { info.EnvironmentVariables["NEXUS_DATA_DIR"] = data; info.EnvironmentVariables["NEXUS_PORT"] = ports.Panel.ToString(); info.EnvironmentVariables["NEXUS_RGB_PORT"] = ports.SDK.ToString(); info.EnvironmentVariables["NEXUS_ALEXA_PORT"] = ports.Alexa.ToString(); info.EnvironmentVariables["NEXUS_SUPERVISED"] = "1"; info.EnvironmentVariables["NODE_ENV"] = "production"; info.EnvironmentVariables.Remove("NODE_OPTIONS"); info.EnvironmentVariables.Remove("NODE_PATH"); }
                 child = new Process { StartInfo = info }; child.OutputDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); }; child.ErrorDataReceived += (s, e) => { if (e.Data != null) Log(e.Data); };
                 child.Start(); if (!Job.Assign(job, child.Handle)) { child.Kill(); throw new InvalidOperationException(L.T("Não foi possível supervisionar o processo.")); }
                 child.BeginOutputReadLine(); child.BeginErrorReadLine(); Log("Processo iniciado: " + child.Id);
@@ -260,7 +275,20 @@ internal sealed class Worker : ServiceBase {
         }
     }
     protected override void OnStop() {
-        lock (gate) { stopping = true; if (timer != null) timer.Dispose(); if (job != IntPtr.Zero) { Job.Close(job); job = IntPtr.Zero; } }
+        Process running; IntPtr currentJob;
+        lock (gate) { stopping = true; if (timer != null) { timer.Dispose(); timer = null; } running = child; child = null; currentJob = job; job = IntPtr.Zero; }
+        if (running != null) {
+            try {
+                if (!running.HasExited) {
+                    try { running.StandardInput.WriteLine("shutdown"); running.StandardInput.Close(); } catch {}
+                    try { running.CloseMainWindow(); } catch {}
+                    if (running.WaitForExit(hardware ? 1500 : 4000)) Log("Processo encerrou normalmente.");
+                    else Log("Prazo de encerramento esgotado; aplicando recuperação forçada.");
+                }
+            } catch {}
+            finally { try { running.Dispose(); } catch {} }
+        }
+        if (currentJob != IntPtr.Zero) Job.Close(currentJob);
     }
     protected override void OnShutdown() { OnStop(); base.OnShutdown(); }
 }

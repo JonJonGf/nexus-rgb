@@ -105,7 +105,7 @@ async function createApp(options = {}) {
     const url = new URL(req.url, origin); const route = url.pathname;
     const budget = ['GET', 'HEAD'].includes(req.method) && assets.has(route) ? assetRate : rate;
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
-    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length } });
+    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}) } });
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
       if (req.headers.origin !== origin || req.headers['x-nexus-client'] !== 'web') return json(res, 403, { error: 'Requisição sem proteção de origem.' });
@@ -229,10 +229,16 @@ async function createApp(options = {}) {
   return { start, stop, local, store, security, hardware, alexa, studio, draftPreview, snapshot };
 }
 if (require.main === module) {
-  let app;
-  createApp().then(async value => { app = value; await app.start(); }).catch(error => { console.error(error); process.exitCode = 1; app?.stop(); });
-  const shutdown = async () => { await app?.stop(); process.exit(0); };
+  let app, stopping = false;
+  const shutdown = async () => { if (stopping) return; stopping = true; await app?.stop(); process.exit(0); };
+  createApp().then(async value => { app = value; if (stopping) { await app.stop(); process.exit(0); } await app.start(); }).catch(error => { console.error(error); process.exitCode = 1; app?.stop(); });
   process.on('SIGINT', shutdown); process.on('SIGTERM', shutdown);
+  if (process.env.NEXUS_SUPERVISED === '1') {
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', chunk => { if (chunk.includes('shutdown')) shutdown(); });
+    process.stdin.on('end', shutdown);
+    process.stdin.unref?.();
+  }
   process.on('uncaughtException', error => { console.error('Falha fatal:', error.message); process.exit(1); });
   process.on('unhandledRejection', error => { console.error('Falha fatal:', error?.message); process.exit(1); });
 }

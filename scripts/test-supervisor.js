@@ -38,9 +38,30 @@ internal static class WorkerFixture {
             string log = System.IO.File.ReadAllText(System.IO.Path.Combine(data, "service.log"));
             if (!log.Contains("código 42")) throw new System.Exception("Child failure was not recorded.");
             stop.Invoke(worker, null); started = false;
-            if (!child.WaitForExit(5000)) throw new System.Exception("Job shutdown left a child process running.");
+            if (!child.WaitForExit(5000)) throw new System.Exception("Graceful shutdown left a child process running.");
+            if (!System.IO.File.Exists(System.IO.Path.Combine(data, "graceful-exit"))) throw new System.Exception("Child did not receive graceful shutdown signal before Job close.");
+            log = System.IO.File.ReadAllText(System.IO.Path.Combine(data, "service.log"));
+            if (!log.Contains("Processo encerrou normalmente.")) throw new System.Exception("Supervisor did not log graceful shutdown.");
             child.Dispose();
-            System.Console.WriteLine("Supervisor restarted a failed child and stopped its Job without leaving it running.");
+
+            System.IO.File.Delete(stable);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(data, "hang-on-stop"), "1");
+            var worker2 = new Worker(false);
+            try {
+                start.Invoke(worker2, new object[] { new string[0] }); started = true;
+                deadline = System.DateTime.UtcNow.AddSeconds(20);
+                while (!System.IO.File.Exists(stable) && System.DateTime.UtcNow < deadline) System.Threading.Thread.Sleep(100);
+                if (!System.IO.File.Exists(stable)) throw new System.Exception("Second worker did not start child.");
+                int hungId = int.Parse(System.IO.File.ReadAllText(stable));
+                var hung = System.Diagnostics.Process.GetProcessById(hungId);
+                stop.Invoke(worker2, null); started = false;
+                if (!hung.WaitForExit(5000)) throw new System.Exception("Job fallback left an unresponsive child running.");
+                log = System.IO.File.ReadAllText(System.IO.Path.Combine(data, "service.log"));
+                if (!log.Contains("aplicando recuperação forçada")) throw new System.Exception("Supervisor did not log forced Job fallback.");
+                hung.Dispose();
+            } finally { if (started) stop.Invoke(worker2, null); worker2.Dispose(); }
+
+            System.Console.WriteLine("Supervisor restarted a failed child, stopped gracefully when responsive, and enforced Job fallback when hung.");
         } finally { if (started) stop.Invoke(worker, null); worker.Dispose(); }
     }
 }
@@ -57,6 +78,14 @@ internal static class ChildFixture {
         if (!File.Exists(marker)) { File.WriteAllText(marker, "fixture"); Thread.Sleep(600); Environment.Exit(42); }
         File.WriteAllText(Path.Combine(data, "stable-pid"), Process.GetCurrentProcess().Id.ToString());
         Console.WriteLine("Fixture child ready");
+        if (File.Exists(Path.Combine(data, "hang-on-stop"))) {
+            while (true) Thread.Sleep(1000);
+        }
+        string line = Console.In.ReadLine();
+        if (line == "shutdown" && Environment.GetEnvironmentVariable("NEXUS_SUPERVISED") == "1") {
+            File.WriteAllText(Path.Combine(data, "graceful-exit"), "0");
+            Environment.Exit(0);
+        }
         while (true) Thread.Sleep(1000);
     }
 }

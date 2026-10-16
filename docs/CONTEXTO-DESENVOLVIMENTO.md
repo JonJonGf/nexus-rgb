@@ -10,7 +10,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 - **Resultado físico:** usuário testou a alpha.20 e confirmou aviso de falha nos dois comandos, acender e apagar. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados de desligamento, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
 - **Resultado posterior em Alexa+:** o usuário pediu por voz para a Alexa deixar de anunciar o erro e informou que funcionou. Nenhuma outra mudança de código ou reinstalação ocorreu. Registrar como preferência de resposta/solução prática relatada pelo usuário, sem concluir que o protocolo foi corrigido. O estado do aplicativo Alexa após esse pedido não foi retestado.
 - **Pendência técnica:** a causa do aviso no protocolo permanece desconhecida. Investigar caso o usuário queira retomar; a confirmação de brilho não é causa comprovada. Grupos, rotinas e estado no aplicativo precisam de teste separado. Não iniciar novas tentativas de alteração ou recadastro automaticamente após a solução prática relatada.
-- **Demais melhorias:** registradas no [plano](PLANO-MELHORIAS.md) e adiadas por decisão do usuário. Não iniciá-las automaticamente.
+- **Demais melhorias:** bloco de estabilidade e hardware (itens 1 a 5) concluído e validado localmente na branch `codex/hardware-stability`, pronto para compilação e publicação da `v0.1.0-alpha.21`.
 - **Mudança documental após o instalador:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`. O registro posterior incorpora a confirmação das duas direções e a solução prática na Alexa+. Esses arquivos não alteram o binário da alpha.20; conferir os commits posteriores no histórico do Git.
 
 ## Decisões de produto que devem ser preservadas
@@ -42,6 +42,29 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 16/10/2026 — Alpha.21: estabilidade e hardware (branch `codex/hardware-stability`)
+
+**Objetivo:** implementar as 5 melhorias de estabilidade e hardware planejadas após a alpha.20 sem refazer alterações da Alexa e preservando perfis, efeitos, mapa e configurações.
+
+**Mudanças e arquivos (Itens 1 a 5):**
+- `server/hardware.js` e `server/diagnostics.js`: descoberta em etapas (`DISCOVERY_STAGES = [1500, 1500, 3000, 6000, 15000, 30000, 60000]`), mantendo varreduras frequentes logo após conectar ou detectar mudanças estruturais, reiniciando o estágio em `deviceListUpdated`, recuando gradualmente até 60 s quando a lista permanece estável, expondo `detecting`, medindo `discoveryMs` no diagnóstico e evitando `dirty`/`emit('change')` redundantes quando nada mudou.
+- `server/hardware.js` e `server/studio.js`: deduplicação de estado apagado (`power: false` ou `brightness: 0` sem modo nativo) para não reenviar quadros pretos quando a revisão espacial avança ou ajustes irrelevantes mudam com os LEDs apagados; encerramento do worker espacial quando a energia geral está desligada (`!master.power`) ou não há dispositivos ativos/clientes; aplicação de modo `Off` nativo em controladoras multizona (`d.components`) somente quando todas as zonas estão apagadas e sem identificação ativa, preservando `Direct` quando qualquer zona está acesa ou em identificação temporária.
+- `native/NexusRGB.cs` e `server/index.js`: encerramento normal supervisionado (`NEXUS_SUPERVISED=1`, sinal `shutdown` via stdin e `CloseMainWindow`) com espera limitada fora do lock de log antes de acionar o fechamento forçado do Job Object.
+- `server/index.js`, `scripts/restart-services.ps1`, `native/NexusRGB.cs`, `native/Locale.cs`, `public/app.js`, `public/health.js` e `public/en.js`: exposição de `detecting` em `/api/health` e no estado do painel; espera limitada por estabilização da descoberta parcial no reinício manual; mensagens de progresso na janela de recuperação e no painel web (PT-BR e EN) diferenciando painel pronto de hardware ainda em detecção.
+- `tests/hardware.test.js`, `tests/studio.test.js`, `tests/recovery.test.js`, `tests/ui/health.spec.js` e `scripts/test-supervisor.js`: cobertura automatizada dos 5 comportamentos.
+- `README.md`, `docs/PLANO-MELHORIAS.md` e `docs/releases/v0.1.0-alpha.21.md`: documentação e notas da versão `v0.1.0-alpha.21`.
+
+**Testes executados e resultados:**
+- `npm.cmd test`: 125/125 aprovados.
+- `npm.cmd run test:ui`: 35/35 aprovados (Playwright/Edge).
+- `npm.cmd run test:supervisor`: aprovado (reinício após falha, parada graciosa via stdin e fallback forçado via Job Object).
+- `npm.cmd run test:installer`: 12/12 cenários aprovados (PT-BR e EN).
+- `node scripts/check-release.cjs v0.1.0-alpha.21` e `npm.cmd run build`: aprovados localmente.
+
+**Git / Release / Instalação:** código na branch `codex/hardware-stability`; versão atualmente instalada no PC real continua sendo `v0.1.0-alpha.20` (nenhum serviço local foi reiniciado ou instalado sem autorização). Tag `checkpoint/alpha20-before-antigravity-2026-10-16` e backup `E:\Nexus RGB Backups\2026-10-16-alpha20-b112b15` preservados.
+
+**Pendências e próximo passo:** publicar `v0.1.0-alpha.21` passando pelos workflows de CI, CodeQL e 2 VMs, registrar os links dos workflows e pedir confirmação ao usuário antes de instalar ou reiniciar serviços no PC real.
 
 ### 16/10/2026 — Alpha.20: respostas Hue da Alexa
 

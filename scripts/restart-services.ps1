@@ -24,19 +24,28 @@ try {
     if($service.Status -ne 'Stopped'){Stop-Service $name; $service.WaitForStatus('Stopped',[TimeSpan]::FromSeconds(20))}
   }
   foreach($name in @('NexusRGBHardware','NexusRGB')) {Start-Service $name; (Get-Service $name).WaitForStatus('Running',[TimeSpan]::FromSeconds(20))}
-  $health=$null
+  $health=$null; $stable=0; $lastDevices=-1
   for($attempt=0;$attempt -lt 45;$attempt++) {
     try {
       $value=Invoke-RestMethod ('http://127.0.0.1:'+$ports.PanelPort+'/api/health') -TimeoutSec 1
       if($value.ready -is [bool] -and $value.ready -eq $true -and $value.application -eq 'nexus-rgb'){
         $health=$value
-        if($value.hardware.connected -is [bool] -and $value.hardware.connected -eq $true -and ($value.hardware.devices -gt 0 -or $attempt -ge 10)){break}
+        if($value.hardware.connected -is [bool] -and $value.hardware.connected -eq $true){
+          $detecting=($value.hardware.detecting -is [bool] -and $value.hardware.detecting -eq $true)
+          if($value.hardware.devices -eq $lastDevices -and $value.hardware.devices -gt 0){$stable++}else{$stable=0}
+          $lastDevices=$value.hardware.devices
+          if(-not $detecting -and (($value.hardware.devices -gt 0 -and $stable -ge 1) -or $attempt -ge 10)){break}
+        }
       }
     } catch {}
     Start-Sleep -Milliseconds 500
   }
   if(-not $health){throw 'Os servicos iniciaram, mas o painel nao confirmou retorno. Confira as portas e os diagnosticos.'}
   if($health.hardware.connected -isnot [bool] -or $health.hardware.connected -ne $true){throw 'O painel voltou, mas o OpenRGB ainda nao confirmou conexao. Confira os diagnosticos; seus ajustes foram preservados.'}
+  if($health.hardware.detecting -is [bool] -and $health.hardware.detecting -eq $true){
+    Write-Output ('Painel pronto e OpenRGB conectado; deteccao ainda em andamento (componentes detectados ate agora: '+$health.hardware.devices+'). Perfis, efeitos e configuracoes foram preservados.')
+    exit 0
+  }
   Write-Output ('Servicos e OpenRGB reiniciados. Componentes detectados: '+$health.hardware.devices+'. Perfis, efeitos e configuracoes foram preservados.')
   exit 0
 } catch {
