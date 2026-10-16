@@ -4,14 +4,14 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 16/10/2026
 
-- **Entrega de código:** alpha.20, commit `b00c3f687bdd9509dd3d9d9d79a362034cb7c397`.
-- **Distribuição:** [release alpha.20](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.20), com instalador, desinstalador, hashes e origem do build. Evidências adicionadas ao main em `dc6b8f8`; esse commit posterior só altera documentação.
-- **PC de validação:** alpha.20 instalada com autorização do usuário, instalação encerrada com código zero e sem reinício do Windows. Os cinco componentes voltaram sem erro; hashes dos ajustes e dos arquivos de efeitos permaneceram iguais aos capturados antes da atualização. Contagens, nomes pessoais e logs locais não são publicados.
-- **Resultado físico:** usuário testou a alpha.20 e confirmou aviso de falha nos dois comandos, acender e apagar. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados de desligamento, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
+- **Entrega de código:** alpha.21, commit `db0c9e7f82b613e7ad65fa3b6bac388d0782d48d` (tag `v0.1.0-alpha.21`).
+- **Distribuição:** [release alpha.21](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.21) publicada com instalador (`09f914fcb43ec0831453bf5ea5bbd6ef40869c71216f947290518958c3214628`), desinstalador (`e3c13e8191f044f6c3c73c8572097abd9ea9c67224ef7c488cfeb165adec732e`), `SHA256SUMS.txt` e `BUILD-INFO.json`, aprovada em [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/38965911628) (CodeQL nas 3 linguagens e 2 VMs Windows descartáveis) e [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/38965911532). Commit posterior em `codex/hardware-stability` e `main` apenas registra as evidências da publicação neste documento e remove condição de corrida no mock de `tests/studio.test.js`, sem alterar o binário publicado da `v0.1.0-alpha.21`.
+- **PC de validação:** a versão instalada localmente continua sendo `v0.1.0-alpha.20`. Nenhum instalador, UAC ou reinício de serviços foi executado no PC real; aguarda-se confirmação explícita do usuário (acesso remoto) antes de atualizar e validar no hardware físico.
+- **Resultado físico (Alexa na alpha.20):** usuário testou a alpha.20 e confirmou aviso de falha nos dois comandos, acender e apagar. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados de desligamento, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
 - **Resultado posterior em Alexa+:** o usuário pediu por voz para a Alexa deixar de anunciar o erro e informou que funcionou. Nenhuma outra mudança de código ou reinstalação ocorreu. Registrar como preferência de resposta/solução prática relatada pelo usuário, sem concluir que o protocolo foi corrigido. O estado do aplicativo Alexa após esse pedido não foi retestado.
-- **Pendência técnica:** a causa do aviso no protocolo permanece desconhecida. Investigar caso o usuário queira retomar; a confirmação de brilho não é causa comprovada. Grupos, rotinas e estado no aplicativo precisam de teste separado. Não iniciar novas tentativas de alteração ou recadastro automaticamente após a solução prática relatada.
-- **Demais melhorias:** bloco de estabilidade e hardware (itens 1 a 5) concluído e validado localmente na branch `codex/hardware-stability`, pronto para compilação e publicação da `v0.1.0-alpha.21`.
-- **Mudança documental após o instalador:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`. O registro posterior incorpora a confirmação das duas direções e a solução prática na Alexa+. Esses arquivos não alteram o binário da alpha.20; conferir os commits posteriores no histórico do Git.
+- **Pendência técnica (Alexa):** a causa do aviso no protocolo permanece desconhecida. Investigar caso o usuário queira retomar; a confirmação de brilho não é causa comprovada. Grupos, rotinas e estado no aplicativo precisam de teste separado. Não iniciar novas tentativas de alteração ou recadastro automaticamente após a solução prática relatada.
+- **Demais melhorias:** bloco de estabilidade e hardware (itens 1 a 5) concluído, validado e publicado na `v0.1.0-alpha.21`.
+- **Mudança documental após o instalador alpha.20:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`. O registro posterior incorpora a confirmação das duas direções e a solução prática na Alexa+.
 
 ## Decisões de produto que devem ser preservadas
 
@@ -56,15 +56,19 @@ Os passos de implementação acima são a sequência sugerida para as melhorias 
 - `README.md`, `docs/PLANO-MELHORIAS.md` e `docs/releases/v0.1.0-alpha.21.md`: documentação e notas da versão `v0.1.0-alpha.21`.
 
 **Testes executados e resultados:**
-- `npm.cmd test`: 125/125 aprovados.
-- `npm.cmd run test:ui`: 35/35 aprovados (Playwright/Edge).
-- `npm.cmd run test:supervisor`: aprovado (reinício após falha, parada graciosa via stdin e fallback forçado via Job Object).
-- `npm.cmd run test:installer`: 12/12 cenários aprovados (PT-BR e EN).
-- `node scripts/check-release.cjs v0.1.0-alpha.21` e `npm.cmd run build`: aprovados localmente.
+- `npm.cmd test`: 125/125 aprovados localmente e na tag `v0.1.0-alpha.21`. (Nos runs paralelos de branch `38965911218`/`38965911189`, o mock assíncrono `sleep(50)` em `tests/studio.test.js` apresentou condição de corrida ao usar `speed: 35` durante o desligamento; ajustado em seguida para receita estática `speed: 0` com asserção explícita de encerramento do worker, mantendo o teste determinístico.)
+- `npm.cmd run test:ui`: 35/35 aprovados localmente e no CI (Playwright/Edge).
+- `npm.cmd run test:supervisor`: aprovado localmente e no CI (reinício após falha, parada graciosa via stdin e fallback forçado via Job Object).
+- `npm.cmd run test:installer`: 12/12 cenários aprovados localmente e nas VMs (PT-BR e EN).
+- `node scripts/check-release.cjs v0.1.0-alpha.21` e `npm.cmd run build`: aprovados localmente e no workflow de release.
+- Workflows da tag `v0.1.0-alpha.21`: [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/38965911532) (incluindo estabilidade de 60 s), [CodeQL](https://github.com/JonJonGf/nexus-rgb/actions/runs/38965911284) e [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/38965911628) (2 VMs Windows Server 2025 com instalação limpa, atualização, recuperação, desinstalação e reinstalação + CodeQL nas 3 linguagens sem alertas abertos).
 
-**Git / Release / Instalação:** código na branch `codex/hardware-stability`; versão atualmente instalada no PC real continua sendo `v0.1.0-alpha.20` (nenhum serviço local foi reiniciado ou instalado sem autorização). Tag `checkpoint/alpha20-before-antigravity-2026-10-16` e backup `E:\Nexus RGB Backups\2026-10-16-alpha20-b112b15` preservados.
+**Git / Release / Instalação:**
+- Tag `v0.1.0-alpha.21` publicada a partir do commit `db0c9e7f82b613e7ad65fa3b6bac388d0782d48d` em [releases/tag/v0.1.0-alpha.21](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.21) com `NexusRGB-Setup-0.1.0.exe` (`09f914fcb43ec0831453bf5ea5bbd6ef40869c71216f947290518958c3214628`), `NexusRGB-Uninstall-0.1.0.exe` (`e3c13e8191f044f6c3c73c8572097abd9ea9c67224ef7c488cfeb165adec732e`), `SHA256SUMS.txt` e `BUILD-INFO.json`.
+- A versão instalada no PC real continua sendo `v0.1.0-alpha.20` (nenhum serviço local foi reiniciado ou instalado sem autorização).
+- Tag `checkpoint/alpha20-before-antigravity-2026-10-16` e backup `E:\Nexus RGB Backups\2026-10-16-alpha20-b112b15` preservados intactos.
 
-**Pendências e próximo passo:** publicar `v0.1.0-alpha.21` passando pelos workflows de CI, CodeQL e 2 VMs, registrar os links dos workflows e pedir confirmação ao usuário antes de instalar ou reiniciar serviços no PC real.
+**Pendências e próximo passo:** aguardar confirmação do usuário antes de executar o instalador da `v0.1.0-alpha.21` ou reiniciar serviços no PC real (acesso remoto) e validar os comportamentos físicos (descoberta das controladoras, modos nativos/Off e preservação dos dados locais).
 
 ### 16/10/2026 — Alpha.20: respostas Hue da Alexa
 
