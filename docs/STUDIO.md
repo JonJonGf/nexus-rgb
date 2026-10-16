@@ -104,7 +104,7 @@ O padrão `gradient` é estático. Essa primeira versão do formato descreve pad
 
 Em **Configurações → Idioma da interface**, escolha **Português (Brasil)** ou **English**. A primeira abertura segue o idioma do navegador; a escolha é salva apenas nesse navegador. O PC e o celular podem usar idiomas diferentes. Sem armazenamento local disponível, a troca funciona durante a sessão.
 
-A tradução é feita com arquivos do próprio aplicativo, sem serviços externos. Navegação, controles, cenas Nexus e mensagens conhecidas são traduzidos. Nomes de perfis, dispositivos e efeitos importados são preservados. Metadados e controles escritos por autores de efeitos HTML ficam no idioma original. Trocar de idioma não envia comandos às luzes e preserva os rascunhos dos editores, inclusive JSON avançado. Instalador e janelas nativas do Windows continuam em português.
+A tradução é feita com arquivos do próprio aplicativo, sem serviços externos. Navegação, controles, cenas Nexus e mensagens conhecidas são traduzidos. Nomes de perfis, dispositivos e efeitos importados são preservados. Metadados e controles escritos por autores de efeitos HTML ficam no idioma original. Trocar de idioma não envia comandos às luzes e preserva os rascunhos dos editores, inclusive JSON avançado. O instalador oferece português e inglês. Para as janelas nativas, use **Idioma / Language** na bandeja do Windows; essa preferência é independente do navegador.
 
 ## FPS e consumo
 
