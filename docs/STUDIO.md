@@ -73,9 +73,9 @@ Controles booleanos são guardados como ligado/desligado na configuração e env
 
 ## Criar uma fórmula Nexus
 
-**Trocar efeito → Criar efeito +** abre uma janela própria, acima do mapa, com rolagem interna no desktop e no celular. Escolha nome, movimento, até oito cores ordenadas, ritmo, direção e escala. **Salvar na biblioteca** adiciona o modelo sem aplicá-lo às luzes; a opção **Guardar também na aba Perfis** cria um perfil para ativar depois. A faixa colorida do editor representa a paleta, sem simular a animação.
+**Trocar efeito → Criar efeito +** abre uma janela própria, acima do mapa, com rolagem interna no desktop e no celular. Escolha nome, movimento, até oito cores ordenadas, ritmo, direção e escala. **Testar prévia** anima o rascunho sem salvar nem mudar as luzes e acompanha as edições válidas. **Salvar na biblioteca** guarda sem ativar; **Salvar e aplicar** guarda e seleciona o efeito, preservando os dispositivos desligados. A opção **Guardar também na aba Perfis** cria um perfil. A faixa estreita representa a paleta; a imagem de prévia mostra a fonte de cores do efeito.
 
-**Editar JSON · avançado** permite escrever o formato declarativo `nexus-effect/1`. Alterar os controles visuais substitui esse JSON. Também é possível importar um arquivo JSON nesse formato.
+**Editar JSON · avançado** permite escrever o formato declarativo `nexus-effect/1`. JSON válido atualiza os controles e a prévia aberta; alterar os controles gera o JSON correspondente. Consulte o [guia de efeitos e patterns](EFEITOS.md) ([English](EFFECTS.md)) para exemplos, campos e limites. `gradient` é estático; use `wave` para animar uma sequência de cores. Também é possível importar um arquivo JSON nesse formato.
 
 ```json
 {

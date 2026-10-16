@@ -4,6 +4,7 @@ Os relatórios registram os cenários testados, seus resultados e limitações. 
 
 | Data | Escopo | Relatório |
 | --- | --- | --- |
+| 16/10/2026 | JSON sincronizado, prévia sem comandos às luzes, aplicação explícita e guia bilíngue | [Editor e prévia de efeitos](validation/2026-10-16-formula-preview.md) |
 | 16/10/2026 | CodeQL com compilação nativa, triagem de alertas e regressões de arquivos/zonas/empacotamento | [Revisão de segurança](validation/2026-10-16-security-review.md) |
 | 16/10/2026 | Calibração, edição do mapa, backup, biblioteca, diagnóstico, consulta opcional e idiomas nativos | [Melhorias e recuperação](validation/2026-10-16-improvements.md) |
 | 15/10/2026 | Mapa espacial, importação isolada, FPS, perfis e respostas Alexa; lógica e interface | [Mapa e motor de efeitos](validation/2026-10-15-studio.md) |

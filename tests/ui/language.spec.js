@@ -60,7 +60,7 @@ test('avisos em inglês e criador preservam conteúdo livre e JSON avançado', a
   await page.locator('#studio-source').fill(source);
   const requests=[]; page.on('request',r=>{if(r.method()==='POST')requests.push(r.url());});
   await page.evaluate(()=>NexusI18n.set('en'));
-  await expect(page.locator('#formula-name')).toHaveValue('Minha onda pessoal');
+  await expect(page.locator('#formula-name')).toHaveValue('Meu JSON');
   await expect(page.locator('#studio-source')).toHaveValue(source);
   await expect(page.locator('#formula-save')).toHaveText('Save to library');
   await expect(page.locator('#formula-colors input').first()).toHaveAttribute('aria-label','Effect color 1');

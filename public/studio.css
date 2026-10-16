@@ -144,6 +144,8 @@
 .formula-body input[type=range] { padding: 0; }
 .formula-body output { float: right; color: var(--accent); }
 #formula-palette-preview { height: 70px; border-radius: 5px; border: 1px solid #ffffff20; }
+.formula-preview-actions { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-top:12px; }
+#formula-preview { display:block; width:100%; height:auto; max-height:260px; object-fit:contain; background:#000; border-radius:5px; margin-top:14px; }
 .formula-color-heading { display: flex; align-items: baseline; justify-content: space-between; }
 .formula-colors { display: flex; gap: 8px; flex-wrap: wrap; }
 .formula-color { width: 58px; text-align: center; border: 1px solid var(--border); border-radius: 4px; padding: 5px; background: #ffffff04; }

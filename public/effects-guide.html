@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nexus RGB · Effect guide</title><link rel="stylesheet" href="/effects-guide.css"><script src="/en.js" defer></script><script src="/i18n.js" defer></script></head>
+<body><main>
+<header><a class="brand" href="/">NEXUS RGB ↗</a><label><span data-i18n="Idioma da interface">Idioma da interface</span> <select id="settings-language"><option value="pt-BR">Português</option><option value="en">English</option></select></label></header>
+<h1 data-i18n="Seu primeiro efeito em JSON">Seu primeiro efeito em JSON</h1>
+<p data-i18n="Uma fórmula Nexus descreve cores e movimento com dados, sem código executável. Este guia acompanha o app e funciona sem Internet.">Uma fórmula Nexus descreve cores e movimento com dados, sem código executável. Este guia acompanha o app e funciona sem Internet.</p>
+<h2 data-i18n="Do rascunho às luzes">Do rascunho às luzes</h2>
+<ol><li data-i18n="No Mapa do setup, abra Trocar efeito → Criar efeito +. Use os controles ou cole seu JSON em Editar JSON · avançado.">No Mapa do setup, abra Trocar efeito → Criar efeito +. Use os controles ou cole seu JSON em Editar JSON · avançado.</li>
+<li data-i18n="Clique em Testar prévia. O desenho usa a mesma fórmula do motor e acompanha o JSON válido enquanto você edita. Pausar prévia congela o tempo; editar ainda redesenha o rascunho.">Clique em Testar prévia. O desenho usa a mesma fórmula do motor e acompanha o JSON válido enquanto você edita. Pausar prévia congela o tempo; editar ainda redesenha o rascunho.</li>
+<li data-i18n="Salvar na biblioteca guarda sem ativar. Salvar e aplicar guarda e seleciona o efeito nas luzes. A opção de Perfis cria também um perfil. Componentes desligados continuam desligados.">Salvar na biblioteca guarda sem ativar. Salvar e aplicar guarda e seleciona o efeito nas luzes. A opção de Perfis cria também um perfil. Componentes desligados continuam desligados.</li></ol>
+<aside data-i18n="A prévia do editor não envia comandos aos LEDs. Ela mostra a fonte de cores, sem simular posição, brilho ou estado dos seus componentes. Depois de aplicar, o mapa mostra as últimas cores enviadas, sem leitura física do hardware.">A prévia do editor não envia comandos aos LEDs. Ela mostra a fonte de cores, sem simular posição, brilho ou estado dos seus componentes. Depois de aplicar, o mapa mostra as últimas cores enviadas, sem leitura física do hardware.</aside>
+<h2>Rainbow Cascade</h2><p data-i18n="Este exemplo move o arco-íris de cima para baixo. Para manter as cores paradas, troque wave por gradient.">Este exemplo move o arco-íris de cima para baixo. Para manter as cores paradas, troque wave por gradient.</p>
+<pre><code>{
+  "format": "nexus-effect/1",
+  "name": "Rainbow Cascade",
+  "pattern": "wave",
+  "palette": [
+    "#ff0000", "#ff7f00", "#ffff00", "#00ff00",
+    "#00f0ff", "#0000ff", "#7f00ff"
+  ],
+  "speed": 40,
+  "angle": 90,
+  "scale": 1.2
+}</code></pre>
+<h2 data-i18n="Padrões disponíveis · pattern">Padrões disponíveis · pattern</h2>
+<div class="table-wrap"><table><thead><tr><th>pattern</th><th data-i18n="Como se comporta">Como se comporta</th></tr></thead><tbody>
+<tr><td><code>wave</code></td><td data-i18n="Onda contínua com transições suaves entre as cores. Segue angle.">Onda contínua com transições suaves entre as cores. Segue angle.</td></tr>
+<tr><td><code>comet</code></td><td data-i18n="Faixa luminosa com rastro e intervalos escuros. Segue angle.">Faixa luminosa com rastro e intervalos escuros. Segue angle.</td></tr>
+<tr><td><code>rings</code></td><td data-i18n="Anéis que se expandem a partir do centro. A simetria radial torna angle visualmente irrelevante.">Anéis que se expandem a partir do centro. A simetria radial torna angle visualmente irrelevante.</td></tr>
+<tr><td><code>gradient</code></td><td data-i18n="Gradiente estático. Usa a paleta, angle e scale. speed não o anima.">Gradiente estático. Usa a paleta, angle e scale. speed não o anima.</td></tr>
+</tbody></table></div>
+<h2 data-i18n="Campos e limites">Campos e limites</h2><p data-i18n="Todos os campos abaixo são obrigatórios. Os números aceitam decimais; use ponto decimal no JSON.">Todos os campos abaixo são obrigatórios. Os números aceitam decimais; use ponto decimal no JSON.</p>
+<div class="table-wrap"><table><thead><tr><th data-i18n="Campo">Campo</th><th data-i18n="Valor e significado">Valor e significado</th></tr></thead><tbody>
+<tr><td><code>format</code></td><td><code>"nexus-effect/1"</code></td></tr>
+<tr><td><code>name</code></td><td data-i18n="Nome do efeito: 1 a 60 caracteres.">Nome do efeito: 1 a 60 caracteres.</td></tr>
+<tr><td><code>pattern</code></td><td><code>wave | comet | rings | gradient</code></td></tr>
+<tr><td><code>palette</code></td><td data-i18n="De 1 a 8 cores #RRGGBB, em ordem. A última transita de volta para a primeira; uma cor produz uma paleta uniforme.">De 1 a 8 cores #RRGGBB, em ordem. A última transita de volta para a primeira; uma cor produz uma paleta uniforme.</td></tr>
+<tr><td><code>speed</code></td><td data-i18n="0 a 100. Controla a velocidade da animação, não os FPS. Zero mantém o quadro parado.">0 a 100. Controla a velocidade da animação, não os FPS. Zero mantém o quadro parado.</td></tr>
+<tr><td><code>angle</code></td><td data-i18n="−360 a 360 graus. 0: esquerda → direita; 90: cima → baixo; 180: direita → esquerda; −90: baixo → cima.">−360 a 360 graus. 0: esquerda → direita; 90: cima → baixo; 180: direita → esquerda; −90: baixo → cima.</td></tr>
+<tr><td><code>scale</code></td><td data-i18n="0.1 a 10. Valores maiores repetem mais a paleta no espaço, criando faixas mais estreitas.">0.1 a 10. Valores maiores repetem mais a paleta no espaço, criando faixas mais estreitas.</td></tr>
+</tbody></table></div>
+<h2 data-i18n="Quando algo não parece certo">Quando algo não parece certo</h2>
+<p data-i18n="JSON inválido exibe um erro e bloqueia testar/salvar. Confira aspas duplas, vírgulas, chaves e os limites. O editor aceita um rótulo JSON ou cercas de Markdown ao colar; o arquivo .json importado deve conter somente o objeto JSON.">JSON inválido exibe um erro e bloqueia testar/salvar. Confira aspas duplas, vírgulas, chaves e os limites. O editor aceita um rótulo JSON ou cercas de Markdown ao colar; o arquivo .json importado deve conter somente o objeto JSON.</p>
+<p data-i18n="Salvar uma fórmula alterada cria outro item na biblioteca; não substitui perfis antigos. JSON não executa JavaScript, expressões, áudio ou integrações. O limite de importação é 128 KiB por arquivo e 64 efeitos importados.">Salvar uma fórmula alterada cria outro item na biblioteca; não substitui perfis antigos. JSON não executa JavaScript, expressões, áudio ou integrações. O limite de importação é 128 KiB por arquivo e 64 efeitos importados.</p>
+<p data-i18n="Para a onda atravessar as peças, aplique o efeito espacial e confira posição, quantidade e ordem dos LEDs no mapa. É necessário Direct com cor por LED. Hubs que espelham o sinal não permitem controlar cada fan separadamente.">Para a onda atravessar as peças, aplique o efeito espacial e confira posição, quantidade e ordem dos LEDs no mapa. É necessário Direct com cor por LED. Hubs que espelham o sinal não permitem controlar cada fan separadamente.</p>
+<footer>NEXUS RGB / nexus-effect/1</footer>
+</main></body></html>

@@ -1,0 +1,36 @@
+const {test,expect}=require('./fixture');
+test.use({serviceWorkers:'block'});
+const cascade={format:'nexus-effect/1',name:'Rainbow Cascade',pattern:'gradient',palette:['#ff0000','#ff7f00','#ffff00','#00ff00','#00f0ff','#0000ff','#7f00ff'],speed:40,angle:90,scale:1.2};
+async function open(page){await page.goto('/');await expect(page.locator('#power')).toBeEnabled();await page.locator('.nav[data-page=studio]').click();await page.locator('#studio-choose').click();await page.locator('#studio-new').click();await page.locator('#formula-advanced summary').click();}
+const image=page=>page.locator('#formula-preview').evaluate(c=>c.toDataURL());
+test('prévia aceita JSON colado, sincroniza controles e atualiza sem salvar ou tocar nas luzes',async({page})=>{
+ await open(page);const writes=[];page.on('request',r=>{if(r.method()==='POST')writes.push(new URL(r.url()).pathname)});
+ await page.locator('#studio-source').fill('JSON\n'+JSON.stringify(cascade));await expect(page.locator('#formula-name')).toHaveValue('Rainbow Cascade');await expect(page.locator('#formula-pattern')).toHaveValue('gradient');await expect(page.locator('#formula-colors input')).toHaveCount(7);
+ await page.locator('#formula-preview-toggle').click();await expect(page.locator('#formula-preview')).toBeVisible();const still=await image(page);await page.waitForTimeout(220);expect(await image(page)).toBe(still);await expect(page.locator('#formula-preview-note')).toContainText('estático');
+ await page.locator('#studio-source').fill(JSON.stringify({...cascade,pattern:'wave'}));await expect.poll(()=>image(page)).not.toBe(still);const moving=await image(page);await expect.poll(()=>image(page)).not.toBe(moving);
+ await page.locator('#studio-source').fill(JSON.stringify({...cascade,palette:['#ffffff'],pattern:'gradient'}));await expect(page.locator('#formula-colors input')).toHaveCount(1);await expect.poll(()=>image(page)).not.toBe(still);
+ await page.locator('#formula-angle').fill('45');await page.locator('#formula-angle').press('Tab');expect(JSON.parse(await page.locator('#studio-source').inputValue()).angle).toBe(45);expect(writes).toEqual([]);
+ await page.locator('#studio-source').fill(JSON.stringify({...cascade,pattern:'wave'}));await page.locator('#formula-preview-toggle').click();const paused=await image(page);await page.waitForTimeout(220);expect(await image(page)).toBe(paused);
+ await page.evaluate(()=>{window.formulaDraws=0;const original=NexusRecipe.draw;NexusRecipe.draw=(...args)=>{window.formulaDraws++;return original(...args)};});await page.locator('#formula-preview-toggle').click();await expect.poll(()=>page.evaluate(()=>window.formulaDraws)).toBeGreaterThan(1);await page.locator('#studio-formula-close').click();const draws=await page.evaluate(()=>window.formulaDraws);await page.waitForTimeout(220);expect(await page.evaluate(()=>window.formulaDraws)).toBe(draws);expect(writes).toEqual([]);
+});
+
+test('guia local traduz e prévia cabe no editor em desktop e celular',async({page,context})=>{
+ await open(page);await page.locator('#formula-preview-toggle').click();
+ for(const width of [1366,390]){await page.setViewportSize({width,height:844});await page.locator('#studio-formula-dialog .formula-body').evaluate(e=>e.scrollTop=0);await expect(page.locator('#formula-preview')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);for(const id of ['formula-save','formula-apply'])expect(await page.locator('#'+id).evaluate(b=>{const r=b.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===b})).toBe(true);await page.screenshot({path:'test-results/formula-preview-'+width+'.png'});}
+ const guide=await context.newPage(),requests=[];guide.on('request',r=>requests.push(r.url()));await guide.goto(new URL('/effects-guide',page.url()).href);await expect(guide.getByRole('heading',{name:'Seu primeiro efeito em JSON'})).toBeVisible();await guide.locator('#settings-language').selectOption('en');await expect(guide.getByRole('heading',{name:'Your first JSON effect'})).toBeVisible();expect(await guide.locator('[data-i18n]').evaluateAll(elements=>elements.filter(e=>!Object.hasOwn(NexusEnglish,e.dataset.i18n)).map(e=>e.dataset.i18n))).toEqual([]);await guide.setViewportSize({width:390,height:844});expect(await guide.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);await guide.screenshot({path:'test-results/effects-guide-mobile.png'});expect(requests.every(u=>new URL(u).origin===new URL(page.url()).origin)).toBe(true);await guide.close();
+});
+
+test('falha ao salvar perfil preserva rascunho e permite repetir sem ativação antecipada',async({page})=>{
+ await open(page);const before=await(await page.request.get('/api/studio')).json();await page.locator('#studio-source').fill(JSON.stringify(cascade));await page.route('**/api/studio/profiles',async route=>{await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Teste de indisponibilidade'})});},{times:1});
+ await page.locator('#formula-apply').click();await expect(page.locator('#formula-error')).toContainText('Teste de indisponibilidade');await expect(page.locator('#formula-apply')).toBeEnabled();await expect(page.locator('#studio-source')).toHaveValue(JSON.stringify(cascade));const failed=await(await page.request.get('/api/studio')).json();expect(failed.activeId).toBe(before.activeId);expect(failed.enabled).toBe(before.enabled);
+ await page.locator('#formula-apply').click();await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();const state=await(await page.request.get('/api/state')).json();expect(state.profiles.filter(p=>p.name===cascade.name)).toHaveLength(1);
+});
+test('JSON inválido permanece no editor, bloqueia aplicação e não dispara requisições',async({page})=>{
+ await open(page);await page.locator('#studio-source').fill('{"format":');await expect(page.locator('#formula-error')).toBeVisible();await expect(page.locator('#formula-apply')).toBeDisabled();await expect(page.locator('#formula-preview-toggle')).toBeDisabled();
+ await page.evaluate(()=>NexusI18n.set('en'));await expect(page.locator('#studio-source')).toHaveValue('{"format":');await page.locator('#studio-source').fill(JSON.stringify(cascade));await expect(page.locator('#formula-apply')).toBeEnabled();await expect(page.locator('#formula-name')).toHaveValue('Rainbow Cascade');
+});
+test('salvar e aplicar ativa o novo JSON e perfil sem religar a energia geral',async({page})=>{
+ await open(page);const headers={Origin:new URL(page.url()).origin,'X-Nexus-Client':'web'};await page.request.post('/api/control',{headers,data:{power:false}});
+ await page.locator('#studio-source').fill(JSON.stringify({...cascade,pattern:'wave'}));await page.locator('#formula-apply').click();await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();
+ const state=await (await page.request.get('/api/state')).json(),studio=await (await page.request.get('/api/studio')).json();expect(state.master.power).toBe(false);expect(studio.enabled).toBe(true);const active=studio.effects.find(e=>e.id===studio.activeId);expect(active.name).toBe('Rainbow Cascade');expect(active.pattern).toBe('wave');expect(state.profiles.some(p=>p.name==='Rainbow Cascade'&&p.spatial)).toBe(true);
+});

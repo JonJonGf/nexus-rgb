@@ -4,7 +4,7 @@ const fs = require('node:fs'), path = require('node:path');
 const { createCanvas } = require('@napi-rs/canvas');
 const { getQuickJS } = require('quickjs-emscripten');
 const { parameters } = require('./studio-schema');
-const { paletteColor } = require('./hardware');
+const recipeModel = require('../public/recipe');
 const methods = new Map(Object.entries({ fillRect: 4, clearRect: 4, strokeRect: 4, beginPath: 0, closePath: 0, rect: 4, arc: [5, 6], ellipse: [7, 8], moveTo: 2, lineTo: 2, bezierCurveTo: 6, quadraticCurveTo: 4, fill: [0, 1], stroke: 0, clip: [0, 1], save: 0, restore: 0, translate: 2, rotate: 1, scale: 2, transform: 6, setTransform: [0, 6], resetTransform: 0, getTransform: 0 }));
 const styleNames = new Set(['fillStyle', 'strokeStyle', 'globalAlpha', 'lineWidth', 'lineJoin', 'lineCap', 'globalCompositeOperation']);
 class StudioRenderer {
@@ -101,18 +101,7 @@ class StudioRenderer {
     return this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
   }
   nativeFrame(seconds) {
-    const e = this.effect, ctx = this.ctx, w = this.canvas.width, h = this.canvas.height;
-    ctx.resetTransform(); ctx.globalAlpha = 1; ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, w, h);
-    const angle = e.angle * Math.PI / 180, phase = seconds * e.speed / 100 * 0.7, span = Math.hypot(w, h) * 2;
-    ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(angle);
-    const gradient = e.pattern === 'rings' ? ctx.createRadialGradient(0, 0, 0, 0, 0, span / 2) : ctx.createLinearGradient(-span / 2, 0, span / 2, 0);
-    for (let index = 0; index <= 128; index++) {
-      const position = index / 128 * e.scale * (e.pattern === 'rings' ? 3 : 2);
-      const t = e.pattern === 'gradient' ? position : position - phase;
-      const color = paletteColor(e.palette, t), intensity = e.pattern === 'comet' ? Math.pow(Math.max(0, 1 - (((t % 1) + 1) % 1) / 0.25), 2) : 1;
-      gradient.addColorStop(index / 128, 'rgb(' + Math.round(color.red * intensity) + ',' + Math.round(color.green * intensity) + ',' + Math.round(color.blue * intensity) + ')');
-    }
-    ctx.fillStyle = gradient; ctx.fillRect(-span / 2, -span / 2, span, span); ctx.restore();
+    recipeModel.draw(this.ctx,this.effect,seconds,this.canvas.width,this.canvas.height);
   }
   sample(points, pixels) {
     const w = this.canvas.width, h = this.canvas.height;

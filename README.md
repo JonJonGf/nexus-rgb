@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.17/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.17">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.18/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.18">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.17 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, organização da biblioteca, backup e diagnóstico local. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.18 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, organização da biblioteca, backup e diagnóstico local. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -42,7 +42,7 @@
 - **O layout acompanha sua cor:** a cor estática escolhida também muda a identidade visual do painel.
 - **Um efeito atravessando o setup:** organize as peças no mapa, divida faixas de LEDs e ajuste rotação, tamanho e ordem.
 - **Mapa compartilhado:** acompanhe Iluminação e Perfis pelas cores enviadas a cada LED. Escolha perfis e cenas no mapa; nos efeitos espaciais, solte a peça para aplicar e salvar sua posição sem reiniciar a animação.
-- **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada.
+- **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada. O criador oferece prévia antes de aplicar e [documentação dos padrões](docs/EFEITOS.md) ([English](docs/EFFECTS.md)).
 - **Português e inglês:** escolha em **Configurações → Idioma da interface**. A preferência é salva por navegador e não muda as luzes ou os nomes dos seus perfis. O instalador também oferece os dois idiomas; na bandeja do Windows, use **Idioma / Language** para as janelas nativas. As preferências do navegador e do Windows são independentes, sem serviço de tradução externo.
 - **Mapa calibrado:** vários anéis, primeiro LED, sentido e ordem física por peça; grupos, seleção múltipla, grade e desfazer/refazer. [Veja como configurar](docs/MAPA-E-CALIBRACAO.md).
 - **Biblioteca organizada:** favoritos, categorias e cópias de perfis/efeitos. A transição entre perfis é opcional; desligar as luzes continua imediato.
@@ -75,7 +75,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.17/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.17) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.18/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.18) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -265,7 +265,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.17/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.18/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 

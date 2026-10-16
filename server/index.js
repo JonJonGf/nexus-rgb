@@ -69,6 +69,9 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/recipe.js', ['recipe.js', 'application/javascript; charset=utf-8']],
+    ['/effects-guide', ['effects-guide.html', 'text/html; charset=utf-8']], ['/effects-guide.html', ['effects-guide.html', 'text/html; charset=utf-8']],
+    ['/effects-guide.css', ['effects-guide.css', 'text/css; charset=utf-8']],
     ['/en.js', ['en.js', 'application/javascript; charset=utf-8']], ['/i18n.js', ['i18n.js', 'application/javascript; charset=utf-8']],
     ['/map-model.js', ['map-model.js', 'application/javascript; charset=utf-8']], ['/workspace.js', ['workspace.js', 'application/javascript; charset=utf-8']],
     ['/calibration.js', ['calibration.js', 'application/javascript; charset=utf-8']],

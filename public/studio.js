@@ -299,13 +299,54 @@
     const input = event.target; input.disabled = true;
     try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + T(': limite de 128 KiB.')); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
   });
-  let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'];
+  let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'], formulaDraft, formulaValid = true, formulaSaving = false, formulaTimer, formulaPreviewOpen = false, formulaDrawDirty = true, formulaStarted = 0, formulaSeconds = 0, formulaProfileId;
+  function formulaValidity(valid) {
+    formulaValid = valid;
+    for (const id of ['formula-save','formula-apply','formula-preview-toggle']) $(id).disabled = !valid || formulaSaving;
+    for (const key of ['name','pattern','speed','angle','scale']) $('formula-'+key).disabled = formulaSaving;
+    $('formula-add-color').disabled = formulaSaving || formulaColors.length >= 8;
+    $('formula-colors').querySelectorAll('input,button').forEach(e=>{e.disabled = formulaSaving || e.dataset.unavailable === 'true';});
+    $('studio-source').disabled = $('formula-profile').disabled = $('studio-formula-close').disabled = formulaSaving;
+  }
+  function formulaReadout() {
+    if (!formulaDraft) return;
+    $('formula-speed-label').value = formulaDraft.speed + '%';
+    $('formula-palette-preview').style.background = 'linear-gradient(90deg,' + (formulaColors.length === 1 ? [formulaColors[0], formulaColors[0]] : formulaColors).join(',') + ')';
+    $('formula-preview-note').textContent = T(formulaDraft.pattern === 'gradient' ? 'Gradiente é estático. Use wave para mover as cores; speed não anima gradient.' : formulaDraft.speed === 0 ? 'Ritmo zero: o efeito fica parado.' : 'Prévia do rascunho. As luzes só mudam ao salvar e aplicar.');
+    formulaDrawDirty = true; formulaFrame();
+  }
+  function formulaFrame() {
+    if (!formulaPreviewOpen || !formulaValid || document.hidden || !$('studio-formula-dialog').open || !formulaDraft) return;
+    if (!formulaDrawDirty && (formulaDraft.pattern === 'gradient' || formulaDraft.speed === 0)) return;
+    const canvas = $('formula-preview'); NexusRecipe.draw(canvas.getContext('2d'),formulaDraft,formulaTimer ? (performance.now()-formulaStarted)/1000 : formulaSeconds,canvas.width,canvas.height); formulaDrawDirty = false;
+  }
+  function formulaStop() { if(formulaTimer)formulaSeconds=(performance.now()-formulaStarted)/1000; clearInterval(formulaTimer); formulaTimer = null; $('formula-preview-toggle').textContent = T('Testar prévia'); }
+  $('formula-preview-toggle').addEventListener('click',()=>{
+    if (formulaTimer) return formulaStop();
+    if (!formulaFromJSON()) return;
+    formulaPreviewOpen = true; $('formula-preview-wrap').hidden = false; formulaStarted = performance.now(); formulaSeconds = 0; formulaDrawDirty = true; formulaFrame(); formulaTimer = setInterval(formulaFrame,100); $('formula-preview-toggle').textContent = T('Pausar prévia');
+  });
+  $('studio-formula-dialog').addEventListener('close',formulaStop);
+  $('studio-formula-dialog').addEventListener('cancel',event=>{if(formulaSaving)event.preventDefault();});
+  window.addEventListener('pagehide',formulaStop);
+  function formulaOpen() {
+    formulaStop(); formulaProfileId = null; formulaPreviewOpen = false; formulaSeconds = 0; $('formula-preview-wrap').hidden = true;
+    $('formula-error').hidden = true; formulaPalette(); $('studio-picker-dialog').close(); $('studio-formula-dialog').showModal(); $('formula-name').focus();
+  }
+  function formulaFromJSON() {
+    try {
+      formulaDraft = NexusRecipe.parse($('studio-source').value);
+      for (const key of ['name','pattern','speed','angle','scale']) $('formula-'+key).value = formulaDraft[key];
+      formulaColors = [...formulaDraft.palette]; formulaPalette(false); formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); return true;
+    } catch (e) { formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; return false; }
+  }
+  $('studio-source').addEventListener('input',formulaFromJSON);
   function formulaSource() {
     const recipe = { format: 'nexus-effect/1', name: $('formula-name').value, pattern: $('formula-pattern').value, palette: formulaColors, speed: Number($('formula-speed').value), angle: Number($('formula-angle').value), scale: Number($('formula-scale').value) };
-    $('studio-source').value = JSON.stringify(recipe, null, 2); $('formula-speed-label').value = recipe.speed + '%';
-    $('formula-palette-preview').style.background = 'linear-gradient(90deg,' + (formulaColors.length === 1 ? [formulaColors[0], formulaColors[0]] : formulaColors).join(',') + ')';
+    $('studio-source').value = JSON.stringify(recipe, null, 2);
+    try { formulaDraft = NexusRecipe.normalize(recipe); formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); } catch(e) { formulaDraft = null; formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
   }
-  function formulaPalette() {
+  function formulaPalette(writeSource = true) {
     const container = $('formula-colors'); container.replaceChildren();
     formulaColors.forEach((value, i) => {
       const wrap = make('div', undefined, 'formula-color'), input = make('input'); input.type = 'color'; input.value = value; input.setAttribute('aria-label', T`Cor ${i + 1} do efeito`);
@@ -313,26 +354,30 @@
       for (const [delta, text] of [[-1, '←'], [1, '→'], [0, '×']]) {
         const button = make('button', text); button.type = 'button'; button.setAttribute('aria-label', (delta ? T('Mover') : T('Remover')) + T(' cor ') + (i + 1) + (delta ? delta < 0 ? T(' para esquerda') : T(' para direita') : ''));
         button.disabled = delta ? i + delta < 0 || i + delta >= formulaColors.length : formulaColors.length === 1;
+        button.dataset.unavailable = String(button.disabled);
         button.addEventListener('click', () => { if (delta) [formulaColors[i], formulaColors[i + delta]] = [formulaColors[i + delta], formulaColors[i]]; else formulaColors.splice(i, 1); formulaPalette(); }); wrap.append(button);
       }
       container.append(wrap);
     });
-    $('formula-add-color').disabled = formulaColors.length >= 8; formulaSource();
+    $('formula-add-color').disabled = formulaColors.length >= 8; if (writeSource) formulaSource();
   }
   $('formula-add-color').addEventListener('click', () => { if (formulaColors.length < 8) { formulaColors.push('#ffffff'); formulaPalette(); } });
   for (const key of ['name', 'pattern', 'speed', 'angle', 'scale']) $('formula-' + key).addEventListener('input', formulaSource);
-  $('studio-new').addEventListener('click', () => { $('studio-picker-dialog').close(); $('formula-error').hidden = true; formulaPalette(); $('studio-formula-dialog').showModal(); $('formula-name').focus(); });
+  $('studio-new').addEventListener('click', formulaOpen);
   $('studio-formula-close').addEventListener('click', () => $('studio-formula-dialog').close());
   $('studio-formula-form').addEventListener('submit', async event => {
-    event.preventDefault(); $('formula-save').disabled = true; $('formula-error').hidden = true;
+    event.preventDefault(); if(formulaSaving || !formulaFromJSON()) return;
+    const recipe = formulaDraft, apply = event.submitter?.id === 'formula-apply', profile = $('formula-profile').checked;
+    formulaSaving = true; formulaValidity(true); $('formula-error').hidden = true;
     try {
-      const result = await api('/api/studio/import', { source: $('studio-source').value }, 'POST');
+      const result = await api('/api/studio/import', { source: JSON.stringify(recipe) }, 'POST');
       result.layout = data.layout; data = result; renderLibrary();
       const effect = result.effects.find(e => e.id === result.id);
-      if ($('formula-profile').checked) await api('/api/studio/profiles', { name: effect.name.slice(0, 48), activeId: effect.id, values: {} }, 'POST');
-      $('studio-formula-dialog').close(); toast($('formula-profile').checked ? T('Efeito guardado na biblioteca e em Perfis.') : T('Efeito guardado na biblioteca.'));
+      if (profile && formulaProfileId !== effect.id) { await api('/api/studio/profiles', { name: effect.name.slice(0, 48), activeId: effect.id, values: {} }, 'POST'); formulaProfileId = effect.id; }
+      if (apply && !await play({activeId:effect.id,enabled:true,values:{}})) throw Error('Efeito salvo, mas não foi possível aplicar. Tente novamente.');
+      $('studio-formula-dialog').close(); toast(apply ? T(state.master.power ? 'Efeito salvo e aplicado às luzes.' : 'Efeito salvo e aplicado. A iluminação continua desligada.') : profile ? T('Efeito guardado na biblioteca e em Perfis.') : T('Efeito guardado na biblioteca.'));
     } catch (e) { $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
-    finally { $('formula-save').disabled = false; }
+    finally { formulaSaving = false; formulaValidity(formulaValid); }
   });
   $('studio-profile-form').addEventListener('submit', async event => {
     event.preventDefault(); const button = event.submitter; button.disabled = true;
@@ -370,7 +415,7 @@
     $('studio-dirty').textContent = !$('studio-retry').hidden ? T('Não foi possível salvar') : dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
     renderPorts();
     // Translating palette buttons must not replace an advanced JSON draft.
-    const source = $('studio-source').value; formulaPalette(); $('studio-source').value = source;
+    const source = $('studio-source').value; formulaPalette(false); $('studio-source').value = source; formulaValidity(formulaValid); formulaReadout(); $('formula-preview-toggle').textContent = T(formulaTimer ? 'Pausar prévia' : 'Testar prévia');
   });
   document.addEventListener('visibilitychange', () => open(current));
   window.addEventListener('pagehide', () => { clearInterval(poll); stream?.close(); stream = null; });
@@ -381,7 +426,7 @@
   library = window.NexusLibrary.create({state:()=>state,toast:message=>toast(message),refresh:()=>renderGallery(true),patch:body=>sharedPlay('/api/library',body),duplicate:async card=>{
     const name=(card.name.slice(0,card.kind==='profile'?40:52)+T(' cópia'));
     if(card.kind==='profile')await sharedPlay('/api/profiles/'+card.id+'/duplicate',{name});
-    else {const next=await api('/api/studio/effects/'+card.id+'/duplicate',{name},'POST');next.layout=data.layout;data=next;renderLibrary();const copy=next.effects.find(e=>e.id===next.id);if(copy?.format==='nexus-effect/1'){formulaColors=[...copy.palette];for(const field of ['name','pattern','speed','angle','scale'])$('formula-'+field).value=copy[field];formulaPalette();$('studio-picker-dialog').close();$('studio-formula-dialog').showModal();}}
+    else {const next=await api('/api/studio/effects/'+card.id+'/duplicate',{name},'POST');next.layout=data.layout;data=next;renderLibrary();const copy=next.effects.find(e=>e.id===next.id);if(copy?.format==='nexus-effect/1'){formulaColors=[...copy.palette];for(const field of ['name','pattern','speed','angle','scale'])$('formula-'+field).value=copy[field];formulaOpen();}}
     renderGallery(true);
   }});
   window.NexusStudio = {

@@ -1,5 +1,6 @@
 'use strict';
 const crypto = require('node:crypto');
+const recipeModel = require('../public/recipe');
 const LIMIT = 128 * 1024;
 const forbidden = new Set(['__proto__', 'prototype', 'constructor', 'window', 'document', 'globalThis', 'performance', 'Date', 'Math', 'JSON', 'Object', 'Array', 'Function', 'Promise', 'eval', 'fetch', 'require', 'process', 'console', '_nexusDraw']);
 function object(value) { return value && typeof value === 'object' && !Array.isArray(value); }
@@ -44,10 +45,7 @@ function parseHTML(html) {
   return { id: crypto.createHash('sha256').update(html).digest('hex').slice(0, 24), format: 'signal-html', name, publisher: clean(metas.find(m => m.publisher)?.publisher || 'Autoria não informada'), source, controls, canvas: { id: canvas.id, width, height }, warnings: /\b(?:addEventListener|onkeydown|onkeyup)\b/.test(source) ? ['Eventos de teclado não são encaminhados ao efeito.'] : [] };
 }
 function recipe(input) {
-  if (!object(input) || input.format !== 'nexus-effect/1' || !text(input.name, 60) || !['wave', 'comet', 'rings', 'gradient'].includes(input.pattern)) throw Error('Formato Nexus inválido. Use nexus-effect/1 e um padrão suportado.');
-  if (!Array.isArray(input.palette) || !input.palette.length || input.palette.length > 8 || input.palette.some(c => !/^#[\da-f]{6}$/i.test(c))) throw Error('Escolha de 1 a 8 cores #RRGGBB.');
-  if (!number(input.speed, 0, 100) || !number(input.angle, -360, 360) || !number(input.scale, 0.1, 10)) throw Error('Velocidade, direção ou escala inválidas.');
-  const configuration = { format: input.format, name: clean(input.name, 60), pattern: input.pattern, palette: input.palette.map(c => c.toLowerCase()), speed: input.speed, angle: input.angle, scale: input.scale };
+  const configuration = recipeModel.normalize(input);
   return { ...configuration, id: crypto.createHash('sha256').update(JSON.stringify(configuration)).digest('hex').slice(0, 24), controls: [], publisher: 'Criado no Nexus', warnings: [] };
 }
 function parameters(effect, value = {}) {
