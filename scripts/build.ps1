@@ -50,10 +50,7 @@ Copy-Item -LiteralPath 'vendor-manifest.json' -Destination $buildRoot -Force
 Push-Location -LiteralPath $buildRoot
 try { & npm.cmd ci --omit=dev --ignore-scripts; if($LASTEXITCODE -ne 0){throw 'Falha ao preparar dependências de produção.'}; & npm.cmd audit --omit=dev --audit-level=moderate; if($LASTEXITCODE -ne 0){throw 'Auditoria de dependências falhou.'} }
 finally { Pop-Location }
-& 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /codepage:65001 /target:winexe /platform:x64 /optimize+ ('/out:'+(Join-Path $buildRoot 'NexusRGB.exe')) ('/win32icon:'+(Join-Path $projectRoot 'native\app.ico')) /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.ServiceProcess.dll (Join-Path $projectRoot 'native\NexusRGB.cs') (Join-Path $projectRoot 'native\AppInfo.cs') (Join-Path $projectRoot 'native\Locale.cs')
-if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o executável nativo.'}
-& 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe' /nologo /codepage:65001 /target:winexe /platform:x64 /optimize+ ('/out:'+(Join-Path $buildRoot 'NexusRGB-Uninstall.exe')) ('/win32icon:'+(Join-Path $projectRoot 'native\app.ico')) /reference:System.Windows.Forms.dll (Join-Path $projectRoot 'native\NexusRGBUninstall.cs') (Join-Path $projectRoot 'native\AppInfo.cs') (Join-Path $projectRoot 'native\Locale.cs')
-if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o assistente de desinstalação.'}
+& (Join-Path $PSScriptRoot 'build-native.ps1') -OutputDirectory $buildRoot
 Copy-Item -LiteralPath (Join-Path $buildRoot 'NexusRGB-Uninstall.exe') -Destination (Join-Path $projectRoot 'dist\NexusRGB-Uninstall-0.1.0.exe') -Force
 $testProcess=Start-Process -FilePath (Join-Path $buildRoot 'NexusRGB.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
 if($testProcess.ExitCode -ne 0){throw 'Instalação de teste incompleta.'}
