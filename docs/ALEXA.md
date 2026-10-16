@@ -29,4 +29,4 @@ As rotas aceitam barra final, inclusive `POST /api/`, mantendo as verificações
 5. Se usar grupos ou rotinas, teste-os separadamente. O controle de brilho da Alexa não deve ser usado como comando de energia; use ligar/desligar.
 6. Caso o aviso persista, abra o diagnóstico local da Alexa. Compare o pedido, a energia e `hueBrightness` devolvidos; revise os dados antes de compartilhar.
 
-Testes automatizados validam respostas, consultas posteriores, HTTP e preservação de dados. Eles não reproduzem o firmware de um Echo nem comprovam que o aviso de falha desapareceu. Até confirmação em equipamento físico, este ajuste é uma tentativa de compatibilidade, sem garantia de resolução.
+Testes automatizados validam respostas, consultas posteriores, HTTP e preservação de dados. Eles não reproduzem o firmware de um Echo. No teste físico realizado após instalar a alpha.20, o usuário informou que o aviso persistiu; os pedidos observados continham somente `on`, sem brilho. A investigação continua: essa adaptação não demonstrou resolver o aviso nesse equipamento.

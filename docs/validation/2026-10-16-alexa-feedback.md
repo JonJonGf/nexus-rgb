@@ -38,6 +38,8 @@ A [alpha.20](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.20)
 
 ## Limites e validação pendente
 
-Ainda não foi validado o desaparecimento do aviso no Echo físico. O [roteiro de teste](../ALEXA.md#teste-com-um-echo-físico) separa app, voz, grupos e rotinas. Um firmware que dependa de brilho para ligar/desligar continua sem esse comportamento: esta adaptação exige `on` explícito para mudar energia.
+Após atualizar o PC de validação para a alpha.20, o usuário informou que o Echo continua anunciando falha. O diagnóstico local registrou pedidos contendo apenas `on`, sem `bri`; respostas HTTP 200 concluídas em aproximadamente 5–8 ms e consultas seguintes com energia apagada e controlador disponível. A finalização da resposta pelo servidor não comprova a interpretação dela pelo Echo. Portanto, a adaptação de brilho não resolveu o aviso observado e não foi demonstrada como causa desse caso.
+
+O [roteiro de teste](../ALEXA.md#teste-com-um-echo-físico) separa app, voz, grupos e rotinas. A confirmação das duas direções e a investigação do protocolo seguem pendentes. Um firmware que dependa de brilho para ligar/desligar continua sem esse comportamento: esta adaptação exige `on` explícito para mudar energia.
 
 O brilho virtual começa em 254 a cada novo processo e serve somente à emulação. Pedidos contendo propriedades não suportadas junto de `on`/`bri` preservam o comportamento de ignorar essas propriedades; elas não recebem confirmação. Pedidos contendo somente campos não suportados continuam retornando erro Hue.

@@ -2,6 +2,8 @@
 
 Este guia é para quem quer executar o código, contribuir ou gerar o instalador. Para usar o aplicativo, siga o [tutorial de instalação](../README.md#instalacao).
 
+Para trabalhar com agentes, leia [AGENTS.md](../AGENTS.md) e o [contexto de desenvolvimento](CONTEXTO-DESENVOLVIMENTO.md). Cada sessão deve atualizar esse registro com mudanças, testes, pendências e o estado de código, publicação e instalação antes de encerrar ou passar o trabalho para outra ferramenta.
+
 ## Preparar o ambiente
 
 Use Windows 10/11 x64, Git, Node.js **24.20.0 ou superior** e npm disponíveis no terminal. O instalador final inclui seu próprio runtime; os comandos de desenvolvimento usam o Node.js instalado no seu ambiente.
