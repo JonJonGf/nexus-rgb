@@ -43,24 +43,27 @@ Os passos de implementação acima são a sequência sugerida para as melhorias 
 
 ## Histórico de entregas
 
-### 16/10/2026 — Correção do layout da aba Configurações (branch `codex/settings-layout`)
+### 16/10/2026 — Alpha.22: correção do layout da aba Configurações (branch `codex/settings-layout`)
 
 **Objetivo:** corrigir o desalinhamento visual na aba **Configurações** relatado pelo usuário (espaço vazio ao lado de **Rede e serviços**, cartão **Seu idioma** esticado verticalmente, ausência de margem vertical entre os cartões principais da página e quebra de linha no rótulo **Transição entre perfis**).
 
 **Mudanças e arquivos:**
 - `public/index.html` e `public/studio.css`: agrupamento de **Seu idioma** e **Rede e serviços** em uma coluna esquerda empilhada (`.settings-stack`, com `flex: 1` no último cartão) ao lado de **Atualização do RGB**, eliminando a célula vazia ao lado de **Rede e serviços** e alinhando a base das duas colunas; adição de margem vertical (`18px`) entre os blocos visíveis de `.page[data-view=settings]`; `white-space: nowrap` no texto de `#library-transition-label` e `flex: 1` no `<select>` para manter **Transição entre perfis** em uma única linha.
 - `tests/ui/language.spec.js`: verificação automatizada do alinhamento da base das duas colunas (`bottomDiff <= 1`), do espaçamento vertical antes de **Reiniciar Nexus e OpenRGB** (`restartGap >= 16`) e da altura de linha única do rótulo de transição (`labelHeight <= 20`).
+- `README.md` e `docs/releases/v0.1.0-alpha.22.md`: links e notas da versão `v0.1.0-alpha.22`.
 
 **Testes executados e resultados:**
-- `npx.cmd playwright test tests/ui/language.spec.js`: 3/3 aprovados (incluindo verificação geométrica desktop e mobile).
 - `npm.cmd test`: 125/125 aprovados.
-- Inspeção visual em servidor isolado (1366×900, 1920×1000 e 390×844) confirmando o alinhamento das colunas e o espaçamento entre os cartões.
+- `npm.cmd run test:ui`: 35/35 aprovados (Playwright/Edge, incluindo verificação geométrica desktop e mobile da aba Configurações).
+- `npm.cmd run test:supervisor`: aprovado.
+- `npm.cmd run build` e `npm.cmd run test:installer`: 12/12 cenários aprovados (PT-BR e EN).
+- `node scripts/check-release.cjs v0.1.0-alpha.22`: aprovado.
 
 **Git / Release / Instalação:**
-- Código commitado em `codex/settings-layout` e mesclado em `main`.
-- A release publicada e a versão instalada no PC real continuam na `v0.1.0-alpha.21` (nenhum serviço local foi reiniciado ou reinstalado sem confirmação do usuário).
+- Código na branch `codex/settings-layout`, pronto para tag `v0.1.0-alpha.22` e publicação via GitHub Actions (CodeQL + 2 VMs Windows descartáveis).
+- A versão instalada no PC real permanece em `v0.1.0-alpha.21` até a conclusão da publicação e confirmação do usuário.
 
-**Pendências e próximo passo:** se o usuário quiser aplicar o novo CSS imediatamente na instalação local sem esperar o próximo bloco, pedir confirmação antes de atualizar/reiniciar; caso contrário, incluir na próxima versão junto com o bloco de **clareza visual e rede**.
+**Pendências e próximo passo:** publicar a tag `v0.1.0-alpha.22`, aguardar aprovação nos workflows de CI, CodeQL e 2 VMs, baixar os executáveis oficiais publicados e pedir confirmação ao usuário antes de atualizar a instalação local.
 
 ### 16/10/2026 — Alpha.21: estabilidade e hardware (branch `codex/hardware-stability`)
 
