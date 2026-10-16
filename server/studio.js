@@ -1,6 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), { fork } = require('node:child_process');
-const { readJson, writeJson } = require('./store');
+const { writeJson, readEffectJson } = require('./store');
 const schema = require('./studio-schema'), spatial = require('../public/spatial');
 const builtin = [
   schema.recipe({ format: 'nexus-effect/1', name: 'Aurora espacial', pattern: 'wave', palette: ['#00ff99', '#00c8ff', '#8156ff'], speed: 30, angle: 0, scale: 1 }),
@@ -14,9 +14,7 @@ class Studio {
     if (fs.existsSync(this.directory)) for (const file of fs.readdirSync(this.directory).slice(0, 128)) {
       if (!/^[a-f0-9]{24}\.json$/.test(file)) continue;
       try {
-        const full = path.join(this.directory, file), stat = fs.lstatSync(full);
-        if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) continue;
-        const saved = readJson(full), effect = this.parse(saved.original);
+        const saved = readEffectJson(path.join(this.directory, file)), effect = this.parse(saved.original);
         if (effect.id + '.json' === file && !this.effects.get(effect.id)?.builtin) this.effects.set(effect.id, effect);
       } catch { /* An invalid local import does not block startup. */ }
     }
@@ -113,7 +111,7 @@ class Studio {
     const effect=this.effects.get(id);if(!effect||typeof name!=='string'||!name.trim()||name.trim().length>60)throw Error('Nome do efeito: 1 a 60 caracteres.');
     let original;
     if(effect.format==='nexus-effect/1')original=JSON.stringify({...effect,name:name.trim()});
-    else {const file=path.join(this.directory,id+'.json'),stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024)throw Error('Arquivo de efeito inválido.');original=readJson(file).original;const safe=name.trim().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');original=/<title[^>]*>[\s\S]*?<\/title>/i.test(original)?original.replace(/<title[^>]*>[\s\S]*?<\/title>/i,()=>'<title>'+safe+'</title>'):'<title>'+safe+'</title>'+original;}
+    else {original=readEffectJson(path.join(this.directory,id+'.json')).original;const safe=name.trim().replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');original=/<title[^>]*>[\s\S]*?<\/title>/i.test(original)?original.replace(/<title[^>]*>[\s\S]*?<\/title>/i,()=>'<title>'+safe+'</title>'):'<title>'+safe+'</title>'+original;}
     return this.import(original);
   }
   profile(body) {

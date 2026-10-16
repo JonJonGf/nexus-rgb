@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {validatePatch,validateLibrary,defaults,writeJson}=require('./store'),schema=require('./studio-schema'),{builtin}=require('./studio');
+const {validatePatch,validateLibrary,defaults,writeJson,readEffectJson}=require('./store'),schema=require('./studio-schema'),{builtin}=require('./studio');
 const MAX=16*1024*1024,id=/^[a-f0-9]{24}$/,object=v=>v&&typeof v==='object'&&!Array.isArray(v);
 function fields(v,allowed) {if(!object(v)||Object.keys(v).some(k=>!allowed.includes(k)))throw Error('Backup: campos inválidos.');}
 function devices(value) {if(!object(value)||Object.keys(value).length>256)throw Error('Backup: componentes inválidos.');const result={};for(const [key,v] of Object.entries(value)){if(!id.test(key))throw Error('Backup: identificador inválido.');result[key]=validatePatch(v,true);}return result;}
@@ -22,7 +22,7 @@ function normalize(value,effects) {
 }
 class Backups {
   constructor(store,studio,directory){this.store=store;this.studio=studio;this.directory=directory;}
-  files(){const values=[];for(const [key,effect]of this.studio.effects){if(effect.builtin)continue;const file=path.join(this.studio.directory,key+'.json'),stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024)throw Error('Backup: arquivo de efeito inválido.');const {original}=JSON.parse(fs.readFileSync(file,'utf8'));if(this.studio.parse(original).id!==key)throw Error('Backup: efeito divergente.');values.push({id:key,original});}return values.sort((a,b)=>a.id.localeCompare(b.id));}
+  files(){const values=[];for(const [key,effect]of this.studio.effects){if(effect.builtin)continue;const {original}=readEffectJson(path.join(this.studio.directory,key+'.json'));if(this.studio.parse(original).id!==key)throw Error('Backup: efeito divergente.');values.push({id:key,original});}return values.sort((a,b)=>a.id.localeCompare(b.id));}
   export(){const result={format:'nexus-backup/1',version:require('../package.json').version,createdAt:new Date().toISOString(),settings:structuredClone(this.store.data),effects:this.files()};if(Buffer.byteLength(JSON.stringify(result))>MAX)throw Error('Backup: limite de 16 MiB.');return result;}
   digest(){return crypto.createHash('sha256').update(JSON.stringify({settings:this.store.data,effects:this.files()})).digest('hex');}
   async review(input){
@@ -46,7 +46,7 @@ class Backups {
     const name='before-restore-'+Date.now()+'-'+crypto.randomBytes(4).toString('hex')+'.json';writeJson(path.join(folder,name),before);
     const created=[];try{
       fs.mkdirSync(this.studio.directory,{recursive:true});if(fs.lstatSync(this.studio.directory).isSymbolicLink())throw Error('Pasta de efeitos inválida.');
-      for(const item of pending.files){const file=path.join(this.studio.directory,item.id+'.json');if(fs.existsSync(file)){const stat=fs.lstatSync(file);if(!stat.isFile()||stat.isSymbolicLink()||stat.size>256*1024||this.studio.parse(JSON.parse(fs.readFileSync(file,'utf8')).original).id!==item.id)throw Error('Backup: arquivo de efeito inválido.');continue;}writeJson(file,{original:item.original});created.push(file);}
+      for(const item of pending.files){const file=path.join(this.studio.directory,item.id+'.json');if(fs.existsSync(file)){if(this.studio.parse(readEffectJson(file).original).id!==item.id)throw Error('Backup: arquivo de efeito inválido.');continue;}writeJson(file,{original:item.original});created.push(file);}
       this.store.data=pending.settings;this.store.save();
     }catch(error){for(const file of created)try{fs.unlinkSync(file);}catch{}throw error;}
     // Imported files are immutable content-addressed additions. Existing library

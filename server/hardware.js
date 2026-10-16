@@ -252,6 +252,7 @@ class Hardware extends EventEmitter {
     finally { this.busy = false; if(this.transitionState&&performance.now()-this.transitionState.started>=this.transitionState.duration)this.transitionState=null; if (!this.connected) this.scheduleReconnect(); if (changedErrors) this.emit('change'); }
   }
   async resize(id, zoneId, count) {
+    if (typeof id !== 'string' || !/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(zoneId) || zoneId < 0 || zoneId > 65535) throw new Error('Tamanho de zona inválido.');
     if (!this.connected || this.busy) throw new Error('Controlador ocupado ou desconectado. Tente novamente.');
     const d = this.devices.find(d => d.id === id || d.components?.some(component => component.id === id));
     const component = d?.components?.find(component => component.id === id);

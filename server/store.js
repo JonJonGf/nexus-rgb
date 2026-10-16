@@ -5,10 +5,29 @@ const crypto = require('node:crypto');
 function writeJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  let descriptor = null, created = false;
   try {
-    fs.writeFileSync(temporary, JSON.stringify(value, null, 2), { mode: 0o600 });
+    descriptor = fs.openSync(temporary, 'wx', 0o600); created = true;
+    fs.writeFileSync(descriptor, JSON.stringify(value, null, 2));
+    fs.closeSync(descriptor); descriptor = null;
     fs.renameSync(temporary, file);
-  } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
+    created = false;
+  } finally {
+    if (descriptor !== null) fs.closeSync(descriptor);
+    if (created) try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+}
+// Check and read the same handle. Windows data-directory ACLs remain the trust boundary.
+function readEffectJson(file) {
+  const descriptor = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+  try {
+    const stat = fs.fstatSync(descriptor), entry = fs.lstatSync(file), maximum = 256 * 1024;
+    if (!stat.isFile() || stat.nlink !== 1 || stat.size > maximum || !entry.isFile() || entry.isSymbolicLink() || entry.dev !== stat.dev || entry.ino !== stat.ino) throw Error('Arquivo de efeito inválido.');
+    const buffer = Buffer.alloc(maximum + 1); let length = 0, count;
+    while (length < buffer.length && (count = fs.readSync(descriptor, buffer, length, buffer.length - length, null)) > 0) length += count;
+    if (length > maximum) throw Error('Arquivo de efeito inválido.');
+    return JSON.parse(buffer.toString('utf8', 0, length));
+  } finally { fs.closeSync(descriptor); }
 }
 function readJson(file, fallback) {
   if (!fs.existsSync(file)) return structuredClone(fallback);
@@ -87,7 +106,10 @@ class Store {
     }
     this.data.devices[id] = { ...previous, ...valid }; this.save();
   }
-  zone(id, zoneId, count) { this.data.zones[id] ??= {}; this.data.zones[id][zoneId] = count; this.save(); }
+  zone(id, zoneId, count) {
+    if (typeof id !== 'string' || !/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(zoneId) || zoneId < 0 || zoneId > 65535 || !Number.isInteger(count) || count < 1 || count > 4096) throw Error('Tamanho de zona inválido.');
+    this.data.zones[id] ??= {}; this.data.zones[id][zoneId] = count; this.save();
+  }
   profileSettings(name, settings) {
     if (typeof name !== 'string' || !name.trim() || name.trim().length > 48) throw new Error('Nome: 1 a 48 caracteres.');
     if (settings === undefined) return { name: name.trim(), master: structuredClone(this.data.master), devices: structuredClone(this.data.devices), ...(this.data.studio?.enabled ? { studio: structuredClone({ enabled: true, activeId: this.data.studio.activeId, values: this.data.studio.values || {}, excluded: this.data.studio.excluded || [] }) } : {}) };
@@ -117,4 +139,4 @@ class Store {
     this.save();
   }
 }
-module.exports = { Store, defaults, effects, validatePatch, validateLibrary, readJson, writeJson };
+module.exports = { Store, defaults, effects, validatePatch, validateLibrary, readJson, writeJson, readEffectJson };
