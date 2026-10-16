@@ -12,7 +12,7 @@ Este registro mantém as melhorias aceitas para avaliação e implementação fu
 
 O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usuário relatou que pediu à Alexa+ para não anunciar mais o erro e a resposta de voz foi suprimida, sem nova alteração do Nexus. O estado no app e a causa no protocolo permanecem sem confirmação de correção. Consulte o [contexto de continuidade](CONTEXTO-DESENVOLVIMENTO.md) antes de novas tentativas.
 
-## Implementado na alpha.21: estabilidade e hardware
+## Implementado e validado na alpha.21: estabilidade e hardware
 
 - Otimizar a redescoberta sem perder a detecção inicial por etapas, os eventos do SDK, a reconexão e uma recuperação limitada caso eventos sejam perdidos. A primeira peça detectada não significa que a varredura terminou.
 - Medir o custo da descoberta antes de atribuir engasgos a ela. O caminho do SDK consulta descrições mantidas pelo OpenRGB; isso não comprova nova varredura SMBus a cada consulta.
