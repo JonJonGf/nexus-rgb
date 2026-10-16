@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Relatar vulnerabilidade de segurança / Report a vulnerability
+    url: https://github.com/JonJonGf/nexus-rgb/security/advisories/new
+    about: Envie falhas de segurança pelo canal privado; não publique dados sensíveis em Issues.
   - name: Instalação e dúvidas frequentes
     url: https://github.com/JonJonGf/nexus-rgb#readme
     about: Consulte o tutorial e a solução de problemas antes de abrir um relato.

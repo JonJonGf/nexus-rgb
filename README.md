@@ -328,6 +328,8 @@ Ainda precisa investigar? Pelo ícone da bandeja, abra **Abrir pasta de diagnós
 
 ## 🛡️ Sua rede, seus dados
 
+Para relatar uma vulnerabilidade, consulte a [política de segurança](SECURITY.md) e use o [canal privado no GitHub](https://github.com/JonJonGf/nexus-rgb/security/advisories/new). Bugs comuns e sugestões continuam nas Issues públicas.
+
 O painel usa HTTP local e permite que aparelhos da mesma sub-rede privada controlem as luzes **sem autenticação**. Isso torna o link simples de usar; não há criptografia do tráfego local. Ajustes administrativos ficam disponíveis pelo aplicativo do PC, via endereço local.
 
 O instalador cria regras específicas do Nexus para a LAN. Não há telemetria, túnel externo ou atualização automática, e o aplicativo não precisa se conectar ao GitHub para funcionar. **Não abra portas do Nexus no roteador.** A Alexa pode precisar de internet para o próprio funcionamento, mesmo com a ponte Nexus na LAN.
