@@ -28,5 +28,6 @@ Mantenha um resumo atual curto e um histórico por data/entrega; preserve os reg
 
 - O contexto versionado é público: não inclua tokens, credenciais, e-mail pessoal, IPs reais, seriais, perfis pessoais, diagnósticos crus ou código de terceiros sem licença/autorização. Detalhes privados ficam em `data/`, ignorada pelo Git, com referência pública apenas quando segura.
 - Antes de atualizar o PC real ou pedir UAC, confirme a autorização da sessão atual. Preserve os dados e não reinicie o Windows automaticamente.
+- Preserve os checkpoints e backups de recuperação. Não mova/apague suas tags, não altere os arquivos de backup e não use `reset --hard`, limpeza destrutiva ou force push para contornar problemas sem autorização explícita. Recuperações devem primeiro usar uma pasta nova, sem sobrescrever o projeto atual.
 - Não reduza proteções, limites ou testes para declarar sucesso. Não declare correção no Echo ou no RGB físico com base apenas em simulação.
 - Registre contexto também quando não houver alteração de código: uma investigação, falha, instalação ou teste físico pode mudar o próximo passo.
