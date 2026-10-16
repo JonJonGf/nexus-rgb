@@ -9,19 +9,27 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  security:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/codeql.yml
   validate:
     uses: ./.github/workflows/installer.yml
   publish:
-    needs: validate
+    needs: [validate, security]
     runs-on: ubuntu-latest
     permissions:
       contents: write
       actions: read
+      security-events: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Exigir análise atual e nenhum alerta de código pendente
+        run: node scripts/check-security-gate.cjs
       - name: Baixar pacote validado e conferir hashes
         shell: bash
         run: |

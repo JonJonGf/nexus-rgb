@@ -2,12 +2,12 @@ name: Analisar segurança (CodeQL)
 on:
   push:
     branches: [main]
-    tags: ['v[0-9]*']
   pull_request:
     branches: [main]
   schedule:
     - cron: '23 10 * * 1'
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
@@ -52,3 +52,11 @@ jobs:
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           category: /language:${{ matrix.language }}
+          output: codeql-results
+      - name: Guardar evidências da análise
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: codeql-results/*.sarif
+          retention-days: 7
+          if-no-files-found: error
