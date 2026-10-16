@@ -110,7 +110,7 @@ test('mapa compartilha movimentos e perfis e mostra a saída comum sem um fundo 
   await page.unroute('**/api/studio/preview'); await page.locator('.nav[data-page=control]').click(); await page.locator('.nav[data-page=studio]').click();
   await page.locator('#studio-choose').click(); await page.locator('.library-card[data-kind=motion][data-id=scanner]').click();
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.effect).toBe('scanner');
-  await page.request.post('/api/profiles', { headers, data: { name: 'Paleta compartilhada', settings: { effect: 'sequence', palette: ['#00ff00', '#ff0000'], brightness: 31, speed: 25 } } });
+  expect((await page.request.post('/api/profiles', { headers, data: { name: 'Paleta compartilhada', settings: { effect: 'sequence', palette: ['#00ff00', '#ff0000'], brightness: 31, speed: 25 } } })).status()).toBe(200);
   await page.locator('#studio-choose').click(); await expect(page.locator('#studio-library')).toContainText('Paleta compartilhada');
   const profileId = (await (await page.request.get('/api/state')).json()).profiles.find(p => p.name === 'Paleta compartilhada').id;
   await page.locator('.library-card[data-kind=profile][data-id="' + profileId + '"]').click();
@@ -131,4 +131,20 @@ test('mapa compartilha movimentos e perfis e mostra a saída comum sem um fundo 
     await page.screenshot({ path: 'test-results/mapa-compartilhado-' + width + '.png', fullPage: true });
   }
   expect(errors).toEqual([]);
+});
+
+test('resposta antiga de um comando não remove um perfil recebido pelo stream', async ({ page }) => {
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  await page.locator('[data-page=studio]').click(); await page.locator('#studio-choose').click();
+  const name='Perfil durante comando '+Date.now(),headers={Origin:'http://127.0.0.1:5071','X-Nexus-Client':'web'};
+  await page.route('**/api/control',async route=>{
+    const response=await route.fetch(),old=await response.json();
+    expect((await page.request.post('/api/profiles',{headers,data:{name}})).status()).toBe(200);
+    await expect(page.locator('#profiles')).toContainText(name);
+    await route.fulfill({json:old});
+  });
+  await page.locator('.library-card[data-kind=motion][data-id=wave]').click();
+  await expect(page.locator('#studio-picker-dialog')).not.toBeVisible();
+  await page.locator('#studio-choose').click();
+  await expect(page.locator('#studio-library')).toContainText(name);
 });

@@ -7,7 +7,7 @@
   const item = () => data?.layout.find(i => i.key === selected);
   let liveFrame, ports;
   function renderPorts() { if (ports) $('settings-ports').textContent = T('Painel TCP ') + ports.panel + ' · SDK TCP ' + ports.sdk + ' · Alexa TCP ' + ports.alexa + T(' · descoberta UDP 1900.'); }
-  let inspector = 'device', libraryFilter = 'all', controlSignature = '', gallerySignature = '';
+  let inspector = 'device', libraryFilter = 'all', controlSignature = '', gallerySignature = '', stateRevision = 0, libraryApplying = false;
   function inspectorTab(name) {
     inspector = name;
     for (const key of ['device', 'effect']) { $('studio-tab-' + key).setAttribute('aria-selected', String(name === key)); $('studio-tab-' + key).tabIndex = name === key ? 0 : -1; $('studio-' + key + '-panel').hidden = name !== key; }
@@ -163,8 +163,11 @@
     controls();
   }
   async function sharedPlay(route, body) {
+    const revision = stateRevision;
     const next = await request(route, body, 'POST');
-    if (next) { state = next; await refresh(); renderLibrary(); }
+    // A response may arrive after a newer SSE update (for example a profile
+    // created in another tab). Never replace that update with an older snapshot.
+    if (next) { if (stateRevision === revision) state = next; await refresh(); renderLibrary(); }
     return Boolean(next);
   }
   function renderLibrary() {
@@ -193,12 +196,17 @@
       button.style.setProperty('--card-palette', 'linear-gradient(120deg,' + (colors.length > 1 ? colors : [colors[0] || '#7954ff', colors[0] || '#00c8ff']).join(',') + ')');
       const active = card.kind === 'spatial' ? data.enabled && card.id === data.activeId : card.kind === 'motion' ? !data.enabled && card.id === state.master.effect : false;
       button.classList.toggle('active', Boolean(active)); button.setAttribute('aria-pressed', String(Boolean(active)));
+      button.disabled = libraryApplying;
       button.append(make('span', undefined, 'library-art'), make('small', { profile: T('PERFIL'), preset: T('CENA'), motion: T('MOVIMENTO'), spatial: T('MAPA') }[card.kind]), make('strong', card.name), make('span', card.note, 'library-note'));
       button.addEventListener('click', async () => {
-        button.disabled = true;
-        if (card.kind === 'motion' && card.id === 'strobe') toast(T('Estrobo produz flashes. Evite em caso de sensibilidade à luz intermitente.'));
-        const ok = card.kind === 'spatial' ? await play({ activeId: card.id, enabled: true }) : await sharedPlay(card.kind === 'motion' ? '/api/control' : '/api/' + (card.kind === 'profile' ? 'profiles/' : 'presets/') + card.id, card.kind === 'motion' ? { effect: card.id } : {});
-        if (ok) $('studio-picker-dialog').close(); else button.disabled = false;
+        if (libraryApplying) return;
+        libraryApplying = true; $('studio-choose').disabled = true;
+        $('studio-library').querySelectorAll('button').forEach(b => { b.disabled = true; });
+        try {
+          if (card.kind === 'motion' && card.id === 'strobe') toast(T('Estrobo produz flashes. Evite em caso de sensibilidade à luz intermitente.'));
+          const ok = card.kind === 'spatial' ? await play({ activeId: card.id, enabled: true }) : await sharedPlay(card.kind === 'motion' ? '/api/control' : '/api/' + (card.kind === 'profile' ? 'profiles/' : 'presets/') + card.id, card.kind === 'motion' ? { effect: card.id } : {});
+          if (ok) $('studio-picker-dialog').close();
+        } finally { libraryApplying = false; $('studio-choose').disabled = false; $('studio-library').querySelectorAll('button').forEach(b => { b.disabled = false; }); }
       });
       grid.append(button);
     }
@@ -361,7 +369,7 @@
   window.NexusStudio = {
     open,
     update(next, admin, requestApi, showToast, page) {
-      const first = !api; state = next; isAdmin = admin; api = requestApi; toast = showToast;
+      const first = !api; state = next; stateRevision++; isAdmin = admin; api = requestApi; toast = showToast;
       renderGallery();
       document.querySelectorAll('.studio-admin').forEach(e => { if (!e.closest('#studio-formula-form')) e.hidden = !admin; }); $('settings-fps-save').disabled = !admin; $('settings-fps').disabled = !admin;
       document.querySelectorAll('[data-fps]').forEach(e => { e.disabled = !admin; }); $('settings-admin-note').hidden = admin;
