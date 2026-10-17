@@ -20,14 +20,25 @@ test('multisseleção, grupos, desfazer/refazer e alças persistem sem separar L
   await page.locator('#map-group').fill('Fans');await page.locator('#map-group').press('Tab');
   await expect.poll(async()=> (await saved(page)).map(e=>e.group)).toEqual(['Fans','Fans']);
   await page.locator('.studio-item').first().press('ArrowRight');
+  await expect(page.locator('#map-undo')).toHaveText('Desfazer posição ↶');
   await expect.poll(async()=> (await saved(page))[0].x).toBeCloseTo(layout[0].x+.01,5);
   expect((await saved(page))[1].x).toBeCloseTo(layout[1].x+.01,5);
-  await page.locator('#map-undo').click();await expect.poll(async()=> (await saved(page))[0].x).toBeCloseTo(layout[0].x,5);
+  await page.locator('#map-undo').click();
+  await expect(page.locator('#map-redo')).toHaveText('Refazer posição ↷');
+  await expect.poll(async()=> (await saved(page))[0].x).toBeCloseTo(layout[0].x,5);
   await page.locator('#map-redo').click();await expect.poll(async()=> (await saved(page))[1].x).toBeCloseTo(layout[1].x+.01,5);
   await chips.first().click();const size=page.locator('.map-handle-size'),box=await size.boundingBox();expect(box.width).toBe(13);
   await page.mouse.move(box.x+6,box.y+6);await page.mouse.down();await page.mouse.move(box.x+26,box.y+16);await page.mouse.up();
+  await expect(page.locator('#map-undo')).toHaveText('Desfazer tamanho ↶');
   await expect.poll(async()=> (await saved(page))[0].width).toBeGreaterThan(layout[0].width);
   await page.locator('#map-undo').click();await expect.poll(async()=> (await saved(page))[0].width).toBeCloseTo(layout[0].width,5);
+  // Concurrent modification on another client triggers 409 conflict and syncs map from server:
+  const currentSaved = await saved(page);
+  const remoteLayout = currentSaved.map((e, idx) => idx === 0 ? { ...e, x: 0.82 } : e);
+  await page.request.post('/api/studio', { headers: { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' }, data: { layout: remoteLayout } });
+  await page.locator('.studio-item').first().press('ArrowLeft');
+  await expect(page.locator('#toast')).toContainText('alterado em outro dispositivo');
+  await expect.poll(async()=> (await saved(page))[0].x).toBeCloseTo(0.82, 5);
   expect(errors).toEqual([]);
 });
 test('calibração revisa soma dos anéis, ordem, teste temporário e persiste no mapa',async({page})=>{

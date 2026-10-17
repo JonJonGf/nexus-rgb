@@ -25,9 +25,33 @@ test('falha ao salvar perfil preserva rascunho e permite repetir sem ativação 
  await page.locator('#formula-apply').click();await expect(page.locator('#formula-error')).toContainText('Teste de indisponibilidade');await expect(page.locator('#formula-apply')).toBeEnabled();await expect(page.locator('#studio-source')).toHaveValue(JSON.stringify(cascade));const failed=await(await page.request.get('/api/studio')).json();expect(failed.activeId).toBe(before.activeId);expect(failed.enabled).toBe(before.enabled);
  await page.locator('#formula-apply').click();await expect(page.locator('#studio-formula-dialog')).not.toBeVisible();const state=await(await page.request.get('/api/state')).json();expect(state.profiles.filter(p=>p.name===cascade.name)).toHaveLength(1);
 });
-test('JSON inválido permanece no editor, bloqueia aplicação e não dispara requisições',async({page})=>{
- await open(page);await page.locator('#studio-source').fill('{"format":');await expect(page.locator('#formula-error')).toBeVisible();await expect(page.locator('#formula-apply')).toBeDisabled();await expect(page.locator('#formula-preview-toggle')).toBeDisabled();
- await page.evaluate(()=>NexusI18n.set('en'));await expect(page.locator('#studio-source')).toHaveValue('{"format":');await page.locator('#studio-source').fill(JSON.stringify(cascade));await expect(page.locator('#formula-apply')).toBeEnabled();await expect(page.locator('#formula-name')).toHaveValue('Rainbow Cascade');
+test('JSON inválido permanece no editor, bloqueia aplicação, preserva última prévia e permite restaurar versão válida ou desfazer rascunho',async({page})=>{
+ await open(page);
+ await page.locator('#studio-source').fill(JSON.stringify(cascade));
+ await page.locator('#formula-preview-toggle').click();
+ await page.locator('#formula-angle').fill('45');
+ await expect(page.locator('#formula-undo')).toHaveText('Desfazer direção ↶');
+ await page.locator('#formula-undo').click();
+ await expect(page.locator('#formula-angle')).toHaveValue('90');
+ await expect(page.locator('#formula-redo')).toHaveText('Refazer direção ↷');
+ await page.locator('#formula-redo').click();
+ await expect(page.locator('#formula-angle')).toHaveValue('45');
+ const validCanvas = await image(page);
+
+ await page.locator('#studio-source').fill('{"format":');
+ await expect(page.locator('#formula-error')).toBeVisible();
+ await expect(page.locator('#formula-apply')).toBeDisabled();
+ await expect(page.locator('#formula-preview-toggle')).toBeDisabled();
+ await expect(page.locator('#formula-restore-valid')).toBeVisible();
+ expect(await image(page)).toBe(validCanvas);
+
+ await page.evaluate(()=>NexusI18n.set('en'));
+ await expect(page.locator('#studio-source')).toHaveValue('{"format":');
+ await expect(page.locator('#formula-restore-valid')).toHaveText('Restore last valid version');
+ await page.locator('#formula-restore-valid').click();
+ await expect(page.locator('#formula-apply')).toBeEnabled();
+ await expect(page.locator('#formula-name')).toHaveValue('Rainbow Cascade');
+ await expect(page.locator('#formula-angle')).toHaveValue('45');
 });
 test('salvar e aplicar ativa o novo JSON e perfil sem religar a energia geral',async({page})=>{
  await open(page);const headers={Origin:new URL(page.url()).origin,'X-Nexus-Client':'web'};await page.request.post('/api/control',{headers,data:{power:false}});

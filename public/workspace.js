@@ -9,10 +9,18 @@ window.NexusWorkspace = {
     undo.id='map-undo';redo.id='map-redo';snap.type='checkbox';snap.id='map-snap';label.append(snap,make('span','Alinhar à grade'));bar.append(undo,redo,label,group);document.querySelector('.studio-toolbar').after(bar);
     const groupField=make('label','Grupo'),name=make('input');name.id='map-group';name.maxLength=40;groupField.append(name);$('studio-device-form').append(groupField);
     const note=make('p','Shift + clique seleciona várias peças.','muted small');bar.append(note);
-    function update() {undo.disabled=!admin||!history.undoable;redo.disabled=!admin||!history.redoable;name.disabled=!admin;group.disabled=!hooks.get()?.layout.find(e=>e.key===hooks.selected())?.group;}
+    function update() {
+      undo.disabled=!admin||!history.undoable;redo.disabled=!admin||!history.redoable;name.disabled=!admin;group.disabled=!hooks.get()?.layout.find(e=>e.key===hooks.selected())?.group;
+      const uLabel=history.undoLabel,rLabel=history.redoLabel;
+      undo.textContent=uLabel?T('Desfazer')+' '+T(uLabel)+' ↶':T('Desfazer ↶');
+      redo.textContent=rLabel?T('Refazer')+' '+T(rLabel)+' ↷':T('Refazer ↷');
+      undo.title=uLabel?T('Desfazer')+' '+T(uLabel):T('Desfazer');
+      redo.title=rLabel?T('Refazer')+' '+T(rLabel):T('Refazer');
+      undo.dataset.action=uLabel||'';redo.dataset.action=rLabel||'';
+    }
     function replay(value) {if(!value||!admin)return;suspended=true;try{hooks.get().layout=value;keys.clear();hooks.save();}finally{suspended=false;}update();}
     undo.addEventListener('click',()=>replay(history.undo()));redo.addEventListener('click',()=>replay(history.redo()));
-    document.addEventListener('keydown',e=>{if(!admin||!document.querySelector('[data-view=studio].active')||e.target.closest('input,textarea,select,[contenteditable=true]')||!(e.ctrlKey||e.metaKey)||!['z','y'].includes(e.key.toLowerCase()))return;e.preventDefault();if(e.key.toLowerCase()==='y'||e.shiftKey)replay(history.redo());else replay(history.undo());});
+    document.addEventListener('keydown',e=>{if(!admin||document.querySelector('dialog[open]')||!document.querySelector('[data-view=studio].active')||e.target.closest('input,textarea,select,[contenteditable=true]')||!(e.ctrlKey||e.metaKey)||!['z','y'].includes(e.key.toLowerCase()))return;e.preventDefault();if(e.key.toLowerCase()==='y'||e.shiftKey)replay(history.redo());else replay(history.undo());});
     name.addEventListener('change',()=>{const entry=hooks.get()?.layout.find(e=>e.key===hooks.selected());if(!entry||!admin)return;for(const part of hooks.get().layout.filter(e=>keys.has(e.key)))part.group=name.value;hooks.save();});
     group.addEventListener('click',()=>{const active=hooks.get()?.layout.find(e=>e.key===hooks.selected());if(!active?.group)return;keys.clear();hooks.get().layout.filter(e=>e.group===active.group).forEach(e=>keys.add(e.key));paint();});
     function paint() {document.querySelectorAll('.studio-item,#studio-device-chips button').forEach(e=>{const active=keys.has(e.dataset.key);e.classList.toggle('selected',active);if(e.closest('#studio-device-chips'))e.setAttribute('aria-pressed',String(active));});}
@@ -23,7 +31,7 @@ window.NexusWorkspace = {
       for(const key of keys)if(!layout.some(e=>e.key===key))keys.delete(key);
       const entry=layout.find(e=>e.key===selected);if(document.activeElement!==name)name.value=entry?.group||'';paint();update();
     }
-    function record() {if(mounted&&!suspended)history.record(hooks.get().layout);update();}
+    function record(labelText) {if(mounted&&!suspended)history.record(hooks.get().layout,labelText);update();}
     function select(key,toggle=false) {if(toggle){if(keys.has(key)&&keys.size>1)keys.delete(key);else keys.add(key);}else if(!keys.has(key)){keys.clear();keys.add(key);}paint();}
     function origin(key) {select(key);return hooks.get().layout.filter(e=>keys.has(e.key)).map(e=>({...e}));}
     function move(entries,dx,dy) {for(const moved of M.move(entries,dx,dy,snap.checked)){const entry=hooks.get().layout.find(e=>e.key===moved.key);if(entry){entry.x=moved.x;entry.y=moved.y;hooks.position(document.querySelector('.studio-item[data-key="'+CSS.escape(entry.key)+'"]'),entry);}}}
@@ -43,7 +51,7 @@ window.NexusWorkspace = {
         });
       }
     }
-    window.addEventListener('nexus:languagechange',()=>{undo.textContent=T('Desfazer ↶');redo.textContent=T('Refazer ↷');label.querySelector('span').textContent=T('Alinhar à grade');group.textContent=T('Selecionar grupo');note.textContent=T('Shift + clique seleciona várias peças.');groupField.firstChild.textContent=T('Grupo');});
+    window.addEventListener('nexus:languagechange',()=>{label.querySelector('span').textContent=T('Alinhar à grade');group.textContent=T('Selecionar grupo');note.textContent=T('Shift + clique seleciona várias peças.');groupField.firstChild.textContent=T('Grupo');update();});
     return {sync,record,select,origin,move,decorate,paint,update(value){admin=value;bar.hidden=!value;groupField.hidden=!value;update();},keys};
   }
 };

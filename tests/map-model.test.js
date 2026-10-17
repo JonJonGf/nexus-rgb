@@ -4,3 +4,22 @@ const {History,move}=require('../public/map-model'),schema=require('../server/st
 test('histórico preserva snapshots, invalida refazer após nova edição e limita retenção',()=>{const h=new History(3),a=[{x:0}];h.reset(a);a[0].x=1;h.record(a);a[0].x=2;h.record(a);assert.deepEqual(h.undo(),[{x:1}]);assert.deepEqual(h.redo(),[{x:2}]);h.undo();h.record([{x:3}]);assert.equal(h.redoable,false);h.record([{x:4}]);assert.equal(h.entries.length,3);assert.deepEqual(h.undo(),[{x:3}]);});
 test('mover grupo mantém distâncias, respeita bordas e alinha pela peça primária',()=>{const entries=[{key:'a',x:.2,y:.3},{key:'b',x:.7,y:.8}];const moved=move(entries,1,1);assert.equal(moved[1].x,1);assert.ok(Math.abs(moved[1].x-moved[0].x-.5)<1e-9);assert.equal(entries[0].x,.2);assert.equal(move(entries,.014,0,true)[0].x,.225);});
 test('calibração de anéis e ordem física preserva índices e amostra vertical com simetria',()=>{const item={key:'fan',deviceId:'a'.repeat(24),name:'Fan',start:4,count:12,x:.5,y:.5,width:.2,height:.32,rotation:0,shape:'fan',reverse:false,columns:8,rings:[{count:8,offset:0,reverse:false},{count:4,offset:1,reverse:true}],ledOrder:[11,10,9,8,7,6,5,4,3,2,1,0]};const saved=schema.layout([item])[0],points=spatial.points(saved);assert.equal(points[0].index,15);assert.ok(Math.abs(points[0].y-.5*200)>Math.abs(points[9].y-.5*200));assert.ok(Math.abs(points[1].y-points[7].y)<1e-9);assert.throws(()=>schema.layout([{...item,rings:[{count:3,offset:0,reverse:false}]}]));assert.throws(()=>schema.layout([{...item,ledOrder:Array(12).fill(0)}]));});
+test('histórico descreve a ação disponível no mapa e no rascunho de efeito',()=>{
+  const mapHistory=new History(10);
+  const base=[{key:'a',x:.2,y:.3,width:.1,height:.1,rotation:0,shape:'strip',columns:8,reverse:false,start:0,count:8,name:'Fita'}];
+  mapHistory.reset(base);
+  mapHistory.record([{...base[0],x:.4}]);
+  assert.equal(mapHistory.undoLabel,'posição');
+  mapHistory.record([{...base[0],x:.4,rotation:90}]);
+  assert.equal(mapHistory.undoLabel,'rotação');
+  mapHistory.undo();
+  assert.equal(mapHistory.undoLabel,'posição');
+  assert.equal(mapHistory.redoLabel,'rotação');
+  const draftHistory=new History(10);
+  const r0={name:'Onda',pattern:'wave',palette:['#00f0ff'],speed:30,angle:0,scale:1};
+  draftHistory.reset(r0);
+  draftHistory.record({...r0,palette:['#00f0ff','#ff0055']});
+  assert.equal(draftHistory.undoLabel,'cores');
+  draftHistory.record({...r0,palette:['#00f0ff','#ff0055'],angle:45});
+  assert.equal(draftHistory.undoLabel,'direção');
+});
