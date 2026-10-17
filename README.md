@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.23/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.23">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.24/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.24">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.23 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, organização da biblioteca, backup e diagnóstico local. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.24 · Gratuito e de código aberto.** Esta prévia inclui mapa espacial do setup, importação experimental de efeitos Canvas e FPS configurável. Esta versão também inclui calibração, desfazer/refazer no mapa e no editor, recuperação após falhas de efeitos, transição suave opcional de energia, backup e diagnóstico revisável por categorias. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -51,9 +51,9 @@ A apresentação inicial aparece somente no primeiro acesso de uma instalação 
 - **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada. O criador oferece doze padrões, colagem de HTML/Canvas compatível, prévia isolada antes de aplicar e [documentação dos padrões](docs/EFEITOS.md) ([English](docs/EFFECTS.md)).
 - **Português e inglês:** escolha em **Configurações → Idioma da interface**. A preferência é salva por navegador e não muda as luzes ou os nomes dos seus perfis. O instalador também oferece os dois idiomas; na bandeja do Windows, use **Idioma / Language** para as janelas nativas. As preferências do navegador e do Windows são independentes, sem serviço de tradução externo.
 - **Mapa calibrado:** vários anéis, primeiro LED, sentido e ordem física por peça; grupos, seleção múltipla, grade e desfazer/refazer. [Veja como configurar](docs/MAPA-E-CALIBRACAO.md).
-- **Biblioteca organizada:** favoritos, categorias e cópias de perfis/efeitos. A transição entre perfis é opcional; desligar as luzes continua imediato.
+- **Biblioteca organizada:** favoritos, categorias e cópias de perfis/efeitos. A transição entre perfis e a transição suave ao ligar/desligar (0,2 a 3,0 s) são opcionais; o padrão ao ligar/desligar permanece instantâneo.
 - **Backup completo:** exporte ajustes, mapa e efeitos; revise antes de restaurar. O Nexus guarda uma cópia anterior à restauração e à atualização.
-- **Saúde e versão:** acompanhe os processos da instalação e revise um diagnóstico antes de compartilhar. A consulta opcional de atualizações no GitHub funciona por clique, sem baixar nem instalar automaticamente. [Backup, diagnóstico e atualizações](docs/BACKUP-E-DIAGNOSTICO.md).
+- **Saúde e versão:** acompanhe os processos da instalação e prepare um diagnóstico revisável por categorias antes de compartilhar. A consulta opcional de atualizações no GitHub funciona por clique, sem baixar nem instalar automaticamente. [Backup, diagnóstico e atualizações](docs/BACKUP-E-DIAGNOSTICO.md).
 - **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
 - **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
 - **Recuperação pelo próprio app:** reinicie Nexus e OpenRGB pelas Configurações no PC, pelo ícone da bandeja ou pelo menu Iniciar. Os perfis e configurações são preservados; o Windows pede administrador.
@@ -81,7 +81,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.23/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.23) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.24/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.24) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -271,7 +271,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.23/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.24/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 

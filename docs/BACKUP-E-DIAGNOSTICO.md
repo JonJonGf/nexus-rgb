@@ -27,7 +27,7 @@ CPU é a diferença entre amostras, normalizada pelo total de processadores lóg
 
 ## Relatar um problema
 
-**Revisar diagnóstico para compartilhar** mostra um JSON com versão, estado geral, contagens, métricas e escopo da medição. Ele omite IPs, caminhos, fontes de efeitos, nomes de perfis e identificadores de hardware. Confira o conteúdo e use **Baixar diagnóstico revisado** se quiser anexá-lo manualmente a uma [Issue](https://github.com/JonJonGf/nexus-rgb/issues/new/choose).
+**Preparar diagnóstico** mostra exatamente o relatório técnico JSON que será baixado, utilizando uma lista explícita de campos permitidos (*allowlist*) com versão, ambiente, estado geral, resumo anonimizado de componentes (`device-1`, `device-2`, …), métricas do motor, estado booleano da ponte Alexa, consumo e categorias de falha. Você pode desmarcar qualquer categoria (`Versão e compilação`, `Ambiente Node / SO`, `Controlador e descoberta`, `Resumo de componentes`, `Motor e FPS`, `Estado da ponte Alexa`, `Consumo de processos` e `Categorias de falha`) para removê-la antes do download. O relatório exclui por padrão tokens, credenciais, usuários Hue, seriais, IPs/MACs, caminhos pessoais, nomes de computador/usuário, conteúdo de efeitos importados e nomes/conteúdo de perfis, sem incluir logs crus ou anexos ocultos. Confira o conteúdo e use **Baixar diagnóstico revisado** se quiser anexá-lo manualmente a uma [Issue](https://github.com/JonJonGf/nexus-rgb/issues/new/choose).
 
 Nada é enviado automaticamente. Não anexe o backup completo, sessões ou logs privados sem revisar. O mantenedor e a comunidade respondem no GitHub.
 

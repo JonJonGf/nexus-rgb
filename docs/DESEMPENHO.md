@@ -1,5 +1,50 @@
 # Desempenho do Nexus RGB
 
+<a id="alpha24"></a>
+
+## Edição, energia, diagnóstico e recuperação — v0.1.0-alpha.24
+
+Ensaios de 17/10/2026 no Ryzen 5 3600 (6 núcleos / 12 threads), Windows 11 build 26300, Node v24.20.0. Comparação antes/depois das quatro propostas implementadas na `v0.1.0-alpha.24` (recuperação após falhas, desfazer/refazer, diagnóstico com revisão e transição suave de energia).
+
+### Processos instalados em repouso (antes e depois do ciclo de desenvolvimento)
+
+Leituras comparáveis dos processos da instalação (`NexusRGB`, `node` e `OpenRGB`) com a versão `v0.1.0-alpha.23` instalada na sessão de serviços, sem tocar no hardware físico durante os testes isolados:
+
+| Processo | Antes (`alpha.23`, repouso) | Depois (`alpha.23` instalada após bateria de testes) |
+| --- | ---: | ---: |
+| `NexusRGB` (bandeja, Sessão 1) | 38,22 MiB Working Set (27,48 MiB Private) | 41,92 MiB Working Set (29,89 MiB Private) |
+| `NexusRGB` (supervisor painel, Sessão 0) | 22,29 MiB Working Set (17,27 MiB Private) | 22,75 MiB Working Set (17,27 MiB Private) |
+| `NexusRGB` (supervisor OpenRGB, Sessão 0) | 22,62 MiB Working Set (17,18 MiB Private) | 23,06 MiB Working Set (17,18 MiB Private) |
+| `node` (servidor do painel, Sessão 0) | 52,98 MiB Working Set (32,12 MiB Private) | 56,99 MiB Working Set (33,00 MiB Private) |
+| `OpenRGB` (controlador SDK, Sessão 0) | 26,82 MiB Working Set (7,26 MiB Private) | 26,82 MiB Working Set (7,26 MiB Private) |
+
+### Navegador (`v0.1.0-alpha.23` vs `v0.1.0-alpha.24`)
+
+Duas rodadas em ordem inversa com `node scripts/benchmark-ui.cjs v0.1.0-alpha.23`, Edge sem janela (1366 × 900), 3 controladoras / 5 componentes / 92 LEDs simulados, Aurora a 20 FPS com prévia ativa:
+
+| Cenário | CPU média do navegador | RAM residente média | Pico de RAM | Heap JS médio | FPS renderizados |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Mapa `alpha.23` (baseline, PT-BR) | 0,61% | 503,65 MiB | 524,54 MiB | 3,92 MiB | 20,00 |
+| Mapa `alpha.24` (novo, PT-BR) | 0,58% | 505,13 MiB | 525,61 MiB | 3,95 MiB | 20,00 |
+| Mapa `alpha.24` (novo, EN) | 0,59% | 508,19 MiB | 527,91 MiB | 4,10 MiB | 20,00 |
+| Biblioteca `alpha.24` (novo, EN) | 0,66% | 515,37 MiB | 535,97 MiB | 4,17 MiB | 20,00 |
+
+### Servidor e motor (`v0.1.0-alpha.24`)
+
+Sete cenários sequenciais com `node scripts/benchmark-engine.cjs` (SDK simulado de 92 LEDs em 3 controladoras, janelas de ~26,8 s):
+
+| Cenário | CPU de servidor + motor | RAM residente média | Pico de RAM | FPS renderizados | Renderização média |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Mapa desativado, estático · 20 FPS | 0,03% | 49,04 MiB | 51,08 MiB | 0,00 | 0,00 ms |
+| Aurora, sem prévia · 20 FPS | 0,40% | 134,63 MiB | 141,18 MiB | 19,98 | 0,32 ms |
+| Aurora, sem prévia · 60 FPS | 0,87% | 163,07 MiB | 186,04 MiB | 59,99 | 0,34 ms |
+| Aurora, com prévia · 60 FPS | 1,20% | 187,15 MiB | 189,77 MiB | 60,02 | 0,33 ms |
+| HTML próprio, sem prévia · 20 FPS | 0,39% | 232,98 MiB | 244,29 MiB | 20,04 | 0,81 ms |
+| HTML próprio, sem prévia · 60 FPS | 0,92% | 252,39 MiB | 257,55 MiB | 60,05 | 0,72 ms |
+| HTML próprio, com prévia · 60 FPS | 1,08% | 262,16 MiB | 277,21 MiB | 59,96 | 0,72 ms |
+
+Limites: os ensaios do motor e do navegador utilizam SDK simulado em processos isolados e não comprovam suavidade física dos LEDs no controlador real.
+
 <a id="alpha15"></a>
 
 ## Mapa e motor — v0.1.0-alpha.15
