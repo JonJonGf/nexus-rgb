@@ -32,6 +32,12 @@ O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usu�
 
 - Recuperação de OpenRGB parcialmente indisponível: primeira etapa implementada na `v0.1.0-alpha.27` (isolamento de geração, falha estruturada, componentes offline, sincronia de RAM ao ligar/desligar e recuperação manual supervisionada via `nexusrgb://restart`) e refinada na preparação da alpha.28 (cancelamento explícito com `ECANCELLED`, descarte de contaminação de diagnósticos entre gerações, atualização automática do mapa do Studio sem precisar trocar de efeito, compatibilidade com Windows Restart Manager e encerramento limpo/retorno automático da bandeja pelo instalador com isolamento de sessão). Opção automática futura permanece em planejamento supervisionado. Consulte a [proposta detalhada](RECUPERACAO-CONTROLADOR.md).
 
+### Correção de taxa dupla e contenção estrita no Studio (alpha.32)
+
+| Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bypass do limitador de RAM no Studio (efeitos espaciais / Canvas):** no Studio, cada quadro gerado pelo motor incrementa a revisão interna do layout (`this.revision++`), marcando acidentalmente o tick como alteração forçada (`forceSend = true`). Isso anulava a condição `!forceSend` do limitador, fazendo a RAM continuar recebendo 60 FPS no Studio e travando o OpenRGB. | Removida a brecha de `!forceSend` no limitador de RAM: a contenção de intervalo seguro (~46–50 ms / 20 FPS) agora é incondicional durante animações (apenas comandos de desligamento imediato e identificação manual possuem passe livre). Em ticks espaciais, `forceSend` é ajustado para `(changed && !spatialFrame) || deferred`, reabilitando também a deduplicação de cores no mapa. | `tests/traffic-control.test.js`: simulação de 60 ticks espaciais concorrentes no Studio (`tick(true)`) a 60 FPS com revisão incrementada a cada quadro. | Placa-mãe recebe 60 quadros/s; memória RAM recebe exatamente 20 quadros/s (40 descartes preventivos `framesThrottledRam`). O limitador não é mais burlado no Studio; desligamento instantâneo mantido. | Protege o barramento local contra saturação pelo Nexus; acessos de polling externo concorrente de outros softwares (HWiNFO, AIDA64) continuam fora do controle do aplicativo. |
+
 ### Ritmo inteligente de velocidade dupla por barramento (alpha.31)
 
 | Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |

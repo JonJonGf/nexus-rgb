@@ -44,6 +44,8 @@ function colorsEqual(a, b) {
 }
 function isSmbusRam(device) {
   if (!device) return false;
+  const loc = String(device.location || device.raw?.location || '').toLowerCase();
+  if (loc.startsWith('usb') || loc.startsWith('hid')) return false;
   if (device.type === 0 || device.raw?.type === 0) return false;
   if (device.type === 1 || device.raw?.type === 1) return true;
   const name = String(device.name || device.raw?.name || '');
@@ -579,8 +581,8 @@ class Hardware extends EventEmitter {
 
     // 2. Safe rate limit for SMBus / RAM controllers (fixed 20 FPS = minimum ~46 ms between physical writes)
     // Flooding SMBus controllers with 60 FPS writes causes bus saturation, I2C collision with motherboard sensors, and OpenRGB hangs.
-    // Power changes (!forceSend) and power-off frames are never throttled.
-    if (!forceSend && !isPowerOff && isSmbusRam(device)) {
+    // Power-off frames and manual identification are never throttled so state changes take effect immediately.
+    if (!isPowerOff && !this.identification && isSmbusRam(device)) {
       const now = this.now();
       const lastSent = this.ramLastSentTime.get(id);
       if (lastSent !== undefined && (now - lastSent) < 46) {

@@ -451,4 +451,81 @@ test('ritmo duplo inteligente: placa-mãe a 60 FPS e RAM limitada com segurança
   assert.deepEqual(powerOffDramCalls[0][2][0], { red: 0, green: 0, blue: 0 });
 });
 
+test('ritmo duplo no Studio: ticks espaciais (tick(true)) mantêm placa-mãe a 60 FPS e contêm RAM a 20 FPS', async t => {
+  function dram(name) {
+    return {
+      name,
+      vendor: 'ENE',
+      serial: '',
+      location: 'SMBus:DRAM',
+      type: 1,
+      colors: Array(8).fill({ red: 0, green: 0, blue: 0 }),
+      zones: [{ id: 0, name: 'Zone', ledsCount: 8, ledsMin: 8, ledsMax: 8, resizable: false }],
+      modes: [{ id: 0, name: 'Direct', flagList: ['perLedColor'] }]
+    };
+  }
+
+  function mobo(name) {
+    return {
+      name,
+      vendor: 'ASUS',
+      serial: '',
+      location: 'AURA:1',
+      type: 0,
+      colors: Array(16).fill({ red: 0, green: 0, blue: 0 }),
+      zones: [{ id: 0, name: 'Zone', ledsCount: 16, ledsMin: 16, ledsMax: 16, resizable: false }],
+      modes: [{ id: 0, name: 'Direct', flagList: ['perLedColor'] }]
+    };
+  }
+
+  const store = {
+    data: {
+      master: { ...defaults, effect: 'rainbow', speed: 50 },
+      devices: {},
+      performance: { fps: 60 }
+    }
+  };
+
+  const mock = new MockClient([
+    dram('RAM RGB 1'),
+    mobo('Placa-Mãe')
+  ]);
+
+  let simTime = 0;
+  const hardware = new Hardware(store, { makeClient: () => mock, now: () => simTime });
+  t.after(() => hardware.stop());
+
+  hardware.stopped = false;
+  await hardware.connect();
+
+  const dramId = hardware.devices[0].id;
+
+  let frameCounter = 0;
+  hardware.studio = {
+    hasDevice: () => true,
+    revision: 1,
+    colorsFor: id => Array(id === dramId ? 8 : 16).fill({ red: (frameCounter++) % 255, green: 0, blue: 0 })
+  };
+
+  mock.calls = [];
+
+  // Executar 60 ticks espaciais de Studio a 60 FPS (16.66 ms por tick)
+  for (let i = 0; i < 60; i++) {
+    simTime += (1000 / 60);
+    hardware.studio.revision++;
+    hardware.changed();
+    await hardware.tick(true);
+  }
+
+  const dramCalls = mock.calls.filter(c => c[0] === 'leds' && c[1] === 0);
+  const moboCalls = mock.calls.filter(c => c[0] === 'leds' && c[1] === 1);
+
+  // Placa-mãe roda a 60 FPS
+  assert.equal(moboCalls.length, 60, 'Placa-mãe roda a 60 FPS no Studio');
+
+  // RAM contida a exatamente 20 FPS (1 envio a cada 50 ms)
+  assert.equal(dramCalls.length, 20, 'RAM no Studio é contida com segurança a 20 FPS');
+  assert.equal(hardware.metrics.framesThrottledRam, 40, '40 quadros espaciais de RAM foram contidos no Studio');
+});
+
 
