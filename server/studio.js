@@ -1,6 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), { fork } = require('node:child_process');
-const { writeJson, readEffectJson } = require('./store');
+const { readJson, writeJson, readEffectJson } = require('./store');
 const schema = require('./studio-schema'), spatial = require('../public/spatial');
 const builtin = [
   schema.recipe({ format: 'nexus-effect/1', name: 'Aurora espacial', pattern: 'wave', palette: ['#00ff99', '#00c8ff', '#8156ff'], speed: 30, angle: 0, scale: 1 }),
@@ -66,9 +66,10 @@ class Studio {
   loadRecovery() {
     this.workingHistory = [];
     this.quarantined = null;
-    if (!this.recoveryFile || !fs.existsSync(this.recoveryFile)) return;
+    if (!this.recoveryFile) return;
     try {
-      const saved = JSON.parse(fs.readFileSync(this.recoveryFile, 'utf8'));
+      const saved = readJson(this.recoveryFile, null);
+      if (!saved) return;
       const history = Array.isArray(saved?.workingHistory) ? saved.workingHistory : saved?.lastWorking ? [saved.lastWorking] : [];
       for (const item of history.slice(0, 2)) {
         if (!item || typeof item.activeId !== 'string' || !/^[a-f0-9]{24}$/.test(item.activeId) || typeof item.versionKey !== 'string') continue;
@@ -318,12 +319,11 @@ class Studio {
   remove(id) {
     const effect = this.effects.get(id); if (!effect || effect.builtin) throw Error('Este efeito não pode ser removido.');
     if (this.config.activeId === id) this.configure({ activeId: builtin[0].id, enabled: false });
-    fs.unlinkSync(path.join(this.directory, id + '.json')); this.effects.delete(id);
     if (this.workingHistory.some(i => i.activeId === id)) {
       this.workingHistory = this.workingHistory.filter(i => i.activeId !== id);
       this.saveRecovery();
     }
-    this.changed();
+    fs.unlinkSync(path.join(this.directory, id + '.json')); this.effects.delete(id); this.changed();
   }
   async duplicate(id,name) {
     const effect=this.effects.get(id);if(!effect||typeof name!=='string'||!name.trim()||name.trim().length>60)throw Error('Nome do efeito: 1 a 60 caracteres.');

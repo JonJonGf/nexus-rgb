@@ -321,7 +321,10 @@
   $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
   $('studio-follow-map').addEventListener('click', async () => {
     const value = item(); if (!value) return;
-    if (await sharedPlay('/api/devices/' + value.deviceId, { followMap: true })) { map(); selection(true); }
+    if (await sharedPlay('/api/devices/' + value.deviceId, { followMap: true })) {
+      if (Array.isArray(data?.excluded)) data.excluded = data.excluded.filter(id => id !== value.deviceId);
+      map(); selection(true);
+    }
   });
   $('studio-device-form').addEventListener('submit', e => e.preventDefault());
   function editPiece(field) {
