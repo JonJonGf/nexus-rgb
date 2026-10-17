@@ -9,8 +9,8 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   - `v0.1.0-alpha.24` (`f9df27ff1c3f48163466b2d09bc00d40fff61d27`): publicada com todos os 3 workflows verdes e assets oficiais disponíveis.
   - `v0.1.0-alpha.25` (`4b2eaa2f4a53d96c4530efee8e32a17f5f0bd650`, que contém o commit `e5c16d4`): passou nos workflows da tag [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39021031214) (`success`) e [CodeQL](https://github.com/JonJonGf/nexus-rgb/actions/runs/39021031305) (`success`), mas falhou na etapa `check-release.cjs` de [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39021031254) porque dois links de download no meio do `README.md` (`L84` e `L274`) ainda apontavam para `v0.1.0-alpha.24`. Conforme a regra de imutabilidade de tags, a tag `v0.1.0-alpha.25` foi preservada sem movimentação e a correção foi empacotada na `v0.1.0-alpha.26`.
   - `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`, que contém `e5c16d4`): publicada em [releases/tag/v0.1.0-alpha.26](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.26) após aprovação nos workflows da tag ([Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39024013745), [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39024013756) — incluindo 3 análises CodeQL da tag e 2 VMs descartáveis Windows — e [CodeQL na main](https://github.com/JonJonGf/nexus-rgb/actions/runs/39024013913)). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `26d8c87545f660ebb7dfd9e749dbded942a286faef30e1ac9f9ec482f4a5fa4f`; `NexusRGB-Uninstall-0.1.0.exe` = `26e9399105424eb8aa4cfc81faf0bfaebd1b2f2d6361ebbc295d425a15da5ada`.
-- **PC de validação (versão instalada vs. publicada):** o PC físico permanece com a `v0.1.0-alpha.23` oficial instalada e conferida (`commit 2414264f8f061e8866f54759686760f8a9265053`, `development: false`, SHA-256 do instalador `2b945eb8f1936ad06c1686c5f1b502975051e5afc793711100ba204686c1b7c8`, 49 arquivos comparados sem divergências, serviços `NexusRGB` e `NexusRGBHardware` ativos na sessão 0, bandeja aberta na sessão interativa e `/api/health` saudável com 5 componentes). A atualização do PC físico e os testes físicos nos LEDs reais continuam aguardando autorização explícita do usuário.
-- **Limites dos testes físicos (explicitamente pendentes até autorização no hardware):**
+- **PC de validação (versão instalada e conferida):** o PC físico foi atualizado com autorização do usuário para a versão oficial `v0.1.0-alpha.26` (`commit 4924d76e894ac590fdee6bba8ed5053dab3d1be6`, `development: false`) utilizando o instalador oficial verificado com SHA-256 `26d8c87545f660ebb7dfd9e749dbded942a286faef30e1ac9f9ec482f4a5fa4f` via `ShellExecute` no desktop interativo (`/SP- /SILENT /NORESTART /MERGETASKS="!pawnio"`). Todos os 49 arquivos instalados foram comparados com a tag `v0.1.0-alpha.26` (normalizando finais de linha), sem nenhuma divergência ou arquivo ausente. Serviços `NexusRGB` e `NexusRGBHardware` ativos na sessão 0, aplicativo da bandeja (`NexusRGB.exe --tray`) ativo na sessão interativa (`SessionId 1`), `/api/health` saudável (`ready: true`, `connected: true`, `detecting: false`, 5 dispositivos), `/api/about` e `/api/diagnostics` reportando tag `v0.1.0-alpha.26` e `development: false`. Todos os 36 efeitos, perfis e backups foram preservados (com backup pré-atualização `before-update-20261017T104251-9c5f261629af46d492fb435aabd715a8.json` criado automaticamente pelo instalador).
+- **Limites dos testes físicos (próximo passo no hardware real):**
   - Suavidade das transições de energia e ausência de clarões nos LEDs físicos.
   - Inversão de comandos durante uma transição em andamento no controlador real.
   - Preservação física de dispositivos apagados individualmente e excluídos do mapa.
@@ -50,6 +50,34 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 17/10/2026 — Atualização assistida para a alpha.26 no PC de validação
+
+**Objetivo:** instalar no PC real a versão oficial `v0.1.0-alpha.26` após autorização expressa do usuário, verificando integridade do pacote, metadados de build, serviços Windows, aplicativo da bandeja e preservação total dos dados locais.
+
+**Mudanças e arquivos na instalação:**
+- O instalador oficial `NexusRGB-Setup-0.1.0.exe` (SHA-256 `26d8c87545f660ebb7dfd9e749dbded942a286faef30e1ac9f9ec482f4a5fa4f`) foi preparado em pasta temporária limpa (`AppData\Local\Temp\nexus-alpha26-official-*`) e acionado via `ShellExecute` no desktop interativo do usuário (`/SP- /SILENT /NORESTART /MERGETASKS="!pawnio" /LANG=brazilianportuguese /LOG="..."`).
+- A instalação concluiu com sucesso (`ExitCode 0`, `Need to restart Windows? No`).
+- O instalador executou automaticamente `backup-before-upgrade.ps1`, gerando o backup pré-atualização `before-update-20261017T104251-9c5f261629af46d492fb435aabd715a8.json` em `C:\ProgramData\NexusRGB\app\backups\`.
+- O aplicativo da bandeja (`NexusRGB.exe --tray`) foi reaberto e confirmado ativo na sessão interativa (`SessionId 1`).
+
+**Verificação de arquivos e integridade:**
+- `E:\Program Files\Nexus RGB\server\build-info.json` atualizado e conferido: `version: "0.1.0"`, `tag: "v0.1.0-alpha.26"`, `commit: "4924d76e894ac590fdee6bba8ed5053dab3d1be6"`, `development: false`.
+- Comparação byte a byte (normalizando finais de linha) de todos os 49 arquivos instalados contra a tag oficial `v0.1.0-alpha.26`: 0 arquivos ausentes e 0 divergências.
+- `/api/about` e `/api/diagnostics` reportam a mesma identificação da tag `v0.1.0-alpha.26`.
+- `/api/health` confirma serviços saudáveis (`ready: true`, `connected: true`, `devices: 5`, `detecting: false`).
+- Preservação dos dados: todos os 36 arquivos de efeitos espaciais em `effects/`, os 10 backups em `backups/`, `network.json`, `alexa.json` e `first-use.json` mantidos intactos.
+
+**Desempenho do serviço instalado (`v0.1.0-alpha.26`):**
+- Leitura via `/api/resources`: `PID 22140` (`NexusRGBHardware` / OpenRGB: 22,7 MB RSS, 0% CPU), `PID 13980` (`server`: 84,5 MB RSS, 0,3% CPU) e `PID 10468` (`effect-worker`: 70,5 MB RSS).
+
+**Git / Release / Instalação:**
+- Branch `main`, commit `52fe8d9` (documentação).
+- Release oficial: `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`).
+- Versão instalada: `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`). A versão instalada agora coincide rigorosamente com o código e a release publicada.
+
+**Limites e próximo passo:**
+- Com a versão instalada atualizada, o próximo passo é o teste físico nos LEDs reais e na Alexa conforme os limites documentados: percepção visual da transição suave (0,2 a 3 s), ausência de clarões, inversão de comando durante transição e comportamento de peças excluídas/apagadas.
 
 ### 17/10/2026 — Revisão técnica (CodeQL, desempenho, identidade de pacote e limites físicos) e publicação da alpha.26
 
