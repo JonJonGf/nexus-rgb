@@ -33,6 +33,15 @@ function paletteColor(palette, position) {
   const start = rgb(palette[Math.floor(step)]); const end = rgb(palette[(Math.floor(step) + 1) % palette.length]);
   return Object.fromEntries(Object.keys(start).map(channel => [channel, Math.round(start[channel] + (end[channel] - start[channel]) * (step % 1))]));
 }
+function colorsEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ca = a[i], cb = b[i];
+    if (!ca || !cb || ca.red !== cb.red || ca.green !== cb.green || ca.blue !== cb.blue) return false;
+  }
+  return true;
+}
 function frame(settings, count, seconds) {
   const factor = settings.power ? settings.brightness / 100 : 0;
   const phase = seconds * (0.03 + settings.speed / 100 * 0.7);
@@ -69,6 +78,8 @@ class Hardware extends EventEmitter {
     this.generation = 0; this.activeTimers = new Set(); this.activeOperations = new Set(); this.opSeq = 0;
     this.lastFailure = null; this.failureHistory = [];
     this.consecutiveDescriptionHangs = 0; this.controllerHung = false; this.sharedAnimations = new Map();
+    this.lastSentColors = new Map(); this.hasDroppedFrame = false; this.tickPending = false; this.tickPendingSpatial = false; this.deferredFromSpatial = new Set();
+    this.metrics = { framesCalculated: 0, framesSent: 0, framesDeduplicated: 0, framesDroppedTransport: 0 };
   }
   cancelOperations(reason, generation = null, client = null) {
     const err = reason instanceof Error ? reason : new Error(reason || 'Operação cancelada.');
@@ -212,13 +223,31 @@ class Hardware extends EventEmitter {
     this.cancelOperations(new Error('Conexão substituída por uma nova geração.'));
     for (const timer of this.activeTimers) clearTimeout(timer);
     this.activeTimers.clear();
+    this.lastSentColors.clear();
+    this.hasDroppedFrame = false;
+    this.tickPending = false;
+    this.tickPendingSpatial = false;
+    this.deferredFromSpatial.clear();
     const client = this.makeClient(); this.client = client;
     client.on('error', error => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(error, client, gen); });
     client.on('disconnect', () => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(new Error('Controlador desconectado.'), client, gen); });
-    client.on('deviceListUpdated', () => { if (this.client === client && this.generation === gen && !this.stopped) { this.discoveryStage = 0; this.nextDiscovery = 0; this.dirty = true; } });
+    client.on('deviceListUpdated', () => {
+      if (this.client === client && this.generation === gen && !this.stopped) {
+        this.discoveryStage = 0;
+        this.nextDiscovery = 0;
+        this.dirty = true;
+      }
+    });
     try {
       await this.operation(client.connect(2500), this.operationTimeout, { phase: 'connect', client, generation: gen });
       if (this.stopped || this.generation !== gen) { client.socket?.destroy(); return; }
+      if (client.socket && typeof client.socket.on === 'function') {
+        client.socket.on('drain', () => {
+          if (this.client === client && this.generation === gen && !this.stopped && this.hasDroppedFrame && !this.busy) {
+            this.tick().catch(error => this.lost(error));
+          }
+        });
+      }
       this.modes.clear(); this.applied.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = '';
       await this.discover(gen);
       if (this.generation !== gen || this.stopped) return;
@@ -257,6 +286,11 @@ class Hardware extends EventEmitter {
     if (client && this.client && client !== this.client) return;
     this.cancelIdentification();
     this.connected = false; this.lostAt = Date.now();
+    this.lastSentColors.clear();
+    this.hasDroppedFrame = false;
+    this.tickPending = false;
+    this.tickPendingSpatial = false;
+    this.deferredFromSpatial.clear();
     this.cancelOperations(new Error('Controlador desconectado.'), opGen, client);
     const isGenericDisconnect = error?.message === 'Controlador desconectado.';
     const hasSpecificFailure = this.lastFailure && this.lastFailure.generation === this.generation && this.error && !this.error.includes('Aguardando');
@@ -310,6 +344,14 @@ class Hardware extends EventEmitter {
     if (this.generation !== currentGen || this.stopped) return;
     const present = new Set(devices.map(device => device.id));
     for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
+    for (const id of this.lastSentColors.keys()) if (!present.has(id)) this.lastSentColors.delete(id);
+    for (const device of devices) {
+      const prev = this.devices.find(d => d.id === device.id);
+      if (prev && prev.sdkId !== device.sdkId) {
+        this.applied.delete(device.id);
+        this.lastSentColors.delete(device.id);
+      }
+    }
     const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
     for (const id of this.animations.keys()) if (!channels.has(id)) this.animations.delete(id);
     for (const id of this.output.keys()) if (!channels.has(id)) this.output.delete(id);
@@ -400,6 +442,12 @@ class Hardware extends EventEmitter {
       controllerCount: this.devices.length,
       controllerHung: Boolean(this.controllerHung),
       lastFailure,
+      metrics: {
+        framesCalculated: this.metrics.framesCalculated,
+        framesSent: this.metrics.framesSent,
+        framesDeduplicated: this.metrics.framesDeduplicated,
+        framesDroppedTransport: this.metrics.framesDroppedTransport
+      },
       devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
         const { offset, ...component } = channel;
         const settings = this.settings(component.id, !!channels);
@@ -440,7 +488,10 @@ class Hardware extends EventEmitter {
     if (!this.identification || id && this.identification.id !== id) return;
     const parent = this.devices.find(d => d.id === this.identification.id || d.components?.some(c => c.id === this.identification.id));
     this.identification = null; clearTimeout(this.identifyTimer);
-    if (parent) this.applied.delete(parent.id);
+    if (parent) {
+      this.applied.delete(parent.id);
+      this.lastSentColors.delete(parent.id);
+    }
     this.changed();
   }
   identify(id, led, stop = false) {
@@ -452,10 +503,12 @@ class Hardware extends EventEmitter {
       this.cancelIdentification();
       clearTimeout(this.identifyTimer);
       const selection = this.identification = {id,led:led ?? null,until:Date.now()+3000};
-      this.identifyTimer = setTimeout(() => { if (this.identification === selection) { this.identification = null; this.applied.delete(parent.id); this.changed(); } },3000);
+      this.identifyTimer = setTimeout(() => { if (this.identification === selection) { this.identification = null; this.applied.delete(parent.id); this.lastSentColors.delete(parent.id); this.changed(); } },3000);
       this.identifyTimer.unref?.();
     }
-    this.applied.delete(parent.id); this.changed();
+    this.applied.delete(parent.id);
+    this.lastSentColors.delete(parent.id);
+    this.changed();
   }
   rememberOutput(id, colors, settings) {
     const activePower = Boolean(settings.power || this.powerRamps.has(id));
@@ -499,10 +552,46 @@ class Hardware extends EventEmitter {
     if (this.modes.get(device.id) !== signature) {
       await this.operation(this.client.updateMode(device.sdkId, config), this.operationTimeout, { phase: 'mode', controllerIndex: device.sdkId, client: this.client, generation: this.generation });
       this.modes.set(device.id, signature);
+      this.lastSentColors.delete(device.id);
     }
   }
+  sendLeds(device, colors, isPowerOff = false, forceSend = false) {
+    this.metrics.framesCalculated++;
+    const id = device.id;
+    const last = this.lastSentColors.get(id);
+
+    // 1. Color deduplication: skip identical colors for this controller when no explicit change was requested
+    if (!forceSend && last && colorsEqual(last, colors)) {
+      this.metrics.framesDeduplicated++;
+      return false;
+    }
+
+    // 2. Transport backpressure:
+    // socket.writableLength measures queued bytes waiting in local Node stream buffer to reach OS kernel.
+    // Note: writableLength > 0 indicates local transport delay, not physical bus/OpenRGB completion.
+    const socket = this.client?.socket;
+    const isBacklogged = Boolean(socket && typeof socket.writableLength === 'number' && socket.writableLength > 2048);
+
+    if (isBacklogged && !isPowerOff) {
+      this.metrics.framesDroppedTransport++;
+      this.hasDroppedFrame = true;
+      return false;
+    }
+
+    // 3. Send to SDK client
+    this.client.updateLeds(device.sdkId, colors);
+    this.metrics.framesSent++;
+    this.hasDroppedFrame = false;
+    this.lastSentColors.set(id, colors.map(c => ({ red: c.red, green: c.green, blue: c.blue })));
+    return true;
+  }
   async tick(spatialFrame = false) {
-    if (this.stopped || this.busy || !this.connected) return;
+    if (this.stopped || !this.connected) return;
+    if (this.busy) {
+      this.tickPending = true;
+      if (spatialFrame) this.tickPendingSpatial = true;
+      return;
+    }
     if (this.identification && Date.now() >= this.identification.until) this.cancelIdentification();
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
@@ -513,8 +602,15 @@ class Hardware extends EventEmitter {
     if (!this.dirty && !animated && Date.now() < this.nextDiscovery) return;
     this.busy = true; let changedErrors = false;
     try {
-      if ((this.client.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
-      if (Date.now() >= this.nextDiscovery) await this.discover();
+      if ((this.client?.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
+      if (Date.now() >= this.nextDiscovery) {
+        const socketBacklogged = Boolean(this.client?.socket && typeof this.client.socket.writableLength === 'number' && this.client.socket.writableLength > 0);
+        if (socketBacklogged) {
+          this.nextDiscovery = Date.now() + 500;
+        } else {
+          await this.discover();
+        }
+      }
       this.dirty = false;
       const tickNow = this.now(), seconds = tickNow / 1000;
       for (const d of this.devices) {
@@ -539,7 +635,14 @@ class Hardware extends EventEmitter {
           const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
           return this.powerRamps.has(component.id) || (s.power && canSmooth && (this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
         });
-        if (!changed && !animation) continue;
+        if (!changed && !animation) {
+          if (spatialFrame && !channels.some(c => this.studio?.hasDevice(c.id))) {
+            this.deferredFromSpatial.add(d.id);
+          }
+          continue;
+        }
+        const deferred = !spatialFrame && this.deferredFromSpatial.delete(d.id);
+        const forceSend = changed || deferred;
         if (d.components) {
           const oldError = d.error;
           const colors = Array(d.ledCount);
@@ -553,12 +656,12 @@ class Hardware extends EventEmitter {
             return !s.power || s.brightness === 0;
           });
           if (allOff && d.off) {
-            this.client.updateLeds(d.sdkId, colors);
+            this.sendLeds(d, colors, true, forceSend);
             await this.applyMode(d, d.off, { ...this.store.data.master, power: false }, false);
           } else {
             // One Direct mode; independent brightness stays in each zone's colors.
             await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
-            this.client.updateLeds(d.sdkId, colors);
+            this.sendLeds(d, colors, allOff, forceSend);
           }
           d.error = null; this.applied.set(d.id, signature);
           for (const component of d.components) this.rememberOutput(component.id, colors.slice(component.offset, component.offset + component.ledCount), this.settings(component.id, true));
@@ -579,7 +682,10 @@ class Hardware extends EventEmitter {
           const modeSettings = fading && !settings.power ? { ...settings, power: true } : settings;
           await this.applyMode(d, mode, modeSettings, mode.flagList.includes('perLedColor') && (!activePower || settings.nativeMode === undefined));
           let colors = null;
-          if ((!activePower || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) { colors = this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow); this.client.updateLeds(d.sdkId, colors); }
+          if ((!activePower || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) {
+            colors = this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow);
+            this.sendLeds(d, colors, !activePower, forceSend);
+          }
           if (!activePower && !colors) colors = Array.from({ length: d.ledCount }, () => ({ red: 0, green: 0, blue: 0 }));
           this.rememberOutput(d.id, colors, settings);
           d.error = null; this.applied.set(d.id, signature);
@@ -587,7 +693,22 @@ class Hardware extends EventEmitter {
         if (oldError !== d.error) changedErrors = true;
       }
     } catch (error) { this.lost(error); this.client?.socket?.destroy(); }
-    finally { this.busy = false; if(this.transitionState&&performance.now()-this.transitionState.started>=this.transitionState.duration)this.transitionState=null; if (!this.connected) this.scheduleReconnect(); if (changedErrors) this.emit('change'); }
+    finally {
+      this.busy = false;
+      if (this.transitionState && performance.now() - this.transitionState.started >= this.transitionState.duration) this.transitionState = null;
+      if (!this.connected) this.scheduleReconnect();
+      if (changedErrors) this.emit('change');
+      if (this.tickPending && !this.stopped && this.connected) {
+        const nextSpatial = this.tickPendingSpatial;
+        this.tickPending = false;
+        this.tickPendingSpatial = false;
+        setImmediate(() => {
+          if (!this.stopped && this.connected) {
+            this.tick(nextSpatial).catch(error => this.lost(error));
+          }
+        });
+      }
+    }
   }
   async resize(id, zoneId, count) {
     if (typeof id !== 'string' || !/^[a-f0-9]{24}$/.test(id) || !Number.isInteger(zoneId) || zoneId < 0 || zoneId > 65535) throw new Error('Tamanho de zona inválido.');
@@ -604,6 +725,7 @@ class Hardware extends EventEmitter {
       // Prevent periodic discovery from restoring the old value during this write.
       if (this.store.data.zones?.[d.id]) delete this.store.data.zones[d.id][zoneId];
       this.client.resizeZone(d.sdkId, zoneId, count); await new Promise(resolve => setTimeout(resolve, 300)); await this.discover();
+      this.lastSentColors.delete(d.id);
       if (this.devices.find(device => device.id === d.id)?.zones.find(zone => zone.id === zoneId)?.leds !== count) {
         throw new Error('O controlador não confirmou essa quantidade de LEDs.');
       }
@@ -623,6 +745,11 @@ class Hardware extends EventEmitter {
     this.identification = null;
     clearTimeout(this.reconnect);
     this.reconnect = null;
+    this.lastSentColors.clear();
+    this.hasDroppedFrame = false;
+    this.tickPending = false;
+    this.tickPendingSpatial = false;
+    this.deferredFromSpatial.clear();
     this.cancelOperations(new Error('Operação cancelada: hardware encerrado.'));
     for (const timer of this.activeTimers) clearTimeout(timer);
     this.activeTimers.clear();
@@ -632,4 +759,4 @@ class Hardware extends EventEmitter {
     this.connected = false;
   }
 }
-module.exports = { Hardware, identity, frame, hue, paletteColor };
+module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual };
