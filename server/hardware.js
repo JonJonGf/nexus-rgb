@@ -42,6 +42,13 @@ function colorsEqual(a, b) {
   }
   return true;
 }
+function isSmbusRam(device) {
+  if (!device) return false;
+  if (device.type === 0 || device.raw?.type === 0) return false;
+  if (device.type === 1 || device.raw?.type === 1) return true;
+  const name = String(device.name || device.raw?.name || '');
+  return /dram|\bram\b|mem[oó]ria|memory|ene\s*(?:smbus|dram)|trident|vengeance|ballistix|dominator/i.test(name);
+}
 function frame(settings, count, seconds) {
   const factor = settings.power ? settings.brightness / 100 : 0;
   const phase = seconds * (0.03 + settings.speed / 100 * 0.7);
@@ -78,8 +85,8 @@ class Hardware extends EventEmitter {
     this.generation = 0; this.activeTimers = new Set(); this.activeOperations = new Set(); this.opSeq = 0;
     this.lastFailure = null; this.failureHistory = [];
     this.consecutiveDescriptionHangs = 0; this.controllerHung = false; this.sharedAnimations = new Map();
-    this.lastSentColors = new Map(); this.hasDroppedFrame = false; this.tickPending = false; this.tickPendingSpatial = false; this.deferredFromSpatial = new Set();
-    this.metrics = { framesCalculated: 0, framesSent: 0, framesDeduplicated: 0, framesDroppedTransport: 0 };
+    this.lastSentColors = new Map(); this.ramLastSentTime = new Map(); this.hasDroppedFrame = false; this.tickPending = false; this.tickPendingSpatial = false; this.deferredFromSpatial = new Set();
+    this.metrics = { framesCalculated: 0, framesSent: 0, framesDeduplicated: 0, framesDroppedTransport: 0, framesThrottledRam: 0 };
   }
   cancelOperations(reason, generation = null, client = null) {
     const err = reason instanceof Error ? reason : new Error(reason || 'Operação cancelada.');
@@ -224,6 +231,7 @@ class Hardware extends EventEmitter {
     for (const timer of this.activeTimers) clearTimeout(timer);
     this.activeTimers.clear();
     this.lastSentColors.clear();
+    this.ramLastSentTime.clear();
     this.hasDroppedFrame = false;
     this.tickPending = false;
     this.tickPendingSpatial = false;
@@ -287,6 +295,7 @@ class Hardware extends EventEmitter {
     this.cancelIdentification();
     this.connected = false; this.lostAt = Date.now();
     this.lastSentColors.clear();
+    this.ramLastSentTime.clear();
     this.hasDroppedFrame = false;
     this.tickPending = false;
     this.tickPendingSpatial = false;
@@ -446,7 +455,8 @@ class Hardware extends EventEmitter {
         framesCalculated: this.metrics.framesCalculated,
         framesSent: this.metrics.framesSent,
         framesDeduplicated: this.metrics.framesDeduplicated,
-        framesDroppedTransport: this.metrics.framesDroppedTransport
+        framesDroppedTransport: this.metrics.framesDroppedTransport,
+        framesThrottledRam: this.metrics.framesThrottledRam || 0
       },
       devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
         const { offset, ...component } = channel;
@@ -461,6 +471,7 @@ class Hardware extends EventEmitter {
           customized: Object.hasOwn(this.store.data.devices, component.id),
           mapExcluded: excluded.has(component.id),
           smoothPowerCapable,
+          rateLimited: isSmbusRam(device),
           powerTransitionFallback: Boolean(transitionMs >= 200 && !smoothPowerCapable),
           settings
         };
@@ -566,7 +577,19 @@ class Hardware extends EventEmitter {
       return false;
     }
 
-    // 2. Transport backpressure:
+    // 2. Safe rate limit for SMBus / RAM controllers (fixed 20 FPS = minimum ~46 ms between physical writes)
+    // Flooding SMBus controllers with 60 FPS writes causes bus saturation, I2C collision with motherboard sensors, and OpenRGB hangs.
+    // Power changes (!forceSend) and power-off frames are never throttled.
+    if (!forceSend && !isPowerOff && isSmbusRam(device)) {
+      const now = this.now();
+      const lastSent = this.ramLastSentTime.get(id);
+      if (lastSent !== undefined && (now - lastSent) < 46) {
+        this.metrics.framesThrottledRam = (this.metrics.framesThrottledRam || 0) + 1;
+        return false;
+      }
+    }
+
+    // 3. Transport backpressure:
     // socket.writableLength measures queued bytes waiting in local Node stream buffer to reach OS kernel.
     // Note: writableLength > 0 indicates local transport delay, not physical bus/OpenRGB completion.
     const socket = this.client?.socket;
@@ -578,11 +601,14 @@ class Hardware extends EventEmitter {
       return false;
     }
 
-    // 3. Send to SDK client
+    // 4. Send to SDK client
     this.client.updateLeds(device.sdkId, colors);
     this.metrics.framesSent++;
     this.hasDroppedFrame = false;
     this.lastSentColors.set(id, colors.map(c => ({ red: c.red, green: c.green, blue: c.blue })));
+    if (isSmbusRam(device)) {
+      this.ramLastSentTime.set(id, this.now());
+    }
     return true;
   }
   async tick(spatialFrame = false) {
@@ -746,6 +772,7 @@ class Hardware extends EventEmitter {
     clearTimeout(this.reconnect);
     this.reconnect = null;
     this.lastSentColors.clear();
+    this.ramLastSentTime.clear();
     this.hasDroppedFrame = false;
     this.tickPending = false;
     this.tickPendingSpatial = false;
@@ -759,4 +786,4 @@ class Hardware extends EventEmitter {
     this.connected = false;
   }
 }
-module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual };
+module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual, isSmbusRam };

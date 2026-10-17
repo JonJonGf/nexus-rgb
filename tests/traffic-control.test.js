@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
-const { Hardware, colorsEqual } = require('../server/hardware');
+const { Hardware, colorsEqual, isSmbusRam } = require('../server/hardware');
 const { defaults } = require('../server/store');
 
 function controller(name, location, direct = true) {
@@ -364,4 +364,91 @@ test('comparação de tráfego e recursos: 60 FPS com deduplicação economiza e
   // CPU e memória devem permanecer estritamente contidos
   assert.ok(durationMs < 500, `Tempo total para 60 ticks foi rápido (${durationMs.toFixed(2)} ms)`);
 });
+
+test('isSmbusRam identifica corretamente módulos de memória e exclui placas-mãe', () => {
+  assert.equal(isSmbusRam({ type: 1, name: 'Kingston Fury' }), true);
+  assert.equal(isSmbusRam({ type: 2, name: 'ENE DRAM' }), true);
+  assert.equal(isSmbusRam({ type: 2, name: 'Memória RGB' }), true);
+  assert.equal(isSmbusRam({ type: 2, name: 'G.Skill Trident Z' }), true);
+  assert.equal(isSmbusRam({ type: 0, name: 'ASUS ROG STRIX B550-F' }), false);
+  assert.equal(isSmbusRam({ type: 2, name: 'Corsair Commander PRO' }), false);
+  assert.equal(isSmbusRam(null), false);
+});
+
+test('ritmo duplo inteligente: placa-mãe a 60 FPS e RAM limitada com segurança a 20 FPS', async t => {
+  function dram(name) {
+    return {
+      name,
+      vendor: 'ENE',
+      serial: '',
+      location: 'SMBus:DRAM',
+      type: 1,
+      colors: Array(8).fill({ red: 0, green: 0, blue: 0 }),
+      zones: [{ id: 0, name: 'Zone', ledsCount: 8, ledsMin: 8, ledsMax: 8, resizable: false }],
+      modes: [{ id: 0, name: 'Direct', flagList: ['perLedColor'] }]
+    };
+  }
+
+  function mobo(name) {
+    return {
+      name,
+      vendor: 'ASUS',
+      serial: '',
+      location: 'AURA:1',
+      type: 0,
+      colors: Array(16).fill({ red: 0, green: 0, blue: 0 }),
+      zones: [{ id: 0, name: 'Zone', ledsCount: 16, ledsMin: 16, ledsMax: 16, resizable: false }],
+      modes: [{ id: 0, name: 'Direct', flagList: ['perLedColor'] }]
+    };
+  }
+
+  const store = {
+    data: {
+      master: { ...defaults, effect: 'rainbow', speed: 50 },
+      devices: {},
+      performance: { fps: 60 }
+    }
+  };
+
+  const mock = new MockClient([
+    dram('RAM RGB 1'),
+    mobo('Placa-Mãe')
+  ]);
+
+  let simTime = 0;
+  const hardware = new Hardware(store, { makeClient: () => mock, now: () => simTime });
+  t.after(() => hardware.stop());
+
+  hardware.stopped = false;
+  await hardware.connect();
+  mock.calls = [];
+
+  // Executar 60 ticks a 60 FPS (16.66 ms por tick)
+  for (let i = 0; i < 60; i++) {
+    simTime += (1000 / 60);
+    await hardware.tick();
+  }
+
+  const dramCalls = mock.calls.filter(c => c[0] === 'leds' && c[1] === 0);
+  const moboCalls = mock.calls.filter(c => c[0] === 'leds' && c[1] === 1);
+
+  // Placa-mãe deve ter recebido todos os 60 quadros
+  assert.equal(moboCalls.length, 60, 'Placa-mãe roda a 60 FPS completos');
+
+  // RAM deve ter sido limitada a 20 FPS (exatamente 20 quadros em 60 ticks de 16.6 ms)
+  assert.equal(dramCalls.length, 20, 'RAM é limitada com segurança a 20 FPS (1 envio a cada 50 ms)');
+  assert.equal(hardware.metrics.framesThrottledRam, 40, '40 quadros intermediários de RAM foram contidos para poupar SMBus');
+
+  // Desligamento prioritário: apagar deve despachar para a RAM imediatamente sem espera
+  store.data.master.power = false;
+  hardware.changed();
+  mock.calls = [];
+  simTime += 5; // Apenas 5 ms após o último quadro (menor que o intervalo de 46 ms)
+  await hardware.tick();
+
+  const powerOffDramCalls = mock.calls.filter(c => c[0] === 'leds' && c[1] === 0);
+  assert.equal(powerOffDramCalls.length, 1, 'Desligamento da RAM não é bloqueado pelo limitador');
+  assert.deepEqual(powerOffDramCalls[0][2][0], { red: 0, green: 0, blue: 0 });
+});
+
 

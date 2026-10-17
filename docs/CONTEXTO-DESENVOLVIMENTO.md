@@ -4,8 +4,8 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 17/10/2026
 
-- **Entrega de código (versão alpha.30):** implementação de controle de tráfego, backpressure contra congestionamento de transporte local, deduplicação estrita de cores (`colorsEqual`), descoberta não intrusiva adiada durante contenção, serialização de loops de tick do Hardware e Studio (`server/hardware.js`, `server/diagnostics.js`, `tests/traffic-control.test.js`, `docs/releases/v0.1.0-alpha.30.md`), e salvaguarda de timeout e inicialização nos testes de interface Playwright contra variações de cold-start em runners de CI (`tests/ui/health.spec.js`).
-- **Identidade das tags `alpha.24` a `alpha.30`:**
+- **Entrega de código (versão alpha.31):** implementação do ritmo inteligente de velocidade dupla (Dual-Rate Engine: 60 FPS geral / 20 FPS seguro para memória RAM SMBus/I2C), desacoplando a frequência de envio dos módulos de DRAM do barramento SMBus/I2C enquanto preserva o relógio unificado e 60 FPS fluidos para placa-mãe, ARGB headers e controladoras (`server/hardware.js`, `server/diagnostics.js`, `tests/traffic-control.test.js`, `docs/releases/v0.1.0-alpha.31.md`, `README.md`).
+- **Identidade das tags `alpha.24` a `alpha.31`:**
   - `v0.1.0-alpha.24` (`f9df27ff1c3f48163466b2d09bc00d40fff61d27`): publicada com todos os 3 workflows verdes e assets oficiais disponíveis.
   - `v0.1.0-alpha.25` (`4b2eaa2f4a53d96c4530efee8e32a17f5f0bd650`): passou nos workflows da tag `Validar Nexus RGB` e `CodeQL`, mantida conforme regra de imutabilidade.
   - `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`): publicada em `releases/tag/v0.1.0-alpha.26` após aprovação nos workflows com assets oficiais e SHA-256 conferidos.
@@ -13,7 +13,18 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   - `v0.1.0-alpha.28` (`1728413472620e17d411a6d8b73e5590b06150d6`): publicada em [releases/tag/v0.1.0-alpha.28](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.28) com aprovação no workflow [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39051431459) (`success`) e [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39051431432) (`success`). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `582c4da5da2cd334d1da72c03f42d78ae1328eaed71f309bd612f93cb5d03718`; `NexusRGB-Uninstall-0.1.0.exe` = `a2356db66b21bf07b4a977e2aacb6dde487571d3f486dc4e863c1ff13f967668`.
   - `v0.1.0-alpha.29` (`6355d0417124107fd692182c544f76fe7b2ade81`): passou nos workflows [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39059611928) (`success`) e CodeQL; mantida conforme regra de imutabilidade após interrupção por variação de tempo em teste de UI no instalador em VM.
   - `v0.1.0-alpha.30` (`4a2de6915bf7d496584aa3b8ec91a8e9e4a9c1a7`): publicada em [releases/tag/v0.1.0-alpha.30](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.30) com aprovação no workflow [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39060379662) (`success`) e [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39060379613) (`success`). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `2ba4334879467c003293f2fb2dd024453ee3bad928e7fe0f7699dbba4db6cb51`; `NexusRGB-Uninstall-0.1.0.exe` = `0b401310e05806ad60dc313a0eaba0434e597a5ec68069d8f063322510d542a6`.
-- **Versão instalada no PC físico do usuário:** permanece a versão oficial **`v0.1.0-alpha.28`** (`commit 1728413472620e17d411a6d8b73e5590b06150d6`, `development: false`). Nenhuma alteração foi feita na instalação real, serviços, portas ou arquivos de dados do usuário durante esta sessão de desenvolvimento isolado.
+  - `v0.1.0-alpha.31` (em preparação para publicação): ritmo inteligente de velocidade dupla (Dual-Rate Engine: 60 FPS placa-mãe/USB / 20 FPS memória RAM SMBus).
+- **Versão instalada no PC físico do usuário:** o usuário testou a `alpha.30` a 60 FPS em hardware físico após testes com a `alpha.28`. Nenhuma alteração não autorizada foi feita na instalação real, serviços, portas ou arquivos de dados do usuário pelo agente.
+- **Evidência empírica coletada pelo usuário em hardware real (teste a 60 FPS com alpha.30):**
+  - O usuário testou a versão recente com controle de tráfego a 60 FPS no hardware físico e confirmou novo travamento do controlador após algum tempo ("travo dnv a 60 fps. e agora?").
+  - Essa constatação empírica confirmou que o travamento decorre da saturação física do barramento SMBus/I2C (100 kHz) ao receber 60 escritas por segundo em módulos DRAM (ENE SMBus), o que não é resolvido apenas por backpressure no socket TCP do OpenRGB.
+  - O usuário solicitou a contenção específica do barramento: "ent faz isso limita o fps da ram pra 20 fps".
+- **Implementação do ritmo de velocidade dupla (Dual-Rate Engine):**
+  - **Identificação segura de RAM SMBus (`isSmbusRam(device)`):** detecção estrita de `device.type === 1` (`DEVICE_TYPE_DRAM`) ou palavras-chave `dram`, `ram`, `memória`, `memory`, `ene smbus/dram`, `trident`, `vengeance`, `ballistix`, `dominator`, com exclusão explícita de placa-mãe (`type === 0`).
+  - **Limitação de cadência a 20 FPS para RAM:** em `sendLeds()`, se o dispositivo for RAM no SMBus e não for comando de energia ou forçado, impõe intervalo mínimo de 46 ms (~20 FPS). Quadros intermediários a 60 FPS são descartados de forma preventiva (`framesThrottledRam++`), poupando o barramento SMBus de colisões.
+  - **Prioridade absoluta de desligamento e comandos manuais:** comandos de desligamento imediato (`power: false` / blackout) e comandos com `forceSend = true` ignoram a limitação de taxa e são transmitidos imediatamente aos módulos de RAM sem qualquer atraso.
+  - **Preservação do relógio unificado e fluidez nos demais componentes:** placa-mãe, conectores ARGB e controladoras USB continuam recebendo todos os 60 FPS fluidos; a animação do motor não sofre corte de fase. A iluminação da RAM, dotada de difusores acrílicos foscos, permanece esteticamente suave e indistinguível.
+  - **Métricas estruturadas de tráfego:** expostas no snapshot e em `/api/diagnostics` sob `render.traffic.throttledRam`.
 - **Evidência empírica coletada pelo usuário em hardware real (teste comparativo com versão oficial anterior):**
   - O usuário executou teste físico comparativo em versão oficial anterior do Nexus RGB configurada a 60 FPS e confirmou a mesma falha: o controlador trava e exige reinício após algum tempo tanto a 60 FPS quanto a 30 FPS, ao passo que a 20 FPS não foi observada falha no período testado.
   - Isso demonstra empiricamente que a instabilidade sob altas taxas de envio é uma característica de acúmulo contínuo de pacotes já existente nas versões anteriores, e não uma regressão introduzida nas alphas 27 ou 28.
@@ -63,7 +74,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 1. **Ler e conferir:** `AGENTS.md`, este contexto e [PLANO-MELHORIAS.md](PLANO-MELHORIAS.md). Conferir `git status`, branch e histórico; respeitar mudanças locais sem sobrescrevê-las.
 2. **Preservar o resultado da Alexa:** ela executa energia; o usuário relatou suprimir o anúncio de erro por um pedido à Alexa+. Não tentar outra correção de protocolo automaticamente. Se o usuário quiser investigar novamente, partir dos pedidos com somente `on`, dos retornos 200/GET e da incerteza no estado do app.
-3. **Melhorias de controle de tráfego (alpha.29):** o controle de tráfego no transporte OpenRGB (backpressure, deduplicação de cores, coordenação de loops Studio/Hardware e adiamento de descoberta) foi implementado e 100% validado em suíte automatizada (`tests/traffic-control.test.js`, 165/165 testes no total). O próximo passo prático é apresentar os resultados ao usuário e, quando autorizado, preparar a compilação/empacotamento da `v0.1.0-alpha.29` para validação física no hardware real a 60 FPS. Nenhuma instalação ou comando de LED deve ser feito sem autorização explícita.
+3. **Melhorias de controle de tráfego e velocidade dupla (alpha.31):** o desacoplamento do barramento SMBus/I2C para memórias RAM a 20 FPS com sistema global a 60 FPS foi implementado e 100% validado na suíte automatizada (`tests/traffic-control.test.js`, 167/167 testes passando). O próximo passo prático é compilar e publicar a `v0.1.0-alpha.31` para validação física no hardware real a 60 FPS com a RAM protegida a 20 FPS. Nenhuma instalação ou comando de LED deve ser feito sem autorização explícita.
 4. **Trabalhar em mudanças pequenas:** reproduzir o problema com SDK/ambiente isolado, corrigir um comportamento e testar preservação dos dados antes de avançar. Não depender de um número fixo de LEDs, modelo de placa-mãe ou ordem de descoberta.
 5. **Validar e distribuir:** executar verificações pertinentes, registrar os resultados, e, se a tarefa autorizada incluir publicação, gerar uma nova versão com executáveis correspondentes e passar pelas duas VMs e pelo bloqueio de segurança. Não mover as tags anteriores (`v0.1.0-alpha.20` a `v0.1.0-alpha.26`, `checkpoint/alpha20-before-antigravity-2026-10-16`) nem substituir seus assets.
 6. **Antes de alterar a instalação real:** pedir autorização para instalador/UAC/reinício de serviços e permitir que o usuário aceite o Windows, inclusive por acesso remoto. Nas instalações assistidas locais, mostrar interface visível (sem `/VERYSILENT`, acionando via `ShellExecute` do Explorer no desktop interativo quando o terminal estiver em desktop isolado) e reabrir/conferir a bandeja na sessão do usuário. Não reiniciar o PC automaticamente.
@@ -73,7 +84,24 @@ Os passos de implementação acima são a sequência sugerida para as melhorias 
 
 ## Histórico de entregas
 
-### 17/10/2026 — Controle de tráfego, backpressure, deduplicação de cores e coordenação de loops (preparação alpha.29)
+### 17/10/2026 — Ritmo inteligente de velocidade dupla por barramento (preparação alpha.31)
+
+- **Objetivo autorizado:** implementar velocidade dupla desacoplando a taxa de escrita dos módulos de memória RAM no barramento SMBus/I2C (limitados a 20 FPS seguros) enquanto preserva o relógio unificado e taxa global a 60 FPS para placa-mãe e demais componentes, atendendo à solicitação direta do usuário ("ent faz isso limita o fps da ram pra 20 fps") após confirmação empírica de congelamento do OpenRGB a 60 FPS e 30 FPS no hardware físico.
+- **Detecção segura de RAM SMBus (`server/hardware.js`, `tests/traffic-control.test.js`):**
+  - Função pura `isSmbusRam(device)` classificando estritamente dispositivos com `device.type === 1` (`DEVICE_TYPE_DRAM`) ou palavras-chave `dram`, `ram`, `memória`, `memory`, `ene smbus/dram`, `trident`, `vengeance`, `ballistix`, `dominator`, e excluindo categoricamente placas-mãe (`type === 0`).
+- **Limitação de intervalo para barramento SMBus (`server/hardware.js`):**
+  - Controle de carimbo temporal por dispositivo via `this.ramLastSentTime = new Map()`, limpo em `connect()`, `lost()` e `stop()`.
+  - Em `sendLeds()`: se `!forceSend && !isPowerOff && isSmbusRam(device)`, impõe intervalo mínimo de 46 ms (~20 FPS). Quadros excedentes a 60 FPS são omitidos preventivamente (`metrics.framesThrottledRam++`), eliminando contenção física e colisões I2C com o chipset.
+- **Prioridade absoluta de energia e comandos manuais:**
+  - Comandos de desligamento imediato (`isPowerOff = true` / blackout) e comandos com flag de envio forçado (`forceSend = true`) ignoram completamente o limitador de taxa, garantindo desligamento instantâneo sem retenção de quadros acesos na RAM.
+- **Métricas e diagnósticos (`server/hardware.js`, `server/diagnostics.js`):**
+  - Métrica estruturada `metrics.framesThrottledRam` e flag `device.rateLimited` expostas no snapshot de hardware e na rota `/api/diagnostics` sob `render.traffic.throttledRam`.
+- **Suíte de testes de ritmo duplo (`tests/traffic-control.test.js`):**
+  - Testes unitários para identificação de dispositivos DRAM e exclusão de placa-mãe.
+  - Teste de integração do motor de taxa dupla: 60 ticks a 60 FPS comprovando placa-mãe recebendo 60 envios, RAM recebendo exatamente 20 envios (40 quadros throttled), e desligamento imediato com `power: false` despachado no primeiro tick sem atraso.
+  - Suíte completa: 167/167 testes passando (`npm test`, 0 falhas).
+
+### 17/10/2026 — Controle de tráfego, backpressure, deduplicação de cores e coordenação de loops (preparação alpha.29 e alpha.30)
 
 - **Objetivo autorizado:** implementar controle de tráfego para eliminar sobrecarga no transporte OpenRGB em altas taxas de quadros (60 FPS e 30 FPS), conforme observado empiricamente pelo usuário em hardware real tanto na versão recente quanto em versão oficial anterior; manter taxa global unificada e relógio comum sem limitação assimétrica de componentes.
 - **Backpressure e descarte de quadros obsoletos (`server/hardware.js`, `tests/traffic-control.test.js`):**
