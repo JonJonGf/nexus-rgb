@@ -125,7 +125,7 @@ async function createApp(options = {}) {
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     if (route === '/api/health' && req.method === 'GET' && isLocal) {
       const lan = resolveLan(lport);
-      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}) } });
+      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}), ...(hardware.controllerHung ? { controllerHung: true } : {}) } });
     }
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {

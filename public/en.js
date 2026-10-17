@@ -806,5 +806,11 @@ window.NexusEnglish = Object.freeze({
   " (modo nativo do hardware ou sem controle por LED).": " (hardware native mode or no per-LED control).",
   "Modo nativo usa transição instantânea ao ligar ou desligar.": "Native mode uses instant transition when turning on or off.",
   "Transição de energia: escolha 0 (instantânea) ou de 200 a 3000 ms.": "Power transition: choose 0 (instant) or 200 to 3000 ms.",
-  "Configuração de transição de energia inválida.": "Invalid power transition configuration."
+  "Configuração de transição de energia inválida.": "Invalid power transition configuration.",
+  "OpenRGB não respondeu ao consultar um componente": "OpenRGB did not respond while querying a component",
+  "OpenRGB não respondeu ao consultar um componente.": "OpenRGB did not respond while querying a component.",
+  "OpenRGB não respondeu ao consultar um componente. ": "OpenRGB did not respond while querying a component. ",
+  "OpenRGB não respondeu ao consultar um componente. Reinicie o controlador no aplicativo do PC.": "OpenRGB did not respond while querying a component. Restart the controller using the PC application.",
+  "Reiniciar controlador": "Restart controller",
+  "● OpenRGB sem resposta": "● OpenRGB not responding"
 });

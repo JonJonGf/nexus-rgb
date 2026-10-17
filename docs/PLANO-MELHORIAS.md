@@ -30,6 +30,7 @@ O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usu�
 
 ## Recursos opcionais
 
+- Recuperação de OpenRGB parcialmente indisponível: primeira etapa implementada na `v0.1.0-alpha.27` (isolamento de geração, falha estruturada, componentes offline, sincronia de RAM ao ligar/desligar e recuperação manual supervisionada via `nexusrgb://restart`). Opção automática futura permanece em planejamento supervisionado. Consulte a [proposta detalhada](RECUPERACAO-CONTROLADOR.md).
 - Acesso LAN aberto por padrão, link/QR autorizado com revogação e renovação, e somente neste PC. Definir separadamente o comportamento da ponte Alexa. Links HTTP não fornecem criptografia.
 - **Reconectar dispositivo** com revisão da origem/destino e das configurações migradas; aproveitar número de série confiável quando disponível e exigir escolha em casos ambíguos. Não adivinhar por fabricante, nome e contagem de LEDs.
 - Melhorar diagnóstico da porta da Alexa, incluindo possível uso pelo Windows/HTTP.sys, sem encerrar serviços alheios ou impedir desnecessariamente o controle RGB pelo painel.

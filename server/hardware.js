@@ -59,33 +59,120 @@ class Hardware extends EventEmitter {
   constructor(store, options = {}) {
     super(); this.store = store; this.port = options.port || 6743;
     this.now = options.now || (() => performance.now());
+    this.operationTimeout = options.operationTimeout || 4000;
     // SDK 0.6.0 cannot parse newer zone flag bits. Protocol 4 retains colors,
     // native modes, brightness, matrices and segments without that broken parser.
     this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
     this.devices = []; this.output = new Map(); this.client = null; this.connected = false; this.busy = false; this.stopped = true;
     this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.powerKnown = new Map(); this.powerRamps = new Map();
     this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.discoveryStage = 0; this.discoverySignature = ''; this.discoveryMs = 0; this.retry = 1000; this.dirty = true;
+    this.generation = 0; this.activeTimers = new Set(); this.lastFailure = null; this.failureHistory = [];
+    this.consecutiveDescriptionHangs = 0; this.controllerHung = false; this.sharedAnimations = new Map();
   }
-  async operation(promise, timeout = 4000) {
+  recordFailure(err) {
+    const code = err.code || 'controller-error';
+    const phase = err.phase || 'unknown';
+    const controllerIndex = Number.isInteger(err.controllerIndex) ? err.controllerIndex : null;
+    const timeoutMs = Number.isInteger(err.timeoutMs) ? err.timeoutMs : null;
+    const generation = Number.isInteger(err.generation) ? err.generation : this.generation;
+    const message = err.message || 'Falha no controlador RGB.';
+    const now = Date.now();
+    if (this.lastFailure && this.lastFailure.code === code && this.lastFailure.phase === phase && this.lastFailure.controllerIndex === controllerIndex) {
+      this.lastFailure.lastOccurredAt = now;
+      this.lastFailure.count = (this.lastFailure.count || 1) + 1;
+      this.lastFailure.generation = generation;
+      this.lastFailure.message = message;
+    } else {
+      this.lastFailure = { code, phase, timeoutMs, controllerIndex, generation, message, firstOccurredAt: now, lastOccurredAt: now, count: 1 };
+      if (!this.failureHistory) this.failureHistory = [];
+      this.failureHistory.push({ ...this.lastFailure });
+      if (this.failureHistory.length > 5) this.failureHistory.shift();
+    }
+    if (phase === 'controller-description' && code === 'ETIMEDOUT') {
+      this.consecutiveDescriptionHangs = (this.consecutiveDescriptionHangs || 0) + 1;
+      if (this.consecutiveDescriptionHangs >= 3) {
+        this.controllerHung = true;
+      }
+    } else if (phase === 'connect' || code === 'ECONNREFUSED' || code === 'EADDRNOTAVAIL') {
+      this.consecutiveDescriptionHangs = 0;
+    }
+  }
+  async operation(promise, timeout = this.operationTimeout, options = {}) {
+    if (typeof timeout === 'object' && timeout !== null) {
+      options = timeout;
+      timeout = options.timeout || this.operationTimeout;
+    }
+    const opClient = options.client || this.client;
+    const opGen = options.generation ?? this.generation;
+    const phase = options.phase || 'unknown';
+    const controllerIndex = options.controllerIndex ?? null;
     let timer;
-    try { return await Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => { this.client?.socket?.destroy(); reject(new Error('O controlador RGB não respondeu.')); }, timeout); })]); }
-    finally { clearTimeout(timer); }
+    try {
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            this.activeTimers.delete(timer);
+            try { opClient?.socket?.destroy(); } catch {}
+            const isDesc = phase === 'controller-description';
+            const msg = isDesc ? 'OpenRGB não respondeu ao consultar um componente.' : 'O controlador RGB não respondeu.';
+            const err = new Error(msg);
+            err.code = 'ETIMEDOUT';
+            err.phase = phase;
+            err.controllerIndex = controllerIndex;
+            err.generation = opGen;
+            err.timeoutMs = timeout;
+            this.recordFailure(err);
+            reject(err);
+          }, timeout);
+          this.activeTimers.add(timer);
+        })
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+        this.activeTimers.delete(timer);
+      }
+    }
   }
   async connect() {
     if (this.stopped || this.busy) return;
     this.busy = true;
+    const prevClient = this.client;
+    try { prevClient?.socket?.destroy(); } catch {}
+    const gen = ++this.generation;
+    for (const timer of this.activeTimers) clearTimeout(timer);
+    this.activeTimers.clear();
     const client = this.makeClient(); this.client = client;
-    client.on('error', error => { if (this.client === client) this.lost(error); }); client.on('disconnect', () => { if (this.client === client) this.lost(new Error('Controlador desconectado.')); });
-    client.on('deviceListUpdated', () => { if (this.client === client) { this.discoveryStage = 0; this.nextDiscovery = 0; this.dirty = true; } });
+    client.on('error', error => { if (this.client === client && this.generation === gen) this.lost(error); });
+    client.on('disconnect', () => { if (this.client === client && this.generation === gen) this.lost(new Error('Controlador desconectado.')); });
+    client.on('deviceListUpdated', () => { if (this.client === client && this.generation === gen) { this.discoveryStage = 0; this.nextDiscovery = 0; this.dirty = true; } });
     try {
-      await this.operation(client.connect(2500));
-      if (this.stopped) { client.socket?.destroy(); return; }
-      this.modes.clear(); this.applied.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = ''; await this.discover(); this.connected = true; this.lostAt = null;
+      await this.operation(client.connect(2500), this.operationTimeout, { phase: 'connect', client, generation: gen });
+      if (this.stopped || this.generation !== gen) { client.socket?.destroy(); return; }
+      this.modes.clear(); this.applied.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = '';
+      await this.discover(gen);
+      if (this.generation !== gen || this.stopped) return;
+      this.connected = true; this.lostAt = null;
       this.retry = 1000; this.error = null; this.dirty = true;
-    } catch (error) { this.connected = false; this.error = error.message; client.socket?.destroy(); }
-    finally {
-      this.busy = false; this.emit('change');
-      if (!this.connected && !this.stopped) this.scheduleReconnect();
+      this.consecutiveDescriptionHangs = 0;
+      this.controllerHung = false;
+      this.lastFailure = null;
+    } catch (error) {
+      if (this.generation === gen) {
+        this.connected = false;
+        this.error = error.message;
+        if (!this.lastFailure || this.lastFailure.generation !== gen) {
+          const err = error.code ? error : Object.assign(error, { phase: 'connect', code: error.code || 'connect-failed', generation: gen });
+          this.recordFailure(err);
+        }
+      }
+      client.socket?.destroy();
+    } finally {
+      if (this.generation === gen) {
+        this.busy = false; this.emit('change');
+        if (!this.connected && !this.stopped) this.scheduleReconnect();
+      }
     }
   }
   scheduleReconnect() {
@@ -95,25 +182,45 @@ class Hardware extends EventEmitter {
   }
   lost(error) {
     this.cancelIdentification();
-    this.connected = false; this.lostAt = Date.now(); this.error = error.message; this.modes.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = ''; this.emit('change');
+    this.connected = false; this.lostAt = Date.now();
+    const isGenericDisconnect = error?.message === 'Controlador desconectado.';
+    const hasSpecificFailure = this.lastFailure && this.lastFailure.generation === this.generation && this.error && !this.error.includes('Aguardando');
+    if (!isGenericDisconnect || !hasSpecificFailure) {
+      this.error = error?.message || 'Controlador desconectado.';
+      if (error && (!this.lastFailure || this.lastFailure.generation !== this.generation)) {
+        this.recordFailure(error);
+      }
+    }
+    this.modes.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = ''; this.emit('change');
     if (!this.busy) this.scheduleReconnect();
   }
   get detecting() { return Boolean(!this.stopped && this.connected && this.discoveryStage < (this.devices.length ? 1 : 3)); }
-  async discover() {
+  async discover(expectedGen = this.generation) {
+    const currentGen = expectedGen;
+    const client = this.client;
+    if (this.generation !== currentGen || !client || this.stopped) return;
     const started = performance.now(), wasDetecting = this.detecting;
-    const count = await this.operation(this.client.getControllerCount());
+    const count = await this.operation(client.getControllerCount(), this.operationTimeout, { phase: 'controller-count', client, generation: currentGen });
+    if (this.generation !== currentGen || this.stopped) return;
     if (count > 128) throw new Error('Quantidade de controladores acima do limite.');
     const devices = []; const seen = new Map(); let leds = 0;
     for (let i = 0; i < count; i++) {
-      let raw = await this.operation(this.client.getControllerData(i));
+      if (this.generation !== currentGen || this.stopped) return;
+      let raw = await this.operation(client.getControllerData(i), this.operationTimeout, { phase: 'controller-description', controllerIndex: i, client, generation: currentGen });
+      if (this.generation !== currentGen || this.stopped) return;
       const basic = identity(raw); const duplicate = seen.get(basic) || 0; seen.set(basic, duplicate + 1);
       const id = identity(raw, duplicate);
       let restoredZone = false;
       for (const zone of raw.zones) {
         const saved = this.store.data.zones?.[id]?.[zone.id];
-        if (zone.resizable && Number.isInteger(saved) && saved >= zone.ledsMin && saved <= Math.min(4096, zone.ledsMax) && saved !== zone.ledsCount) { this.client.resizeZone(i, zone.id, saved); restoredZone = true; }
+        if (zone.resizable && Number.isInteger(saved) && saved >= zone.ledsMin && saved <= Math.min(4096, zone.ledsMax) && saved !== zone.ledsCount) { client.resizeZone(i, zone.id, saved); restoredZone = true; }
       }
-      if (restoredZone) { await new Promise(resolve => setTimeout(resolve, 200)); raw = await this.operation(this.client.getControllerData(i)); }
+      if (restoredZone) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        if (this.generation !== currentGen || this.stopped) return;
+        raw = await this.operation(client.getControllerData(i), this.operationTimeout, { phase: 'controller-description', controllerIndex: i, client, generation: currentGen });
+        if (this.generation !== currentGen || this.stopped) return;
+      }
       const direct = raw.modes.find(m => /^direct$/i.test(m.name) && m.flagList.includes('perLedColor'));
       const fixed = direct || raw.modes.find(m => /static|solid|fixed/i.test(m.name) && (m.flagList.includes('perLedColor') || m.flagList.includes('modeSpecificColor')));
       const off = raw.modes.find(m => /^(off|disabled|blackout)$/i.test(m.name));
@@ -125,6 +232,7 @@ class Hardware extends EventEmitter {
         zones: raw.zones.map(z => ({ id: z.id, name: z.name, leds: z.ledsCount, min: z.ledsMin, max: Math.min(4096, z.ledsMax), resizable: z.resizable })) };
       device.components = components(device); devices.push(device);
     }
+    if (this.generation !== currentGen || this.stopped) return;
     const present = new Set(devices.map(device => device.id));
     for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
     const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
@@ -200,12 +308,41 @@ class Hardware extends EventEmitter {
     const excluded = new Set(this.studio ? (this.studio.config.excluded || []) : (this.store.data.studio?.excluded || Object.entries(this.store.data.devices || {}).filter(([, d]) => d && ('color' in d || 'effect' in d || 'nativeMode' in d)).map(([k]) => k)));
     const transitionMs = this.store.data.performance?.powerTransitionMs || 0;
     const studioActive = Boolean(this.studio?.config.enabled && !this.studio?.error);
-    return { connected: this.connected, detecting: this.detecting, error: this.error, controllerCount: this.devices.length, devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
-      const { offset, ...component } = channel;
-      const settings = this.settings(component.id, !!channels);
-      const smoothPowerCapable = Boolean(direct && (settings.nativeMode === undefined || (studioActive && !excluded.has(component.id))));
-      return { ...device, ...component, ...(channels ? { modes: [], splitZone: true } : {}), status: this.connected ? 'online' : 'offline', customized: Object.hasOwn(this.store.data.devices, component.id), mapExcluded: excluded.has(component.id), smoothPowerCapable, powerTransitionFallback: Boolean(transitionMs >= 200 && !smoothPowerCapable), settings };
-    })) };
+    const lastFailure = this.lastFailure ? {
+      code: this.lastFailure.code,
+      phase: this.lastFailure.phase,
+      timeoutMs: this.lastFailure.timeoutMs,
+      controllerIndex: this.lastFailure.controllerIndex,
+      generation: this.lastFailure.generation,
+      firstOccurredAt: this.lastFailure.firstOccurredAt,
+      lastOccurredAt: this.lastFailure.lastOccurredAt,
+      count: this.lastFailure.count
+    } : null;
+    return {
+      connected: this.connected,
+      detecting: this.detecting,
+      error: this.error,
+      controllerCount: this.devices.length,
+      controllerHung: Boolean(this.controllerHung),
+      lastFailure,
+      devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
+        const { offset, ...component } = channel;
+        const settings = this.settings(component.id, !!channels);
+        const smoothPowerCapable = Boolean(direct && (settings.nativeMode === undefined || (studioActive && !excluded.has(component.id))));
+        return {
+          ...device,
+          ...component,
+          ...(channels ? { modes: [], splitZone: true } : {}),
+          status: this.connected ? 'online' : 'offline',
+          stale: !this.connected,
+          customized: Object.hasOwn(this.store.data.devices, component.id),
+          mapExcluded: excluded.has(component.id),
+          smoothPowerCapable,
+          powerTransitionFallback: Boolean(transitionMs >= 200 && !smoothPowerCapable),
+          settings
+        };
+      }))
+    };
   }
   settings(id, splitZone = false) {
     const settings = { ...this.store.data.master, ...(this.store.data.devices[id] || {}) };
@@ -256,7 +393,6 @@ class Hardware extends EventEmitter {
     const canSmooth = this.canSmoothPower(id, settings, !parent || !!parent.direct) && settings.brightness > 0;
     const mult = this.powerMultiplier(id, settings.power, canSmooth, now);
     if (mult <= 0) {
-      if (!settings.power) this.animations.delete(id);
       return Array.from({ length: count }, () => ({ red: 0, green: 0, blue: 0 }));
     }
     const effective = settings.power ? settings : { ...settings, power: true };
@@ -265,8 +401,15 @@ class Hardware extends EventEmitter {
       ? this.blend(id, spatial, effective)
       : (() => {
           const signature = JSON.stringify([effective.effect, effective.color, effective.palette, true]);
-          let animation = this.animations.get(id);
-          if (!animation || animation.signature !== signature) { animation = { signature, startedAt: seconds }; this.animations.set(id, animation); }
+          let animation = this.sharedAnimations.get(signature);
+          if (!animation) {
+            animation = { startedAt: seconds };
+            this.sharedAnimations.set(signature, animation);
+            if (this.sharedAnimations.size > 32) {
+              const oldest = this.sharedAnimations.keys().next().value;
+              this.sharedAnimations.delete(oldest);
+            }
+          }
           return this.blend(id, frame(effective, count, Math.max(0, seconds - animation.startedAt)), effective);
         })();
     if (mult >= 1) return base;
@@ -279,7 +422,8 @@ class Hardware extends EventEmitter {
     if (!perLedColors && mode.flagList.includes('modeSpecificColor')) config.colors = Array.from({ length: Math.max(mode.colors.length, mode.colorMin, 1) }, () => frame({ ...settings, brightness: mode.flagList.includes('brightness') ? 100 : settings.brightness, effect: 'static' }, 1, 0)[0]);
     const signature = JSON.stringify({ id: config.id, brightness: mode.flagList.includes('brightness') ? config.brightness : undefined, speed: mode.flagList.includes('speed') ? config.speed : undefined, direction: config.direction, colorMode: config.colorMode, colors: !perLedColors && mode.flagList.includes('modeSpecificColor') ? config.colors : undefined });
     if (this.modes.get(device.id) !== signature) {
-      await this.operation(this.client.updateMode(device.sdkId, config)); this.modes.set(device.id, signature);
+      await this.operation(this.client.updateMode(device.sdkId, config), this.operationTimeout, { phase: 'mode', controllerIndex: device.sdkId, client: this.client, generation: this.generation });
+      this.modes.set(device.id, signature);
     }
   }
   async tick(spatialFrame = false) {
@@ -395,6 +539,18 @@ class Hardware extends EventEmitter {
   }
   setFps() { clearInterval(this.timer); if (!this.stopped) this.timer = setInterval(() => { this.tick().catch(error => this.lost(error)); }, 1000 / (this.store.data.performance?.fps || 20)); }
   start() { this.stopped = false; this.connect(); this.setFps(); }
-  stop() { this.stopped = true; clearInterval(this.timer); clearTimeout(this.identifyTimer); this.identification = null; clearTimeout(this.reconnect); this.client?.socket?.destroy(); this.client?.disconnect(); }
+  stop() {
+    this.stopped = true;
+    this.generation++;
+    clearInterval(this.timer);
+    clearTimeout(this.identifyTimer);
+    this.identification = null;
+    clearTimeout(this.reconnect);
+    this.reconnect = null;
+    for (const timer of this.activeTimers) clearTimeout(timer);
+    this.activeTimers.clear();
+    try { this.client?.socket?.destroy(); } catch {}
+    try { this.client?.disconnect(); } catch {}
+  }
 }
 module.exports = { Hardware, identity, frame, hue, paletteColor };

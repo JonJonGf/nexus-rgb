@@ -113,12 +113,31 @@
     $('summary-power').textContent = master.power ? T('Ligada') : T('Desligada'); $('summary-brightness').textContent = `${master.brightness}%`; $('summary-devices').textContent = devices.filter(d => d.status === 'online').length;
     $('brightness-label').textContent = `${master.brightness}%`; $('speed-label').textContent = `${master.speed}%`;
     document.querySelectorAll('.effect').forEach(b => { b.classList.toggle('active', b.dataset.effect === master.effect); b.setAttribute('aria-pressed', String(b.dataset.effect === master.effect)); });
-    const online = state.hardware.connected, detecting = Boolean(online && state.hardware.detecting);
-    $('connection').textContent = !online ? T('● Aguardando hardware') : detecting ? T('● Detectando componentes…') : T('● Controlador conectado'); $('connection').className = `badge ${online ? 'online' : 'offline'}`;
-    $('device-count').textContent = devices.length; $('hardware-summary').textContent = online ? `${devices.length} componentes · ${state.hardware.controllerCount ?? devices.length} controladoras` : T('Controlador RGB desconectado');
+    const online = state.hardware.connected, detecting = Boolean(online && state.hardware.detecting), hung = Boolean(state.hardware.controllerHung);
+    $('connection').textContent = !online ? (hung ? T('● OpenRGB sem resposta') : T('● Aguardando hardware')) : detecting ? T('● Detectando componentes…') : T('● Controlador conectado'); $('connection').className = `badge ${online ? 'online' : 'offline'}`;
+    $('device-count').textContent = devices.length; $('hardware-summary').textContent = online ? `${devices.length} componentes · ${state.hardware.controllerCount ?? devices.length} controladoras` : (hung ? T('OpenRGB não respondeu ao consultar um componente') : T('Controlador RGB desconectado'));
     const failures = devices.filter(d => d.error);
-    const notice = !online ? T('O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ') + T(state.hardware.error || '') : detecting ? (devices.length ? T`Detectando componentes RGB (${devices.length} encontrado(s) até agora). Outras peças podem aparecer em instantes.` : T('Painel pronto. Detectando componentes RGB no controlador…')) : !devices.length ? T('Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.') : failures.length ? T`${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
-    $('notice').textContent = notice; $('notice').hidden = !notice;
+    const notice = !online
+      ? (hung
+        ? (admin
+          ? T('OpenRGB não respondeu ao consultar um componente.')
+          : T('OpenRGB não respondeu ao consultar um componente. Reinicie o controlador no aplicativo do PC.'))
+        : T('O controlador RGB ainda não está conectado. As configurações serão aplicadas quando ele ficar disponível. ') + T(state.hardware.error || ''))
+      : detecting ? (devices.length ? T`Detectando componentes RGB (${devices.length} encontrado(s) até agora). Outras peças podem aparecer em instantes.` : T('Painel pronto. Detectando componentes RGB no controlador…')) : !devices.length ? T('Nenhum dispositivo RGB foi detectado. Confira a compatibilidade, feche outros programas RGB e verifique a instalação do driver.') : failures.length ? T`${failures.length} dispositivo(s) não conseguiu(ram) aplicar o ajuste. Consulte a aba Dispositivos.` : '';
+    if (!online && hung && admin) {
+      $('notice').replaceChildren();
+      const text = el('span', '', T('OpenRGB não respondeu ao consultar um componente. '));
+      const link = el('a', 'button subtle restart-controller-btn', T('Reiniciar controlador'));
+      link.href = 'nexusrgb://restart';
+      link.style.display = 'inline-block';
+      link.style.marginLeft = '8px';
+      link.style.verticalAlign = 'middle';
+      $('notice').append(text, link);
+      $('notice').hidden = false;
+    } else {
+      $('notice').textContent = notice;
+      $('notice').hidden = !notice;
+    }
     renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
     window.NexusStudio?.update(state, admin, api, toast, currentPage);
     $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;

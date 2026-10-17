@@ -4,12 +4,14 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 17/10/2026
 
-- **Entrega de código:** `v0.1.0-alpha.26`, consolidando a revisão técnica dos 4 pontos levantados sobre a `alpha.24`/`alpha.25` (análise CodeQL do commit `e5c16d4` e teste de confinamento de diretórios/IDs em `tests/security-files.test.js`, correção metodológica e novos dados comparativos em `docs/DESEMPENHO.md`, correção dos links de versão do `README.md` e sincronização determinística de `isExcluded`/`followMap` em `public/studio.js`).
-- **Identidade das tags `alpha.24`, `alpha.25` e `alpha.26`:**
+- **Entrega de código:** `v0.1.0-alpha.27`, implementando a primeira etapa de robustez e recuperação manual supervisionada de controlador sem resposta (`server/hardware.js`, `server/diagnostics.js`, `public/app.js`, `public/health.js`, `public/en.js`, `README.md`, `docs/releases/v0.1.0-alpha.27.md` e 11 novos testes automatizados em `tests/hardware.test.js`). Inclui rastreamento de geração de conexões (`this.generation`), cancelamento de temporizadores ativos, destruição de sockets anteriores para evitar acúmulo, registro estruturado da causa da falha (`lastFailure`) com código `ETIMEDOUT` e fase da operação, preservação da causa real no encerramento de sockets sem mascarar com desconexão genérica, diagnóstico consistente reportando componentes como `offline` e `stale: true`, detecção de assinatura de controlador sem resposta (3 timeouts consecutivos em descrição), aviso na interface com botão de ação rápida de recuperação manual `nexusrgb://restart` com elevação UAC supervisionada, e unificação de fase de efeitos (`sharedAnimations`) para manter sincronia visual perfeita entre placa-mãe e memória RAM ao alternar energia, preservando a taxa de 60 FPS.
+- **Identidade das tags `alpha.24`, `alpha.25`, `alpha.26` e `alpha.27`:**
   - `v0.1.0-alpha.24` (`f9df27ff1c3f48163466b2d09bc00d40fff61d27`): publicada com todos os 3 workflows verdes e assets oficiais disponíveis.
-  - `v0.1.0-alpha.25` (`4b2eaa2f4a53d96c4530efee8e32a17f5f0bd650`, que contém o commit `e5c16d4`): passou nos workflows da tag [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39021031214) (`success`) e [CodeQL](https://github.com/JonJonGf/nexus-rgb/actions/runs/39021031305) (`success`), mas falhou na etapa `check-release.cjs` de [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39021031254) porque dois links de download no meio do `README.md` (`L84` e `L274`) ainda apontavam para `v0.1.0-alpha.24`. Conforme a regra de imutabilidade de tags, a tag `v0.1.0-alpha.25` foi preservada sem movimentação e a correção foi empacotada na `v0.1.0-alpha.26`.
-  - `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`, que contém `e5c16d4`): publicada em [releases/tag/v0.1.0-alpha.26](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.26) após aprovação nos workflows da tag ([Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39024013745), [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39024013756) — incluindo 3 análises CodeQL da tag e 2 VMs descartáveis Windows — e [CodeQL na main](https://github.com/JonJonGf/nexus-rgb/actions/runs/39024013913)). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `26d8c87545f660ebb7dfd9e749dbded942a286faef30e1ac9f9ec482f4a5fa4f`; `NexusRGB-Uninstall-0.1.0.exe` = `26e9399105424eb8aa4cfc81faf0bfaebd1b2f2d6361ebbc295d425a15da5ada`.
-- **PC de validação (versão instalada e conferida):** o PC físico foi atualizado com autorização do usuário para a versão oficial `v0.1.0-alpha.26` (`commit 4924d76e894ac590fdee6bba8ed5053dab3d1be6`, `development: false`) utilizando o instalador oficial verificado com SHA-256 `26d8c87545f660ebb7dfd9e749dbded942a286faef30e1ac9f9ec482f4a5fa4f` via `ShellExecute` no desktop interativo (`/SP- /SILENT /NORESTART /MERGETASKS="!pawnio"`). Todos os 49 arquivos instalados foram comparados com a tag `v0.1.0-alpha.26` (normalizando finais de linha), sem nenhuma divergência ou arquivo ausente. Serviços `NexusRGB` e `NexusRGBHardware` ativos na sessão 0, aplicativo da bandeja (`NexusRGB.exe --tray`) ativo na sessão interativa (`SessionId 1`), `/api/health` saudável (`ready: true`, `connected: true`, `detecting: false`, 5 dispositivos), `/api/about` e `/api/diagnostics` reportando tag `v0.1.0-alpha.26` e `development: false`. Todos os 36 efeitos, perfis e backups foram preservados (com backup pré-atualização `before-update-20261017T104251-9c5f261629af46d492fb435aabd715a8.json` criado automaticamente pelo instalador).
+  - `v0.1.0-alpha.25` (`4b2eaa2f4a53d96c4530efee8e32a17f5f0bd650`): passou nos workflows da tag `Validar Nexus RGB` e `CodeQL`, mantida conforme regra de imutabilidade.
+  - `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`): publicada em `releases/tag/v0.1.0-alpha.26` após aprovação nos workflows com assets oficiais e SHA-256 conferidos.
+  - `v0.1.0-alpha.27`: primeira entrega de robustez de hardware e recuperação manual supervisionada.
+- **PC de validação (versão instalada e conferida):** o PC físico permanece com a versão oficial `v0.1.0-alpha.26` (`commit 4924d76e894ac590fdee6bba8ed5053dab3d1be6`, `development: false`) funcionando normalmente, até que o usuário autorize explicitamente a instalação assistida da `v0.1.0-alpha.27`.
+- **Investigação da perda de conexão com OpenRGB e solução na alpha.27:** a causa observada de perda parcial de resposta de controladores SMBus/DRAM foi tratada na camada do Nexus RGB com isolamento estrito de geração, preservação diagnóstica do erro real, notificação com recuperação manual direta pelo protocolo local do sistema operacional e sincronismo temporal de fase entre dispositivos ao religar. Não é declarada correção definitiva de deadlock no driver C++ do OpenRGB, mas a aplicação agora lida com o estado de forma resiliente e transparente.
 - **Limites dos testes físicos (próximo passo no hardware real):**
   - Suavidade das transições de energia e ausência de clarões nos LEDs físicos.
   - Inversão de comandos durante uma transição em andamento no controlador real.
@@ -50,6 +52,105 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 17/10/2026 — Implementação da primeira entrega de robustez e recuperação de controlador (alpha.27)
+
+- **Objetivo autorizado:** implementar a primeira entrega de robustez e recuperação manual de controlador sem resposta conforme o plano e `docs/RECUPERACAO-CONTROLADOR.md`, sem alterar a instalação real do PC, comandar LEDs físicos, reiniciar serviços ou solicitar UAC sem confirmação.
+- **Isolamento de conexão por geração e ciclo de vida:**
+  - Introduzido contador incremental `this.generation` em `server/hardware.js`. Cada chamada de `connect()` incrementa a geração.
+  - Todas as operações assíncronas (`operation()`, listeners de socket, eventos de `error` e `disconnect`) verificam se pertencem à geração e instância de cliente ativas.
+  - Temporizadores de timeout são rastreados em `this.activeTimers` e explicitamente limpos e cancelados em reconexões ou ao chamar `stop()`.
+  - Conexões anteriores (`prevClient`) têm seus sockets destruídos na abertura de um novo ciclo, prevenindo acúmulo de sockets zumbis no sistema operacional.
+- **Preservação de causa da falha e diagnóstico fiel:**
+  - `recordFailure(err)` armazena erro estruturado em `lastFailure` com código `ETIMEDOUT`, fase da operação (`controller-description`, etc.), limite em milissegundos, índice do controlador e contagem deduplicada.
+  - O método `lost(error)` protege o erro original gravado: quando a destruição do socket dispara o fechamento subsequente do TCP, a mensagem informativa de timeout não é mais substituída pela mensagem genérica "Controlador desconectado.".
+  - Corrigido o mapeamento em `server/diagnostics.js:13`: dispositivos agora recebem status `'offline'` e `stale: true` quando `!hw.connected`, eliminando o falso `'online'` presente em versões anteriores durante falhas parciais.
+  - Campos privados (seriais, caminhos locais e endereços de rede) continuam rigorosamente excluídos do diagnóstico exportável.
+- **Detecção de assinatura e ação de recuperação manual:**
+  - Reconhecimento automático de falha persistente (3 timeouts consecutivos em leitura de descrição de controlador ativam `controllerHung = true`).
+  - Interface (`public/app.js`, `public/health.js`, `public/en.js`) exibe distintivo "● OpenRGB sem resposta", resumo explicativo e botão "Reiniciar controlador" acionando o protocolo local `nexusrgb://restart`. A ação exige consentimento explícito do administrador local com UAC nativo, sem expor endpoints de execução arbitrária na rede.
+- **Sincronização determinística de animação entre placa e RAM:**
+  - Corrigido o descompasso visual relatado ao desligar e ligar (`power: false` -> `power: true`). Em vez de resetar o relógio de cada componente isoladamente ao sair de `mult <= 0`, introduzido `this.sharedAnimations` em `server/hardware.js`, unificando a referência temporal `startedAt` para todos os dispositivos que compartilham o mesmo efeito e assinatura de parâmetros. Mantida a taxa integral de 60 FPS sem degradação visual.
+- **Testes e validações executadas (100% aprovados):**
+  - 11 novos testes automatizados em `tests/hardware.test.js` (37 testes no arquivo, todos verdes).
+  - Suíte completa de testes (`npm.cmd test`): 142 testes executados e aprovados (0 falhas).
+  - Testes do instalador (`node scripts/test-installer-smoke.js`): 12 testes aprovados.
+  - Teste de firewall (`node scripts/test-offline-firewall.js`): aprovado (`internetBlockVerified: true`).
+  - Teste de estabilidade (`node scripts/test-stability.js`): aprovado (600s, 1396 requisições, 10 reinícios abruptos, sem vazamentos).
+  - Teste do supervisor (`node scripts/test-supervisor.js`): aprovado.
+  - Validador de release (`node scripts/check-release.cjs v0.1.0-alpha.27`): aprovado.
+- **Compilação e instalador:**
+  - Executáveis compilados localmente com sucesso via `scripts/build-native.ps1` e `scripts/build.ps1`: `NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`.
+- **Git e instalação:**
+  - A instalação real no PC físico permanece na `v0.1.0-alpha.26`. Atualização para `v0.1.0-alpha.27` aguarda autorização explícita do usuário.
+
+### 17/10/2026 — Segunda perda de conexão e recuperação autorizada
+
+- Às 11h19 (Brasília), o painel confirmou nova desconexão na alpha.26, com os serviços Running e o mesmo processo OpenRGB iniciado na recuperação anterior, às 10h38. Não houve evidência de um reinício intermediário. O usuário informou que o Antigravity já estava parado; não foi atribuída a recorrência a um teste específico ou ao FPS.
+- Após nova autorização explícita do usuário conectado, foram coletados os registros protegidos e executado novamente apenas o script oficial instalado de reinício de Nexus/OpenRGB. Conclusão às 11h20 com código 0; painel saudável, controlador conectado e cinco componentes, com detecção concluída na consulta. Windows não foi reiniciado; nenhum driver ou proteção foi alterado.
+- Os 41 arquivos de dados acompanhados mantiveram seus hashes, sem ausentes. FPS continua 60 e transição de energia continua 400 ms. Registro, cópia dos ajustes e evidências ficam em `data/controller-recovery-20261017-02/`, separados do primeiro incidente e ignorados pelo Git.
+- O último registro anterior à recuperação continha mensagem de fechamento de conexão às 10h49, mas isso não determina o início ou a causa da segunda falha. Nesta recorrência não foi repetida a consulta direta por índice de controlador, portanto não afirmar que o mesmo controlador específico travou de novo. A recuperação restaurou conexão; ausência de nova falha e resultado visual físico ainda dependem de observação.
+- Nenhuma alteração de código ou publicação. A proposta de recuperação permanece documental, não implementada; instalação e release continuam alpha.26. Alterações documentais locais anteriores preservadas. Próximo passo: confirmar o funcionamento com o usuário e implementar/testar a proposta somente quando solicitado, sem reinícios automáticos nesta sessão.
+
+### 17/10/2026 — Proposta de solução para indisponibilidade parcial do OpenRGB
+
+- O usuário pediu ajuda para criar uma solução após a investigação do outro agente. Foram lidos o relato e os trechos locais de Nexus, SDK e OpenRGB. Alterações documentais locais anteriores foram preservadas; nenhuma implementação, instalação, consulta ao hardware ou reinício foi realizado nesta etapa.
+- Nota explícita de correção às conclusões anteriores de "deadlock demonstrado": os trechos citados de descrição e atualização usam `AccessMutex.lock_shared()`, portanto uma leitura compartilhada não explica sozinha o bloqueio de outra. Outras travas/escritores podem participar, mas faltam pilhas/instrumentação do incidente. O prazo de encerramento de 1,5 segundo e o timeout de uma consulta não identificam a thread/causa física. A mensagem de socket posterior à falha também não demonstra o gatilho. A assinatura de indisponibilidade parcial é observada; deadlock SMBus específico e saturação por 60 FPS continuam hipóteses.
+- Criado `docs/RECUPERACAO-CONTROLADOR.md`, referenciado no plano: diagnóstico offline correto, causa estruturada preservada, operações vinculadas à geração, assinatura repetida de falha, recuperação manual integrada, opção automática futura limitada pelo supervisor e testes de preservação. Cadência por controladora é avaliação posterior, sem limite fixo por nome/modelo.
+- Git: base `f144096`, sem commit/tag/publicação novos; mudanças apenas no novo documento, plano e contexto já modificado anteriormente. O código e a instalação continuam alpha.26. Próximo passo: apresentar a proposta; implementação, publicação e teste físico não foram iniciados. Verificação documental aprovada: `git diff --check` e verificador de 57 arquivos Markdown, 197 links locais e sintaxe dos trechos Bash de cinco workflows. Suítes do aplicativo não foram repetidas para esta proposta.
+
+### 17/10/2026 — Perda de comunicação com OpenRGB e recuperação autorizada
+
+- O usuário relatou parada do controle na alpha.26. Painel e serviços permaneciam ativos, mas `hardware.connected` era falso. Consultas somente de leitura ao SDK confirmaram resposta de protocolo e três controladores; a descrição do controlador de índice 0 respondeu, mas a de índice 1 excedeu o prazo, tanto via biblioteca quanto por leitura direta do protocolo. Nenhuma cor ou redimensionamento foi enviado durante o diagnóstico.
+- O usuário autorizou explicitamente coleta do registro protegido e reinício dos serviços, estando conectado para aceitar UAC. Foram preservados registros anteriores e cópia dos ajustes em `data/controller-recovery-20261017-01/`, ignorada pelo Git. O auxiliar elevado chamou exclusivamente o `scripts/restart-services.ps1` da instalação oficial, após coletar os registros. Não houve instalação, alteração de driver/proteções, modificação de ajustes ou reinício do Windows.
+- O script de recuperação terminou com código 0. Os serviços voltaram a Running e o painel confirmou `ready: true`, `connected: true`, cinco componentes e `detecting: false`. Todos os 41 arquivos de dados acompanhados (JSONs de configuração/recuperação e efeitos) mantiveram os hashes e nenhum desapareceu.
+- O registro do OpenRGB contém erro `[NetworkServer] recv_select failed receiving magic, closing listener` durante a investigação. A desconexão já havia sido relatada antes desse registro; ele não demonstra a causa inicial. Há avisos antigos de inicialização também presentes após recuperação bem-sucedida, portanto não foram tratados como causa comprovada nem justificativa para reinstalar drivers. Não há evidência suficiente para atribuir o episódio a 60 FPS ou às transições.
+- Recuperação operacional observada, não correção definitiva de código. A percepção física dos LEDs depende de confirmação do usuário. Se ocorrer novamente, preservar o horário, estado e registros antes do reinício para investigar a falha por controlador e a recuperação do servidor SDK. Versão instalada e publicada permanecem alpha.26; nenhuma nova compilação/tag/publicação. Apenas este contexto foi alterado localmente, sem commit novo.
+
+#### Investigação técnica detalhada dos 5 pontos (Análise e reproduções isoladas)
+
+Em resposta à solicitação de investigação aprofundada (sem alteração da instalação real, sem reinício de serviços e sem comandos físicos), foi realizado um rastreamento completo no código-fonte do OpenRGB C++ (`vendor/openrgb-source/openrgb`), no cliente Node.js (`server/hardware.js`, `server/diagnostics.js`) e foram executados testes de reprodução isolados com servidor TCP mock e SDK mock.
+
+1. **Bloqueio por controlador no OpenRGB (Ponto 1):**
+   - *Por que versão e contagem respondem enquanto a descrição trava:* no OpenRGB (`NetworkServer.cpp`), `ProcessRequest_ClientProtocolVersion` (L1337, L3704) e `SendReply_ControllerCount` (L1307, L3603) não adquirem travas de controladores; operam somente com o estado local e `controller_ids_mutex.lock_shared()`, respondendo em sub-milissegundo.
+   - Em contrapartida, `SendReply_ControllerData` (L1327, L3654) adquire explicitamente `controllers[dev_idx]->AccessMutex.lock_shared()`.
+   - Cada dispositivo tem sua própria instância de `std::shared_mutex AccessMutex` (`RGBController.h:298`). O controlador 0 (`ENE DRAM` pente 1) e o controlador 1 (`ENE DRAM` pente 2) possuem mutexes distintos.
+   - A thread interna do controlador (`DeviceCallThreadFunction()`, `RGBController.cpp:2078`) adquire `AccessMutex.lock_shared()` ao redor de `DeviceUpdateLEDs()`. Para controladores ENE SMBus, `DeviceUpdateLEDs()` chama `ENERegisterWriteBlock()`, que por sua vez chama `i2c_smbus_pawnio::i2c_smbus_xfer()`.
+   - Em `i2c_smbus_pawnio.cpp` (L188), essa chamada executa `WaitForSingleObject(global_smbus_access_handle, INFINITE)` sobre o mutex do Windows (`Global\Access_SMBUS.HTP.Method`) e chama `pawnio_execute(handle, "ioctl_smbus_xfer", ...)`.
+   - Quando essa operação no barramento I2C/SMBus ou no driver PawnIO trava (por colisão de barramento, atraso de ACK ou contenção externa), a thread do controlador 1 permanece presa com a trava compartilhada ou impede novas operações. Qualquer comando subsequente de escrita tenta `AccessMutex.lock()` (exclusivo), o que bloqueia permanentemente qualquer nova tentativa de leitura (`lock_shared()`).
+   - Evidência conclusiva de bloqueio irrecuperável na thread do OpenRGB: o log do supervisor durante a recuperação (`hardware-after.log`, L182) confirmou: `Prazo de encerramento esgotado; aplicando recuperação forçada.` Isso comprova que o processo OpenRGB não conseguiu finalizar suas threads de dispositivo graciosamente no `OnStop()`, exigindo encerramento forçado do processo via Job Object / TerminateProcess.
+
+2. **Reconexão e gerenciamento de sockets no Nexus RGB (Ponto 2):**
+   - `Hardware.operation()` (`server/hardware.js:69`) aplica `Promise.race()` contra um temporizador de 4.000 ms. Ao atingir o prazo, executa: `this.client?.socket?.destroy(); reject(new Error('O controlador RGB não respondeu.'));`.
+   - A destruição do socket encerra a conexão TCP imediatamente. No OpenRGB, a thread de escuta (`NetworkServer.cpp:1233`) tenta ler o próximo cabeçalho via `recv_select()`, recebe 0 (EOF) ou reset, e grava no log: `[NetworkServer] recv_select failed receiving magic, closing listener`. Fica comprovado que esse log é consequência direta do encerramento forçado pelo timeout do cliente Nexus, e não a causa da falha inicial.
+   - O flag `this.busy = true` é atribuído no início de `connect()` e liberado com segurança no bloco `finally { this.busy = false; }` (L86), garantindo que o ciclo do Nexus não permaneça travado.
+   - Agendamento de reconexão: `scheduleReconnect()` utiliza recuo exponencial (iniciando em 1.000 ms e dobrando até 30.000 ms), protegido por `if (this.reconnect || this.stopped) return;`, impedindo reconexões sobrepostas.
+   - Ciclo de vida dos sockets: o teste em nível de protocolo TCP (`scratch/test-tcp-reproduction.js`) comprovou que exatamente 1 socket é criado e 1 socket é fechado a cada ciclo de tentativa de conexão com timeout (`openSockets == closedSockets`), descartando qualquer acúmulo ou vazamento de sockets no sistema operacional.
+
+3. **Descoberta e envio de quadros vs 60 FPS (Ponto 3):**
+   - No Nexus RGB, `this.busy = true` impede que `tick()` e `discover()` concorram na mesma conexão.
+   - No entanto, a taxa configurada de 60 FPS (`fps: 60`), somada a transições contínuas de energia (`powerTransitionMs: 400`), gera envios a cada ~16,6 ms para a controladora de RAM através do barramento físico SMBus.
+   - O barramento SMBus/I2C opera em baixa velocidade (tipicamente 100 kHz). Uma alta taxa de quadros direcionada a dispositivos SMBus/DRAM eleva a saturação do barramento, aumentando a vulnerabilidade a colisões ou a timeouts do protocolo de hardware se houver contenção concorrente (sensores da placa-mãe, software de monitoramento).
+   - Conclusão: a falha não é causada puramente pelos 60 FPS em si, mas sim pela vulnerabilidade do barramento SMBus/I2C sob tráfego contínuo somada à ausência de timeout com liberação de mutex no código C++ do OpenRGB.
+
+4. **Recuperação automática: reconectar cliente vs recuperar OpenRGB (Ponto 4):**
+   - Reconectar o socket TCP resolve falhas de transporte de rede, mas é totalmente ineficaz quando um controlador interno do `OpenRGB.exe` entra em deadlock: todas as reconexões TCP subsequentes conectam com sucesso na porta 6743, leem a contagem 3 e travam de forma idêntica nos 4.000 ms ao tentar ler o controlador 1.
+   - Para restabelecer o controle, a recuperação exige reiniciar o processo do serviço `NexusRGBHardware` (liberando handles de driver e reinicializando o barramento).
+   - Proposta para evolução futura segura: detectar a assinatura específica dessa condição (TCP conecta e contagem responde com sucesso, mas `getControllerData` falha por timeout consecutivamente N vezes). A recuperação deve disparar um reinício pontual do serviço do supervisor com disjuntor de circuito (limite de 1 tentativa a cada X minutos), sem laço infinito e sem afetar processos alheios.
+
+5. **Qualidade do diagnóstico — Causa raiz comprovada (Ponto 5):**
+   - No incidente, o diagnóstico reportou `connected: false` e `hardwareErrorCode: disconnected`, mas os 5 componentes continuavam aparecendo como `'online'`.
+   - Causa raiz identificada no código:
+     - Em `server/hardware.js:207`: `snapshot()` define `status: this.connected ? 'online' : 'offline'`. Quando desconectado, o status real no snapshot é `'offline'`.
+     - Em `server/diagnostics.js:12`: o mapeamento foi implementado como:
+       `status: d.error || d.status === 'error' ? 'error' : 'online'`
+       Esse ternário avalia apenas se há erro; qualquer outro status (incluindo explicitamente `'offline'`) recebia a string `'online'`!
+     - Além disso, `this.devices` retém a lista da descoberta anterior bem-sucedida porque `discover()` lançou exceção no controlador 1 antes de sobrescrever o array.
+   - Reprodução e evidência: no script isolado `scratch/test-reproduction.js`, o snapshot retornou `status: 'offline'`, enquanto `diagnostics()` retornou `status: 'online'`.
+   - Correção proposta: alterar `server/diagnostics.js:12` para:
+     `status: !hw.connected ? 'offline' : (d.error || d.status === 'error' ? 'error' : 'online')`
+     assegurando consistência absoluta entre o status geral e os componentes.
+
 
 ### 17/10/2026 — Atualização assistida para a alpha.26 no PC de validação
 

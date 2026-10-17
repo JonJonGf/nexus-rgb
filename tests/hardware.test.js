@@ -379,3 +379,297 @@ test('transição suave de energia aplica fade em energia geral, individual e Al
   await hardware.tick();
   assert.equal(mock.calls.length, 0, 'Ao apagar, encerrar envios desnecessários');
 });
+
+test('timeout ao consultar descricao de componente fecha socket e registra erro especifico', async () => {
+  let destroyed = false;
+  const mockClient = {
+    socket: { destroy() { destroyed = true; } },
+    async getControllerCount() { return 2; },
+    async getControllerData(i) {
+      if (i === 1) return new Promise(() => {});
+      return controller('RAM 1', 'SMBus:1');
+    }
+  };
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mockClient, operationTimeout: 25 });
+  hardware.stopped = false;
+  hardware.client = mockClient;
+  hardware.generation = 1;
+  await assert.rejects(
+    hardware.discover(),
+    /OpenRGB não respondeu ao consultar um componente/
+  );
+  assert.equal(destroyed, true);
+  assert.equal(hardware.lastFailure?.phase, 'controller-description');
+  assert.equal(hardware.lastFailure?.controllerIndex, 1);
+  assert.equal(hardware.lastFailure?.code, 'ETIMEDOUT');
+  hardware.stop();
+});
+
+test('evento de desconexao do socket nao substitui timeout significativo por Controlador desconectado', async () => {
+  const mock = new Mock([controller('RAM 1', 'SMBus:1')]);
+  mock.socket = { destroy() {} };
+  mock.getControllerData = async (i) => {
+    if (i === 0) return new Promise(() => {});
+  };
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock, operationTimeout: 20 });
+  hardware.stopped = false;
+  await hardware.connect();
+  assert.equal(hardware.connected, false);
+  assert.match(hardware.error, /OpenRGB não respondeu ao consultar um componente/);
+  assert.equal(hardware.lastFailure?.phase, 'controller-description');
+
+  // OpenRGB socket disconnect event triggered after socket destroy:
+  mock.emit('disconnect');
+  // Error MUST preserve the specific timeout message, NOT overwrite with generic 'Controlador desconectado.'
+  assert.match(hardware.error, /OpenRGB não respondeu ao consultar um componente/);
+  assert.equal(hardware.lastFailure?.phase, 'controller-description');
+  hardware.stop();
+});
+
+test('timeout ou callback de conexao antiga nao fecha socket nem afeta conexao nova', async () => {
+  let oldDestroyed = false;
+  let newDestroyed = false;
+  const oldMock = {
+    socket: { destroy() { oldDestroyed = true; } },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() { return new Promise(() => {}); }
+  };
+  const newMock = {
+    socket: { destroy() { newDestroyed = true; } },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() { return controller('Novo', 'USB:new'); }
+  };
+  let currentMock = oldMock;
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => currentMock, operationTimeout: 50 });
+  hardware.stopped = false;
+  hardware.connect();
+  await new Promise(r => setTimeout(r, 10));
+  currentMock = newMock;
+  hardware.busy = false;
+  await hardware.connect();
+  assert.equal(hardware.connected, true);
+  assert.equal(hardware.devices[0].name, 'Novo');
+  await new Promise(r => setTimeout(r, 60));
+  assert.equal(oldDestroyed, true);
+  assert.equal(newDestroyed, false);
+  assert.equal(hardware.connected, true);
+  hardware.stop();
+});
+
+test('resposta tardia de conexao antiga nao altera estado da nova geracao', async () => {
+  let resolveLate;
+  const latePromise = new Promise(resolve => { resolveLate = resolve; });
+  const oldMock = {
+    socket: { destroy() {} },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() { return latePromise; }
+  };
+  const newMock = {
+    socket: { destroy() {} },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() { return controller('Correto', 'USB:valid'); }
+  };
+  let client = oldMock;
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => client });
+  hardware.stopped = false;
+  hardware.connect();
+  await new Promise(r => setImmediate(r));
+  client = newMock;
+  hardware.busy = false;
+  await hardware.connect();
+  assert.equal(hardware.devices[0].name, 'Correto');
+  resolveLate(controller('Antigo Obsoleto', 'USB:old'));
+  await new Promise(r => setImmediate(r));
+  assert.equal(hardware.devices[0].name, 'Correto');
+  hardware.stop();
+});
+
+test('temporizadores de operacao sao cancelados e stop limpa todos os timers e sockets', async () => {
+  let destroyed = false;
+  const mock = {
+    socket: { destroy() { destroyed = true; } },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() { return controller('Peca', 'USB:1'); }
+  };
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock });
+  hardware.stopped = false;
+  await hardware.connect();
+  assert.equal(hardware.activeTimers.size, 0);
+  hardware.stop();
+  assert.equal(destroyed, true);
+  assert.equal(hardware.activeTimers.size, 0);
+  assert.equal(hardware.stopped, true);
+});
+
+test('stop durante descoberta cancela operacao e nao deixa estado inconsistente', async () => {
+  let destroyed = false;
+  const mock = {
+    socket: { destroy() { destroyed = true; } },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() {
+      hardware.stop();
+      return controller('Cancelado', 'USB:cancel');
+    }
+  };
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock });
+  hardware.stopped = false;
+  await hardware.connect();
+  assert.equal(hardware.connected, false);
+  assert.equal(hardware.stopped, true);
+  assert.equal(destroyed, true);
+  assert.equal(hardware.devices.length, 0);
+});
+
+test('recuperacao apos falha restabelece conexao e zera historico de travamento', async () => {
+  let shouldFail = true;
+  const mock = {
+    socket: { destroy() {} },
+    on() {},
+    async connect() {},
+    async getControllerCount() { return 1; },
+    async getControllerData() {
+      if (shouldFail) return new Promise(() => {});
+      return controller('Recuperado', 'USB:ok');
+    }
+  };
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock, operationTimeout: 20 });
+  hardware.stopped = false;
+  await hardware.connect();
+  assert.equal(hardware.connected, false);
+  assert.equal(hardware.consecutiveDescriptionHangs, 1);
+  assert.ok(hardware.lastFailure);
+
+  shouldFail = false;
+  await hardware.connect();
+  assert.equal(hardware.connected, true);
+  assert.equal(hardware.consecutiveDescriptionHangs, 0);
+  assert.equal(hardware.controllerHung, false);
+  assert.equal(hardware.lastFailure, null);
+  assert.equal(hardware.snapshot().devices[0].status, 'online');
+  hardware.stop();
+});
+
+test('diagnostico reporta componentes offline, stale e erro estruturado sem vazar dados', async () => {
+  const { diagnostics } = require('../server/diagnostics');
+  const mock = new Mock([controller('RAM 1', 'SMBus:1')]);
+  const store = { data: { master: defaults, devices: {} } };
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  hardware.stopped = false;
+  await hardware.connect();
+  assert.equal(hardware.snapshot().devices[0].status, 'online');
+
+  hardware.controllerHung = true;
+  hardware.lost(new Error('OpenRGB não respondeu ao consultar um componente.'));
+  hardware.lastFailure = {
+    code: 'ETIMEDOUT',
+    phase: 'controller-description',
+    timeoutMs: 4000,
+    controllerIndex: 1,
+    generation: 2,
+    firstOccurredAt: Date.now() - 1000,
+    lastOccurredAt: Date.now(),
+    count: 3
+  };
+
+  const snap = hardware.snapshot();
+  assert.equal(snap.connected, false);
+  assert.equal(snap.controllerHung, true);
+  assert.equal(snap.devices[0].status, 'offline');
+  assert.equal(snap.devices[0].stale, true);
+
+  const diag = diagnostics(hardware, { hadController: true, config: {} }, store, null);
+  assert.equal(diag.health.state, 'controller-hung');
+  assert.equal(diag.health.connected, false);
+  assert.equal(diag.health.controllerHung, true);
+  assert.equal(diag.components[0].status, 'offline');
+  assert.equal(diag.errors.controllerHung, true);
+  assert.equal(diag.errors.hardwareErrorCode, 'controller-hung');
+  assert.deepEqual(diag.errors.lastFailure, snap.lastFailure);
+  const serialized = JSON.stringify(diag);
+  assert.ok(!serialized.includes('serial'));
+  assert.ok(!serialized.includes('location'));
+  hardware.stop();
+});
+
+test('assinatura de 3 falhas consecutivas de descricao ativa controllerHung; erro de connect nao ativa', async () => {
+  let failPhase = 'description';
+  const mock = {
+    socket: { destroy() {} },
+    on() {},
+    async connect() {
+      if (failPhase === 'connect') throw Object.assign(new Error('Connection refused'), { code: 'ECONNREFUSED' });
+    },
+    async getControllerCount() { return 1; },
+    async getControllerData() {
+      if (failPhase === 'description') return new Promise(() => {});
+      return controller('OK', 'USB:1');
+    }
+  };
+  const hardware = new Hardware({ data: { master: defaults, devices: {} } }, { makeClient: () => mock, operationTimeout: 15 });
+  hardware.stopped = false;
+
+  await hardware.connect();
+  assert.equal(hardware.consecutiveDescriptionHangs, 1);
+  assert.equal(hardware.controllerHung, false);
+
+  await hardware.connect();
+  assert.equal(hardware.consecutiveDescriptionHangs, 2);
+  assert.equal(hardware.controllerHung, false);
+
+  await hardware.connect();
+  assert.equal(hardware.consecutiveDescriptionHangs, 3);
+  assert.equal(hardware.controllerHung, true);
+
+  failPhase = 'connect';
+  await hardware.connect();
+  assert.equal(hardware.consecutiveDescriptionHangs, 0);
+  hardware.stop();
+});
+
+test('ligar e desligar mantem sincronia perfeita de animacao entre componentes com tempos diferentes', async () => {
+  const store = { data: { master: { ...defaults, effect: 'wave', speed: 50 }, devices: {} } };
+  const mock = new Mock([controller('Motherboard', 'USB:board'), controller('RAM', 'SMBus:ram')]);
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  hardware.stopped = false;
+  await hardware.connect();
+  const boardId = hardware.devices[0].id;
+  const ramId = hardware.devices[1].id;
+
+  const boardFrame1 = hardware.renderFrame(boardId, store.data.master, 4, 10.0, 10000);
+  const ramFrame1 = hardware.renderFrame(ramId, store.data.master, 4, 10.4, 10400);
+
+  store.data.master.power = false;
+  const boardOff = hardware.renderFrame(boardId, store.data.master, 4, 11.0, 11000);
+  const ramOff = hardware.renderFrame(ramId, store.data.master, 4, 11.0, 11000);
+  assert.ok(boardOff.every(c => c.red === 0 && c.green === 0 && c.blue === 0));
+  assert.ok(ramOff.every(c => c.red === 0 && c.green === 0 && c.blue === 0));
+
+  store.data.master.power = true;
+  const boardOn = hardware.renderFrame(boardId, store.data.master, 4, 20.0, 20000);
+  const ramOn = hardware.renderFrame(ramId, store.data.master, 4, 20.0, 20000);
+  assert.deepEqual(boardOn, ramOn, 'Placa-mãe e RAM devem ter fases de animação 100% idênticas ao religar');
+  hardware.stop();
+});
+
+test('rotulos de falha e botao de recuperacao estao traduzidos no en.js', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const enSource = fs.readFileSync(path.join(__dirname, '../public/en.js'), 'utf8');
+  assert.ok(enSource.includes('"OpenRGB não respondeu ao consultar um componente."'));
+  assert.ok(enSource.includes('"OpenRGB did not respond while querying a component."'));
+  assert.ok(enSource.includes('"Reiniciar controlador"'));
+  assert.ok(enSource.includes('"Restart controller"'));
+  assert.ok(enSource.includes('"● OpenRGB sem resposta"'));
+});
