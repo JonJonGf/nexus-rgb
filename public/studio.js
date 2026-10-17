@@ -44,7 +44,7 @@
       if (String(e?.message || '').includes('alterado em outro dispositivo')) {
         dirty = false; savedVersion = editVersion;
         error(e);
-        await refresh(false);
+        await refresh(false, true);
         $('studio-dirty').textContent = T('Mapa atualizado por outro dispositivo');
         $('studio-retry').hidden = true;
         return;
@@ -224,7 +224,7 @@
     const next = await request(route, body, 'POST');
     // A response may arrive after a newer SSE update (for example a profile
     // created in another tab). Never replace that update with an older snapshot.
-    if (next) { if (stateRevision === revision) state = next; await refresh(); renderLibrary(); }
+    if (next) { if (stateRevision === revision) state = next; await refresh(true, true); renderLibrary(); }
     return Boolean(next);
   }
   function renderLibrary() {
@@ -273,26 +273,35 @@
   $('studio-picker-close').addEventListener('click', () => $('studio-picker-dialog').close());
   $('studio-library-search').addEventListener('input', () => renderGallery());
   document.querySelectorAll('[data-library]').forEach(b => b.addEventListener('click', () => { libraryFilter = b.dataset.library; document.querySelectorAll('[data-library]').forEach(e => e.setAttribute('aria-pressed', String(e === b))); renderGallery(); }));
-  async function refresh(keepDraft = true) {
-    if (!api || loading || document.hidden || !['studio', 'settings'].includes(current)) return;
+  let loadingPromise = null;
+  async function refresh(keepDraft = true, force = false) {
+    if (!api || document.hidden || !['studio', 'settings'].includes(current)) return;
+    if (loading) {
+      if (!force) return;
+      try { await loadingPromise; } catch {}
+      if (!api || document.hidden || !['studio', 'settings'].includes(current)) return;
+    }
     loading = true;
-    try {
-      const version = editVersion, next = await api('/api/studio');
-      const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values) || JSON.stringify(old.excluded) !== JSON.stringify(next.excluded);
-      const layoutChanged = !old || JSON.stringify(old.layout) !== JSON.stringify(next.layout);
-      if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) {
-        next.layout = old.layout;
-        if ((dirty || saving || dragging || editVersion !== version) && keepDraft) next.layoutRevision = old.layoutRevision;
-      }
-      data = next;
-      if (current === 'studio') {
-        if (changed) { if (!dragging) { map(); selection(); } renderLibrary(); }
-        else status();
-        if (layoutChanged && !dirty && !dragging) { map(); selection(); }
-      }
-      const text = data.metrics.fps ? data.metrics.fps + T(' FPS renderizados · ') + data.metrics.renderMs + T(' ms/quadro · motor ') + data.metrics.memoryMB + ' MiB' : T('Motor em repouso');
-      $('studio-metrics').textContent = text; $('settings-metrics').textContent = text;
-    } catch (e) { error(e); } finally { loading = false; }
+    loadingPromise = (async () => {
+      try {
+        const version = editVersion, next = await api('/api/studio');
+        const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values) || JSON.stringify(old.excluded) !== JSON.stringify(next.excluded);
+        const layoutChanged = !old || JSON.stringify(old.layout) !== JSON.stringify(next.layout);
+        if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) {
+          next.layout = old.layout;
+          if ((dirty || saving || dragging || editVersion !== version) && keepDraft) next.layoutRevision = old.layoutRevision;
+        }
+        data = next;
+        if (current === 'studio') {
+          if (changed) { if (!dragging) { map(); selection(); } renderLibrary(); }
+          else status();
+          if (layoutChanged && !dirty && !dragging) { map(); selection(); }
+        }
+        const text = data.metrics.fps ? data.metrics.fps + T(' FPS renderizados · ') + data.metrics.renderMs + T(' ms/quadro · motor ') + data.metrics.memoryMB + ' MiB' : T('Motor em repouso');
+        $('studio-metrics').textContent = text; $('settings-metrics').textContent = text;
+      } catch (e) { error(e); } finally { loading = false; loadingPromise = null; }
+    })();
+    return loadingPromise;
   }
   async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty || dragging) { next.layout = data.layout; next.layoutRevision = data.layoutRevision; } data = next; renderLibrary(); if (!dragging) { map(); selection(); } } return Boolean(next); }
   async function recoverAction(action) {
