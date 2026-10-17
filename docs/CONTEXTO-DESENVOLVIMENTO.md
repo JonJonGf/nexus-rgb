@@ -4,14 +4,14 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 16/10/2026
 
-- **Entrega de código:** alpha.22, commit `4461edfdfb593dcab1263ecf3cd1202150c61d9f` (tag `v0.1.0-alpha.22`), seguido de atualização documental deste registro de continuidade.
-- **Distribuição:** [release alpha.22](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.22) publicada com sucesso pelo workflow [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/38979425335) (CodeQL nas 3 linguagens + 2 VMs Windows descartáveis) e validada em [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/38979425268). As releases anteriores (`v0.1.0-alpha.20` e `v0.1.0-alpha.21`) continuam preservadas.
-- **PC de validação:** `v0.1.0-alpha.22` instalada com autorização do usuário a partir do instalador oficial publicado, sem reiniciar o Windows, com os 5 componentes RGB conectados (`detecting: false`), `settings.json` e 36 efeitos importados preservados e backup pré-atualização automático criado.
+- **Entrega de código:** alpha.23, implementando o bloco completo de **clareza visual e rede** (itens 1 a 5) na branch `codex/visual-clarity-network`.
+- **Distribuição e validação:** suíte completa de 126 testes de unidade/integração (`npm test`), 36 testes de interface (`npm run test:ui`), teste do supervisor (`npm run test:supervisor`), compilação nativa/instalador (`npm run build`) e testes de fumaça do instalador (`npm run test:installer`) 100% aprovados. Preparada tag `v0.1.0-alpha.23` com release notes em `docs/releases/v0.1.0-alpha.23.md`. As releases anteriores (`v0.1.0-alpha.20`, `v0.1.0-alpha.21` e `v0.1.0-alpha.22`) continuam preservadas.
+- **PC de validação:** `v0.1.0-alpha.22` instalada no Windows real; atualização assistida para a `v0.1.0-alpha.23` aguarda autorização explícita do usuário, devendo mostrar a interface/progresso do instalador e conferir a bandeja na sessão interativa ao concluir.
 - **Resultado físico (Alexa na alpha.20):** usuário testou a alpha.20 e confirmou aviso de falha nos dois comandos, acender e apagar. A hipótese de confirmação de brilho não resolveu esse equipamento. Nos pedidos observados de desligamento, o Echo enviou somente `on`, sem `bri`; respostas HTTP 200 terminaram em poucos milissegundos, e consultas posteriores devolveram energia apagada e controlador disponível. Dados identificadores do equipamento e da rede permanecem privados.
 - **Resultado posterior em Alexa+:** o usuário pediu por voz para a Alexa deixar de anunciar o erro e informou que funcionou. Nenhuma outra mudança de código ou reinstalação ocorreu. Registrar como preferência de resposta/solução prática relatada pelo usuário, sem concluir que o protocolo foi corrigido. O estado do aplicativo Alexa após esse pedido não foi retestado.
 - **Pendência técnica (Alexa):** a causa do aviso no protocolo permanece desconhecida. Investigar caso o usuário queira retomar; a confirmação de brilho não é causa comprovada. Grupos, rotinas e estado no aplicativo precisam de teste separado. Não iniciar novas tentativas de alteração ou recadastro automaticamente após a solução prática relatada.
-- **Demais melhorias:** bloco de estabilidade e hardware (itens 1 a 5) concluído, publicado, instalado e confirmado fisicamente pelo usuário na `v0.1.0-alpha.21`; correção do layout da aba **Configurações** concluída, publicada e instalada na `v0.1.0-alpha.22` (`4461edfdfb593dcab1263ecf3cd1202150c61d9f`). Próxima etapa planejada: bloco de clareza visual e rede (quando solicitado pelo usuário).
-- **Mudança documental após o instalador alpha.20:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`. O registro posterior incorpora a confirmação das duas direções e a solução prática na Alexa+.
+- **Demais melhorias:** blocos de estabilidade/hardware (alpha.21), layout de Configurações (alpha.22) e clareza visual e rede (alpha.23) concluídos. As quatro propostas detalhadas em [PLANO-MELHORIAS.md](PLANO-MELHORIAS.md) (desfazer/refazer, transição suave, diagnóstico revisável e recuperação após falhas) permanecem planejadas para etapas futuras quando autorizadas.
+- **Mudança documental após o instalador alpha.20:** regras de continuidade em `AGENTS.md` e `.agents/rules/continuidade.md`, este registro e sua referência no guia de desenvolvimento, introduzidos em `f895fa8`.
 
 ## Decisões de produto que devem ser preservadas
 
@@ -31,17 +31,60 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Passos para o próximo agente
 
-1. **Ler e conferir:** `AGENTS.md`, este contexto e [PLANO-MELHORIAS.md](PLANO-MELHORIAS.md). Conferir `git status`, branch e histórico; respeitar mudanças locais sem sobrescrevê-las. As versões `v0.1.0-alpha.21` e `v0.1.0-alpha.22` já foram publicadas e instaladas no PC de validação; não repetir instalação, recadastro da Alexa ou os testes concluídos sem motivo.
+1. **Ler e conferir:** `AGENTS.md`, este contexto e [PLANO-MELHORIAS.md](PLANO-MELHORIAS.md). Conferir `git status`, branch e histórico; respeitar mudanças locais sem sobrescrevê-las.
 2. **Preservar o resultado da Alexa:** ela executa energia; o usuário relatou suprimir o anúncio de erro por um pedido à Alexa+. Não tentar outra correção de protocolo automaticamente. Se o usuário quiser investigar novamente, partir dos pedidos com somente `on`, dos retornos 200/GET e da incerteza no estado do app.
-3. **Retomar o próximo bloco quando o usuário solicitar as melhorias adiadas:** como o bloco de estabilidade/hardware (`v0.1.0-alpha.21`) e a correção visual de Configurações (`v0.1.0-alpha.22`) já foram concluídos, o próximo bloco planejado é **clareza visual e rede** (indicação de exclusão do mapa + botão "Voltar a seguir o mapa", seleção de interface LAN considerando gateway/rotas/VPN, separação de orçamentos de taxa, reserva de capacidade de prévia ao admin e rotas `/api/` fora do Service Worker). A justificativa e os limites estão no plano.
+3. **Próximas melhorias quando solicitado:** o bloco de clareza visual e rede foi concluído na alpha.23. As próximas quatro propostas (desfazer/refazer, transição suave, diagnóstico revisável e recuperação após falhas) já estão detalhadas no plano para quando o usuário decidir avançar.
 4. **Trabalhar em mudanças pequenas:** reproduzir o problema com SDK/ambiente isolado, corrigir um comportamento e testar preservação dos dados antes de avançar. Não depender de um número fixo de LEDs, modelo de placa-mãe ou ordem de descoberta.
-5. **Validar e distribuir:** executar verificações pertinentes, registrar os resultados, e, se a tarefa autorizada incluir publicação, gerar uma nova versão com executáveis correspondentes e passar pelas duas VMs e pelo bloqueio de segurança. Não mover as tags anteriores (`v0.1.0-alpha.20`, `v0.1.0-alpha.21`, `v0.1.0-alpha.22`, `checkpoint/alpha20-before-antigravity-2026-10-16`) nem substituir seus assets. Mudanças exclusivamente documentais não exigem outro instalador.
-6. **Antes de alterar a instalação real:** pedir autorização para instalador/UAC/reinício de serviços e permitir que o usuário aceite o Windows, inclusive por acesso remoto. Depois conferir versão, detecção gradual e preservação dos dados. Não reiniciar o PC automaticamente.
+5. **Validar e distribuir:** executar verificações pertinentes, registrar os resultados, e, se a tarefa autorizada incluir publicação, gerar uma nova versão com executáveis correspondentes e passar pelas duas VMs e pelo bloqueio de segurança. Não mover as tags anteriores (`v0.1.0-alpha.20`, `v0.1.0-alpha.21`, `v0.1.0-alpha.22`, `checkpoint/alpha20-before-antigravity-2026-10-16`) nem substituir seus assets.
+6. **Antes de alterar a instalação real:** pedir autorização para instalador/UAC/reinício de serviços e permitir que o usuário aceite o Windows, inclusive por acesso remoto. Nas instalações assistidas locais, mostrar interface visível (sem `/VERYSILENT`) e reabrir/conferir a bandeja na sessão do usuário. Não reiniciar o PC automaticamente.
 7. **Antes de parar ou trocar de ferramenta:** atualizar este documento com mudanças, arquivos, testes, Git/release/instalação, falhas e próximo passo. Se parar no meio, indicar exatamente o que ficou incompleto. O registro deve continuar suficiente para outro agente retomar sem o chat anterior.
 
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 16/10/2026 — Alpha.23: clareza visual e rede (branch `codex/visual-clarity-network`)
+
+**Objetivo:** implementar o bloco completo de **clareza visual e rede** do plano de melhorias: indicador de personalização individual nas peças excluídas do mapa e botão **Voltar a seguir o mapa**; seleção inteligente de interface LAN considerando gateway, rotas locais e VPNs sincronizada entre painel e bandeja; orçamentos de limite de taxa separados para leitura, escrita, operações pesadas e estáticos; capacidade reservada na prévia para o administrador local; e rotas `/api/` fora do Service Worker com reconexão automática com recuo progressivo.
+
+**Mudanças e arquivos (Itens 1 a 5):**
+- `server/store.js`, `server/studio.js`, `server/hardware.js`, `public/app.js`, `public/studio.js`, `public/index.html`, `public/style.css`, `public/studio.css`, `public/en.js`: suporte a payload `{ followMap: true }` em `/api/devices/:id` para reintegrar o dispositivo ao mapa sem apagar energia ou brilho individual, preservando exclusões ao pausar/reativar ou trocar efeitos; indicadores visuais **Ajuste individual · fora do mapa** na lista de dispositivos e no mapa do setup (`.studio-item.excluded`), botão **Voltar a seguir o mapa** e traduções em inglês.
+- `server/network.js`, `server/index.js`, `native/NexusRGB.cs`, `public/app.js`: função `parseRoutes()` com leitura de rotas via `route.exe print -4` em cache de 15 s; exclusão estrita de VPNs e switches virtuais sem gateway; priorização por gateway real e métrica; persistência da preferência manual em `network.json` na pasta de dados privada do app (sem poluir `settings.json` ou quebrar restauração de backup); sincronização de `lanUrl` em `/api/network`, `/api/link`, `/api/health` e cópia de link pela bandeja (`NexusRGB.cs`).
+- `server/index.js`: separação de orçamentos de taxa por IP em `readRate` (240/min para `GET`/`HEAD`), `writeRate` (180/min para `POST`/`PUT`/`DELETE` comuns), `heavyRate` (60/min para rotas de backup, diagnósticos, link, duplicação e rascunho), `assetRate` (512/min para estáticos) e `globalRate` (2000/min), impedindo que o esgotamento de uma categoria bloqueie outra.
+- `server/studio.js`: em `watch()`, limpeza prévia de clientes lentos (`writableLength > 512 KiB`) ou encerrados, limite de até 2 conexões para clientes da LAN e até 4 conexões totais, garantindo 2 vagas reservadas ao administrador local com código de erro 503 (`Limite de prévias simultâneas atingido.`).
+- `public/sw.js` e `public/studio.js`: Service Worker ignora qualquer requisição cujo destino seja `/api` ou inicie com `/api/`; reconexão automática de `/api/studio/preview` com recuo progressivo (2 s a 15 s) e recarregamento prévio do estado do mapa (`refresh()`).
+- `tests/studio.test.js`, `tests/security.test.js`, `tests/adversarial.test.js` e `tests/ui/studio.spec.js`: testes de unidade, integração, segurança e interface cobrindo todos os 5 itens.
+- `README.md`, `docs/PLANO-MELHORIAS.md`, `docs/releases/v0.1.0-alpha.23.md`: documentação pública e notas de lançamento atualizadas.
+
+**Testes executados e resultados:**
+- `npm.cmd test`: 126/126 aprovados (incluindo testes de rotas/gateway, orçamentos separados, limites de prévia, exclusão do Service Worker e exclusões do mapa).
+- `npm.cmd run test:ui`: 36/36 aprovados no Playwright (incluindo navegação para Dispositivos, exibição de badge/botão de retorno ao mapa, seleção de peça no mapa e reconexão de stream).
+- `npm.cmd run test:supervisor`: aprovado (parada graciosa, reinício por falha e Job Object).
+- `npm.cmd run build`: executável C# e instalador compilados com sucesso em `dist/`.
+- `npm.cmd run test:installer`: 12/12 cenários de instalação aprovados (PT-BR e EN).
+- `node scripts/check-release.cjs v0.1.0-alpha.23`: aprovado.
+
+**Git / Release / Instalação:**
+- Branch `codex/visual-clarity-network` pronta para commit, merge e tag `v0.1.0-alpha.23`.
+- Instalação no computador de desenvolvimento permanece na `v0.1.0-alpha.22` até autorização do usuário; quando autorizada, a atualização deverá exibir a interface visível do instalador (sem `/VERYSILENT`) e verificar a reabertura do ícone da bandeja na sessão do usuário.
+
+**Pendências e próximo passo:**
+- Fazer commit das alterações, mesclar à branch principal e acionar o workflow de publicação para gerar a release `v0.1.0-alpha.23`.
+- Aguardar autorização do usuário antes de rodar o instalador ou reiniciar serviços no PC real.
+
+### 16/10/2026 — Planejamento de edição, energia, diagnóstico e recuperação
+
+- Pedido atual: aprofundar e salvar quatro propostas escolhidas pelo usuário, sem iniciar implementação: desfazer/refazer no mapa e no editor, transição suave de energia, exportação de diagnóstico com revisão e recuperação após falhas.
+- `docs/PLANO-MELHORIAS.md` recebeu comportamento esperado, limites, privacidade, conflitos entre clientes, preservação da intenção de energia e critérios de aceitação para cada proposta. A sequência sugerida vem depois do bloco de clareza visual/rede já pendente; ela não autoriza execução automática.
+- Mudança apenas documental. Não houve alteração do aplicativo, instalação, publicação, reinício de serviços ou teste físico. Instalador e instalação continuam na alpha.22. Verificação: `git diff --check` aprovado; verificador documental aprovado (52 arquivos Markdown, 183 links locais e sintaxe dos trechos Bash em cinco workflows). Suítes do aplicativo não foram repetidas para este planejamento.
+- Git ao registrar: branch `codex/settings-layout`, base `564be72`, alterações locais no plano e neste contexto (incluindo o diagnóstico anterior da bandeja), sem commit ou tag novos. Próximo passo: apresentar o planejamento e aguardar pedido de implementação.
+
+### 16/10/2026 — Diagnóstico da instalação sem janela e da bandeja
+
+- O usuário esclareceu que faltava o ícone na bandeja, perto do relógio. Antes da intervenção havia dois processos do Nexus na sessão de serviços e nenhum processo da bandeja na sessão interativa. Foi aberto somente o executável instalado com `--tray`, sem UAC nem reinício dos serviços; confirmou-se processo na sessão do usuário e painel saudável com cinco componentes conectados. A posição visual do ícone (inclusive área de ícones ocultos do Windows) não foi inspecionada.
+- O log privado da instalação alpha.22 confirma chamada com `/VERYSILENT /SUPPRESSMSGBOXES`: esse modo esconde também a janela de progresso. O instalador mantém `skipifsilent` no lançamento final do aplicativo, explicando a ausência de reabertura automática da bandeja nessa atualização. Não houve alteração desses arquivos de instalação/serviços entre as tags alpha.21 e alpha.22. Abrir normalmente o executável distribuído apresenta a instalação interativa; o problema observado foi a forma de execução da atualização local.
+- Nas próximas atualizações assistidas, apresentar progresso visível e conferir/reabrir a bandeja na sessão do usuário ao terminar. Continuar pedindo autorização antes de instalador/UAC ou reinício de serviços. Não alterar o comportamento das instalações automatizadas de CI por causa deste diagnóstico.
+- Verificação desta investigação: leitura do log, comparação do instalador entre tags, consulta dos processos e da saúde do painel. Não foram repetidas as suítes de testes nem executada outra instalação. Código e binário alpha.22 permanecem iguais; apenas este registro foi atualizado localmente na branch `codex/settings-layout`, sobre `564be72`, sem nova tag ou publicação.
 
 ### 16/10/2026 — Alpha.22: correção do layout da aba Configurações (branch `codex/settings-layout`)
 

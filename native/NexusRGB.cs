@@ -217,19 +217,41 @@ internal sealed class Tray : ApplicationContext {
         catch { if (!exiting) status.Text = L.T("Nexus RGB: confira serviços e portas"); }
         finally { checking = false; }
     }
+    private static bool IsPrivate(byte[] ip) {
+        return ip != null && ip.Length == 4 && (ip[0] == 10 || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] == 192 && ip[1] == 168));
+    }
     private void CopyLink() {
         int port;
         try { port = PortSettings.Load().Panel; } catch (Exception error) { MessageBox.Show(error.Message, "Nexus RGB"); return; }
+        string health = Program.ReadHealth();
+        int marker = health.IndexOf("\"lanUrl\":\"http://", StringComparison.Ordinal);
+        if (marker >= 0) {
+            int start = marker + 10, end = health.IndexOf('"', start);
+            if (end > start) {
+                Clipboard.SetText(health.Substring(start, end - start));
+                icon.ShowBalloonTip(3000, L.T("Link copiado"), L.T("Abra este endereço no celular conectado ao mesmo Wi-Fi."), ToolTipIcon.Info);
+                return;
+            }
+        }
+        string fallback = null;
         foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces()) {
             if (adapter.OperationalStatus != OperationalStatus.Up || adapter.NetworkInterfaceType == NetworkInterfaceType.Loopback || adapter.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
-            string name = adapter.Name.ToLowerInvariant(); if (name.Contains("virtual") || name.Contains("vethernet") || name.Contains("vpn") || name.Contains("tailscale") || name.Contains("hamachi") || name.Contains("radmin") || name.Contains("zerotier") || name.Contains("wireguard") || name.Contains("tunnel") || name.Contains("wsl")) continue;
-            foreach (var address in adapter.GetIPProperties().UnicastAddresses) {
-                byte[] ip = address.Address.GetAddressBytes();
-                if (ip.Length == 4 && (ip[0] == 10 || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] == 192 && ip[1] == 168))) {
-                    Clipboard.SetText("http://" + address.Address + ":" + port + "/"); icon.ShowBalloonTip(3000, L.T("Link copiado"), L.T("Abra este endereço no celular conectado ao mesmo Wi-Fi."), ToolTipIcon.Info); return;
+            string name = adapter.Name.ToLowerInvariant();
+            if (name.Contains("vpn") || name.Contains("tailscale") || name.Contains("hamachi") || name.Contains("radmin") || name.Contains("zerotier") || name.Contains("wireguard") || name.Contains("tunnel") || name.Contains("wsl") || name.Contains("default switch") || name.Contains("docker") || name.Contains("vboxnet") || name.Contains("vmnet") || name.Contains("host-only") || name.Contains("wintun")) continue;
+            bool isVirtual = name.Contains("virtual") || name.Contains("vethernet") || name.Contains("hyper-v");
+            var props = adapter.GetIPProperties();
+            bool hasGateway = false;
+            foreach (var gw in props.GatewayAddresses) if (IsPrivate(gw.Address.GetAddressBytes())) { hasGateway = true; break; }
+            if (isVirtual && !hasGateway) continue;
+            foreach (var address in props.UnicastAddresses) {
+                if (IsPrivate(address.Address.GetAddressBytes())) {
+                    string candidate = "http://" + address.Address + ":" + port + "/";
+                    if (hasGateway && !isVirtual) { Clipboard.SetText(candidate); icon.ShowBalloonTip(3000, L.T("Link copiado"), L.T("Abra este endereço no celular conectado ao mesmo Wi-Fi."), ToolTipIcon.Info); return; }
+                    if (fallback == null || hasGateway) fallback = candidate;
                 }
             }
         }
+        if (fallback != null) { Clipboard.SetText(fallback); icon.ShowBalloonTip(3000, L.T("Link copiado"), L.T("Abra este endereço no celular conectado ao mesmo Wi-Fi."), ToolTipIcon.Info); return; }
         icon.ShowBalloonTip(3000, L.T("Rede indisponível"), L.T("Conecte o PC a uma rede Wi-Fi ou Ethernet privada."), ToolTipIcon.Warning);
     }
     protected override void ExitThreadCore() { exiting = true; timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore(); }

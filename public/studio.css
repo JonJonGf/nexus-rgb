@@ -108,7 +108,11 @@
 .studio-live-note { margin: 0; font-size: 10px; line-height: 1.5; }
 .studio-item { position: absolute; transform: translate(-50%,-50%) rotate(var(--rotation)); border: 1px solid #ffffff75; background: #03060b75; box-shadow: 0 3px 14px #0007; border-radius: 3px; touch-action: none; user-select: none; padding: 0; }
 .studio-item[data-shape=fan] { border-radius: 50%; }
+.studio-item.excluded { border-style: dashed; border-color: #cfb58fd0; }
 .studio-item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--glow),0 0 28px var(--glow); background: #05090e40; }
+.studio-device-chips button.excluded { border-style: dashed; border-color: #cfb58f90; color: #cfb58f; }
+.studio-piece-excluded { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; padding: 10px 12px; border: 1px solid #8c673950; background: #241e1670; border-radius: 5px; }
+.studio-piece-excluded p { margin: 0; color: #cfb58f; line-height: 1.45; }
 .studio-item span { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%) rotate(calc(-1 * var(--rotation))); color: #fff; font: 9px var(--mono); white-space: nowrap; width: max-content; max-width: min(160px,180%); overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px #000; pointer-events: none; }
 .studio-item i { display: block; position: absolute; inset: 20%; border: 1px dashed #ffffff40; border-radius: inherit; pointer-events: none; }
 .studio-item:focus-visible { outline-offset: 4px; }

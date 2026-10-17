@@ -75,7 +75,7 @@ class Store {
     if (this.data.master.power === value) return false;
     this.data.master.power = value; this.save(); return true;
   }
-  master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; if (this.data.studio && ('color' in valid || 'effect' in valid)) this.data.studio = { ...this.data.studio, enabled: false }; this.data.devices = {}; this.save(); }
+  master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; if (this.data.studio && ('color' in valid || 'effect' in valid)) this.data.studio = { ...this.data.studio, enabled: false, excluded: [] }; else if (this.data.studio) this.data.studio = { ...this.data.studio, excluded: [] }; this.data.devices = {}; this.save(); }
   performance(patch) {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some(k => k !== 'fps') || !Number.isInteger(patch.fps) || patch.fps < 5 || patch.fps > 60) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
     this.data.performance = { fps: patch.fps }; this.save();
@@ -93,6 +93,14 @@ class Store {
   }
   duplicateProfile(id,name) {const source=this.data.profiles.find(p=>p.id===id);if(!source)throw Error('Perfil não encontrado.');this.profileSettings(name);if(this.data.profiles.length>=32)throw Error('Limite de 32 perfis.');const copy={...structuredClone(source),id:crypto.randomUUID(),name:name.trim()};this.data.profiles.push(copy);this.save();return copy;}
   device(id, patch, knownIds = []) {
+    if (patch && typeof patch === 'object' && !Array.isArray(patch) && Object.hasOwn(patch, 'followMap')) {
+      if (Object.keys(patch).length !== 1 || patch.followMap !== true) throw new Error('Configuração inválida.');
+      const previous = { ...(this.data.devices[id] || {}) };
+      for (const key of ['color', 'effect', 'palette', 'speed', 'nativeMode']) delete previous[key];
+      if (Object.keys(previous).length) this.data.devices[id] = previous; else delete this.data.devices[id];
+      if (this.data.studio) this.data.studio = { ...this.data.studio, excluded: (this.data.studio.excluded || []).filter(item => item !== id) };
+      this.save(); return;
+    }
     const valid = validatePatch(patch, true), previous = { ...(this.data.devices[id] || {}) };
     if ('effect' in valid) delete previous.nativeMode;
     if (this.data.studio && ('color' in valid || 'effect' in valid || 'nativeMode' in valid)) this.data.studio = { ...this.data.studio, excluded: [...new Set([...(this.data.studio.excluded || []), id])] };

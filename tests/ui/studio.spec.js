@@ -148,3 +148,58 @@ test('resposta antiga de um comando não remove um perfil recebido pelo stream',
   await page.locator('#studio-choose').click();
   await expect(page.locator('#studio-library')).toContainText(name);
 });
+
+test('indicador fora do mapa, botão Voltar a seguir o mapa e reconexão da prévia funcionam na interface', async ({ page }) => {
+  const id = '1'.repeat(24);
+  let excluded = true, customized = true, previewCalls = 0;
+  const device = () => ({ id, name: 'RAM personalizada', vendor: 'Teste', type: 1, kind: 'device', ledCount: 8, status: 'online', customized, mapExcluded: excluded, settings: { power: true, color: customized ? '#ff0055' : '#00f0ff', brightness: 80, speed: 40, effect: 'static' }, effects: ['static', 'wave'], modes: [], zones: [] });
+  const mockState = async () => {
+    const s = await (await page.request.get('/api/state')).json();
+    s.hardware = { connected: true, controllerCount: 1, error: null, devices: [device()] };
+    return s;
+  };
+  await page.route('**/api/state', async route => route.fulfill({ json: await mockState() }));
+  await page.route('**/api/events', async route => route.fulfill({ headers: { 'Content-Type': 'text/event-stream' }, body: `retry: 60000\ndata: ${JSON.stringify(await mockState())}\n\n` }));
+  await page.route('**/api/studio', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    try {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.excluded = excluded ? [id] : [];
+      await route.fulfill({ json: body });
+    } catch {
+      await route.continue().catch(() => {});
+    }
+  });
+  await page.route('**/api/devices/' + id, async route => {
+    const payload = route.request().postDataJSON();
+    if (payload?.followMap === true) { excluded = false; customized = false; }
+    const body = await mockState();
+    await route.fulfill({ status: 200, json: body });
+  });
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  const layout = await page.evaluate(ds => NexusSpatial.defaults(ds), [device()]);
+  await page.request.post('/api/studio', { headers: { Origin: new URL(page.url()).origin, 'X-Nexus-Client': 'web' }, data: { layout, enabled: true } });
+
+  await page.locator('.nav[data-page=devices]').click();
+  await expect(page.locator('#devices')).toContainText('Ajuste individual · fora do mapa');
+  await expect(page.locator('#devices .follow-map-button')).toBeVisible();
+
+  await page.route('**/api/studio/preview', async route => {
+    previewCalls++;
+    if (previewCalls === 1) return route.fulfill({ status: 503, body: ' ocupada ' });
+    const packet = { image: null, layout, enabled: true, power: true, connected: true, playback: { spatial: true, effect: null, name: 'Aurora espacial' }, output: [{ id, source: 'map', rgb: Buffer.from(Array(24).fill(120)).toString('base64') }] };
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 50000\ndata: ' + JSON.stringify(packet) + '\n\n' });
+  });
+
+  await page.locator('.nav[data-page=studio]').click();
+  await expect(page.locator('.studio-item.excluded')).toHaveCount(1);
+  await page.locator('.studio-item.excluded').first().click();
+  await expect(page.locator('#studio-piece-excluded')).toBeVisible();
+  await expect(page.locator('#studio-follow-map')).toBeVisible();
+  await expect.poll(() => previewCalls, { timeout: 6000 }).toBeGreaterThanOrEqual(2);
+
+  await page.locator('#studio-follow-map').click();
+  await expect(page.locator('.studio-item.excluded')).toHaveCount(0);
+  await expect(page.locator('#studio-piece-excluded')).toBeHidden();
+});

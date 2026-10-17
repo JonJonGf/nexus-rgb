@@ -137,7 +137,11 @@
     const container = $('devices'); container.replaceChildren();
     if (!devices.length) return empty(container, T(state.hardware.connected && state.hardware.detecting ? 'Detectando componentes RGB no controlador…' : 'Nenhum dispositivo detectado. Não mostramos componentes simulados.'));
     for (const d of devices) {
-      const card = el('article', 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div'); title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), el('span', `sync-label ${d.customized ? 'customized' : ''}`, d.customized ? T('Ajuste individual') : T('Segue o controle geral')));
+      const card = el('article', 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div');
+      const syncRow = el('div', 'device-sync-row');
+      syncRow.append(el('span', `sync-label ${d.customized || d.mapExcluded ? 'customized' : ''}`, d.mapExcluded ? T('Ajuste individual · fora do mapa') : d.customized ? T('Ajuste individual') : T('Segue o controle geral')));
+      if (d.mapExcluded) { const follow = el('button', 'button subtle follow-map-button', T('Voltar a seguir o mapa')); follow.type = 'button'; follow.addEventListener('click', () => action(`/api/devices/${d.id}`, { followMap: true })); syncRow.append(follow); }
+      title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
       const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', T`Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);
       if (d.error) card.append(el('p', 'error', T(d.error)));
       const group = el('div', 'device-controls'); const colorLabel = el('label', '', T('Cor')); const color = el('input'); color.type = 'color'; color.value = d.settings.color; color.setAttribute('aria-label', T`Cor de ${d.name}`); color.addEventListener('change', () => action(`/api/devices/${d.id}`, { color: color.value, effect: 'static' })); color.disabled = !d.effects.includes('static'); colorLabel.append(color);
@@ -248,8 +252,9 @@
   async function loadNetwork() {
     if (!admin || loading) return; loading = true;
     try {
-      networkInfo = await api('/api/network'); const select = $('network-select'); const old = select.value; select.replaceChildren();
-      for (const item of networkInfo.urls) { const option = el('option', '', `${item.name} — ${item.url}`); option.value = item.address; select.append(option); } if ([...select.options].some(o => o.value === old)) select.value = old;
+      networkInfo = await api('/api/network'); const select = $('network-select'); const preferred = networkInfo.selectedAddress || select.value; select.replaceChildren();
+      for (const item of networkInfo.urls) { const option = el('option', '', `${item.name} — ${item.url}`); option.value = item.address; select.append(option); }
+      if ([...select.options].some(o => o.value === preferred)) select.value = preferred;
       $('uptime').textContent = `${Math.floor(networkInfo.uptime / 3600)}h ${Math.floor(networkInfo.uptime % 3600 / 60)}min`;
       $('memory').textContent = `${networkInfo.memoryMB} MB`; $('data-directory').textContent = networkInfo.dataDirectory;
       const ports = networkInfo.ports; $('configured-ports').textContent = ports ? T`Painel ${ports.panel} · SDK ${ports.sdk} · Alexa ${ports.alexa}` : T('Consulte a configuração no ícone do Nexus.');
@@ -266,8 +271,19 @@
       const peers = $('alexa-peers'); peers.replaceChildren(); for (const ip of networkInfo.alexa.peers) peers.append(peerRow(ip, T('Echo autorizado na rede local'), T('Remover'), async () => { await action('/api/alexa/revoke', { ip }); loadNetwork(); }));
     } catch (error) { toast(error.message); } finally { loading = false; }
   }
+  $('network-select').addEventListener('change', async () => {
+    if (!admin) return;
+    const address = $('network-select').value;
+    if (networkInfo) networkInfo.selectedAddress = address;
+    const saved = await action('/api/network', { address });
+    if (saved && !$('qr-box').hidden) {
+      const data = await action('/api/link', { address });
+      if (data) { mobileLink = data.link; $('qr-image').src = data.qr; $('pair-link').href = data.link; $('pair-link').textContent = data.link; }
+    }
+  });
   $('generate-qr').addEventListener('click', async () => {
     const data = await action('/api/link', { address: $('network-select').value }); if (!data) return;
+    if (networkInfo && data.address) networkInfo.selectedAddress = data.address;
     mobileLink = data.link; $('qr-image').src = data.qr; $('pair-link').href = data.link; $('pair-link').textContent = data.link; $('qr-box').hidden = false;
   });
   $('copy-link').addEventListener('click', async () => {

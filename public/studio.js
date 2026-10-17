@@ -97,10 +97,17 @@
   }
   function error(e) { toast?.(e.message || String(e)); }
   async function request(route, body, method) { try { return await api(route, body, method); } catch (e) { error(e); return null; } }
+  function isExcluded(deviceId) {
+    return Boolean((data?.excluded || state?.studio?.excluded || []).includes(deviceId) || state?.hardware?.devices?.find(d => d.id === deviceId)?.mapExcluded);
+  }
   function selection(force = false) {
     const value = item(); $('studio-device-form').hidden = !value;
     $('studio-selection-note').hidden = Boolean(value);
-    if (!value || !force && $('studio-device-form').contains(document.activeElement)) return;
+    if (value) {
+      $('studio-piece-excluded').hidden = !isExcluded(value.deviceId);
+      $('studio-follow-map').disabled = false;
+    }
+    if (!value || !force && $('studio-device-form').contains(document.activeElement) && document.activeElement !== $('studio-follow-map')) return;
     for (const key of ['shape', 'rotation', 'count', 'columns']) $('studio-' + key).value = value[key];
     $('studio-item-name').value = value.name; $('studio-start').value = value.start + 1; $('studio-reverse').checked = value.reverse;
     for (const key of ['x', 'y', 'width', 'height']) $('studio-' + key).value = Math.round(value[key] * 1000) / 10;
@@ -108,7 +115,7 @@
     $('studio-piece-summary').textContent = value.count + ' LEDs · ' + (value.start + 1) + '–' + (value.start + value.count);
     $('studio-columns-field').hidden = value.shape !== 'matrix';
     document.querySelectorAll('.studio-shapes [data-shape]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.shape === value.shape)); b.disabled = !isAdmin; });
-    $('studio-device-form').querySelectorAll('input,select,button').forEach(e => { e.disabled = !isAdmin; });
+    $('studio-device-form').querySelectorAll('input,select,button').forEach(e => { if (e.id !== 'studio-follow-map') e.disabled = !isAdmin; });
     workspace?.paint();
   }
   function position(button, value) { if (!button) return; button.style.left = value.x * 100 + '%'; button.style.top = value.y * 100 + '%'; button.style.width = value.width * 100 + '%'; button.style.height = value.height * 100 + '%'; button.style.setProperty('--rotation', value.rotation + 'deg'); }
@@ -116,7 +123,8 @@
     if (!data) return;
     const container = $('studio-items'); container.replaceChildren(); $('studio-empty').hidden = Boolean(data.layout.length);
     for (const value of data.layout) {
-      const button = make('button', undefined, 'studio-item' + (value.key === selected ? ' selected' : '')); button.type = 'button'; button.dataset.key = value.key; button.dataset.shape = value.shape; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count); position(button, value);
+      const excluded = isExcluded(value.deviceId);
+      const button = make('button', undefined, 'studio-item' + (value.key === selected ? ' selected' : '') + (excluded ? ' excluded' : '')); button.type = 'button'; button.dataset.key = value.key; button.dataset.shape = value.shape; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count) + (excluded ? ' · ' + T('Fora do mapa') : ''); position(button, value);
       button.append(make('i'), make('span', value.name)); container.append(button);
       button.addEventListener('click', event => { if(event.shiftKey||event.ctrlKey||event.metaKey)workspace.select(value.key,true); selected = workspace.keys.has(value.key)?value.key:[...workspace.keys][0]||value.key; inspectorTab('device'); selection(true); map(); });
       button.addEventListener('pointerdown', event => {
@@ -138,7 +146,7 @@
     }
     $('studio-map-summary').textContent = data.layout.length + T(' posições · ') + data.layout.reduce((n, i) => n + i.count, 0) + T(' LEDs mapeados');
     const chips = $('studio-device-chips'); chips.replaceChildren();
-    for (const value of data.layout) { const chip = make('button', value.name); chip.type = 'button'; chip.dataset.key = value.key; chip.setAttribute('aria-pressed', String(value.key === selected)); chip.addEventListener('click', event => { workspace.select(value.key,event.shiftKey || event.ctrlKey || event.metaKey); selected=workspace.keys.has(value.key)?value.key:[...workspace.keys][0]||value.key; inspectorTab('device'); map(); selection(true); }); chips.append(chip); }
+    for (const value of data.layout) { const excluded = isExcluded(value.deviceId); const chip = make('button', value.name, excluded ? 'excluded' : ''); chip.type = 'button'; chip.dataset.key = value.key; if (excluded) chip.title = T('Ajuste individual · fora do mapa'); chip.setAttribute('aria-pressed', String(value.key === selected)); chip.addEventListener('click', event => { workspace.select(value.key,event.shiftKey || event.ctrlKey || event.metaKey); selected=workspace.keys.has(value.key)?value.key:[...workspace.keys][0]||value.key; inspectorTab('device'); map(); selection(true); }); chips.append(chip); }
     workspace?.sync(data.layout);
   }
   function controls() {
@@ -226,7 +234,7 @@
     loading = true;
     try {
       const version = editVersion, next = await api('/api/studio');
-      const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values);
+      const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values) || JSON.stringify(old.excluded) !== JSON.stringify(next.excluded);
       const layoutChanged = !old || JSON.stringify(old.layout) !== JSON.stringify(next.layout);
       if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) next.layout = old.layout;
       data = next;
@@ -250,6 +258,10 @@
   $('studio-parameters').addEventListener('change', parameters);
   $('studio-retry').addEventListener('click', scheduleSave);
   $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
+  $('studio-follow-map').addEventListener('click', async () => {
+    const value = item(); if (!value) return;
+    if (await sharedPlay('/api/devices/' + value.deviceId, { followMap: true })) { map(); selection(true); }
+  });
   $('studio-device-form').addEventListener('submit', e => e.preventDefault());
   function editPiece(field) {
     const value = item(); if (!value) return;
@@ -410,8 +422,35 @@
   $('settings-fps').addEventListener('input', () => { fpsDirty = true; fpsLabel(); });
   document.querySelectorAll('[data-fps]').forEach(button => button.addEventListener('click', () => { fpsDirty = true; $('settings-fps').value = button.dataset.fps; fpsLabel(); }));
   $('settings-fps-form').addEventListener('submit', async event => { event.preventDefault(); const result = await request('/api/settings', { fps: Number($('settings-fps').value) }, 'POST'); if (result) { fpsDirty = false; $('settings-fps').value = result.performance.fps; fpsLabel(); toast(T('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.')); } });
+  let streamTimer = null, streamDelay = 2000;
+  function stopStream() { clearTimeout(streamTimer); streamTimer = null; stream?.close(); stream = null; }
+  function connectPreview() {
+    stopStream();
+    if (!api || current !== 'studio' || document.hidden) return;
+    stream = new EventSource('/api/studio/preview');
+    stream.onmessage = event => { try {
+      streamDelay = 2000;
+      const frame = JSON.parse(event.data), image = $('studio-preview'); liveFrame = frame;
+      image.hidden = !frame.image || !frame.enabled || !frame.power || !frame.connected || Boolean(frame.error);
+      if (!image.hidden) image.src = 'data:image/png;base64,' + frame.image;
+      else image.removeAttribute('src');
+      // A frame can still use the preceding geometry while a new edit is
+      // being sampled. It describes sent colors, never editable positions.
+      drawOutput();
+    } catch {} };
+    stream.onerror = () => {
+      stopStream();
+      if (current !== 'studio' || document.hidden) return;
+      const delay = streamDelay; streamDelay = Math.min(streamDelay * 2, 15000);
+      streamTimer = setTimeout(async () => {
+        streamTimer = null;
+        if (current !== 'studio' || document.hidden) return;
+        await refresh(); connectPreview();
+      }, delay);
+    };
+  }
   function open(name) {
-    current = name; clearInterval(poll); stream?.close(); stream = null;
+    current = name; clearInterval(poll); stopStream();
     health?.open(name);
     if (!api || !['studio', 'settings'].includes(name) || document.hidden) return;
     refresh();
@@ -419,16 +458,7 @@
     if (name === 'studio') {
       liveFrame = null; $('studio-preview').hidden = true; $('studio-preview').removeAttribute('src'); drawOutput();
       $('studio-current-effect').textContent = T('Aguardando saída');
-      stream = new EventSource('/api/studio/preview');
-      stream.onmessage = event => { try {
-        const frame = JSON.parse(event.data), image = $('studio-preview'); liveFrame = frame;
-        image.hidden = !frame.image || !frame.enabled || !frame.power || !frame.connected || Boolean(frame.error);
-        if (!image.hidden) image.src = 'data:image/png;base64,' + frame.image;
-        else image.removeAttribute('src');
-        // A frame can still use the preceding geometry while a new edit is
-        // being sampled. It describes sent colors, never editable positions.
-        drawOutput();
-      } catch {} };
+      streamDelay = 2000; connectPreview();
     } else if (isAdmin) api('/api/network').then(n => { ports = n.ports; renderPorts(); }).catch(error);
   }
   window.addEventListener('nexus:languagechange', () => {
@@ -439,7 +469,7 @@
     const source = $('studio-source').value; formulaPalette(false); $('studio-source').value = source; formulaValidity(formulaValid); formulaReadout(); $('formula-preview-toggle').textContent = T(formulaTimer || codePreview.playing() ? 'Pausar prévia' : 'Testar prévia');
   });
   document.addEventListener('visibilitychange', () => open(current));
-  window.addEventListener('pagehide', () => { clearInterval(poll); stream?.close(); stream = null; });
+  window.addEventListener('pagehide', () => { clearInterval(poll); stopStream(); });
   workspace = window.NexusWorkspace.create({get:()=>data,selected:()=>selected,position,selection,mark,gesture:value=>{dragging=value;},save:()=>{mark();map();selection(true);}});
   calibration = window.NexusCalibration.create({item,devices:()=>state?.hardware.devices||[],selectFirst:()=>{selected=data?.layout[0]?.key;map();selection(true);},api:(...args)=>api(...args),save:()=>{mark();map();selection(true);}});
   backups = window.NexusBackups.create({api:(...args)=>api(...args),refresh:()=>location.reload()});
@@ -463,7 +493,13 @@
       document.querySelectorAll('.studio-admin').forEach(e => { if (!e.closest('#studio-formula-form')) e.hidden = !admin; }); $('settings-fps-save').disabled = !admin; $('settings-fps').disabled = !admin;
       document.querySelectorAll('[data-fps]').forEach(e => { e.disabled = !admin; }); $('settings-admin-note').hidden = admin;
       if (!fpsDirty && document.activeElement !== $('settings-fps')) { $('settings-fps').value = next.performance?.fps || 20; fpsLabel(); }
-      $('studio-readonly-note').hidden = admin; if (data) status(); selection();
+      $('studio-readonly-note').hidden = admin;
+      if (data) {
+        const excludedChanged = Array.isArray(next.studio?.excluded) && JSON.stringify(data.excluded) !== JSON.stringify(next.studio.excluded);
+        if (Array.isArray(next.studio?.excluded)) data.excluded = next.studio.excluded;
+        status(); if (excludedChanged && current === 'studio' && !dragging) map();
+      }
+      selection();
       if (first) open(page);
     }
   };

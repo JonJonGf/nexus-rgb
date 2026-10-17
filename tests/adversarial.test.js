@@ -68,18 +68,25 @@ test('comando individual inválido preserva modo nativo em memória e no arquivo
 });
 
 test('limitação HTTP real recusa inundação e volta a atender depois da janela', { timeout: 75000 }, async t => {
-  const { request } = await fixture(t); // Session creation consumed request 1.
-  for (let i = 0; i < 239; i++) assert.equal((await request('/api/health')).status, 200);
+  const { request } = await fixture(t);
+  for (let i = 0; i < 240; i++) assert.equal((await request('/api/health')).status, 200);
   assert.equal((await request('/api/health')).status, 429);
   await sleep(60500); assert.equal((await request('/api/health')).status, 200);
 });
 
-test('arquivos da interface têm limite próprio sem consumir ou contornar o orçamento da API', async t => {
-  const { request } = await fixture(t);
+test('orçamentos de leitura, gravação, operações caras e arquivos estáticos são independentes', async t => {
+  const { request, cookie } = await fixture(t); // Session creation consumed 1 writeRate token.
   for (let i = 0; i < 230; i++) assert.equal((await request('/api/health')).status, 200);
   for (let i = 0; i < 250; i++) assert.equal((await request('/studio.js')).status, 200);
-  for (let i = 0; i < 9; i++) assert.equal((await request('/api/health')).status, 200);
+  for (let i = 0; i < 60; i++) assert.equal((await request('/api/diagnostics', { cookie })).status, 200);
+  assert.equal((await request('/api/diagnostics', { cookie })).status, 429);
+  // Write and read budgets remain available even after heavy budget is exhausted.
+  assert.equal((await request('/api/control', { method: 'POST', cookie, body: { brightness: 75 } })).status, 200);
+  for (let i = 0; i < 10; i++) assert.equal((await request('/api/health')).status, 200);
   assert.equal((await request('/api/health')).status, 429);
+  // Write budget still works after read budget is exhausted (1 session + 1 control = 2 used out of 180).
+  for (let i = 2; i < 180; i++) assert.equal((await request('/api/control', { method: 'POST', cookie, body: { brightness: 75 } })).status, 200);
+  assert.equal((await request('/api/control', { method: 'POST', cookie, body: { brightness: 75 } })).status, 429);
   for (let i = 250; i < 512; i++) assert.equal((await request('/studio.js')).status, 200);
   assert.equal((await request('/studio.js')).status, 429);
 });

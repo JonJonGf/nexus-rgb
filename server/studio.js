@@ -27,7 +27,11 @@ class Studio {
     }
     this.timer = setInterval(() => this.pump(), 8); this.timer.unref();
   }
-  get config() { return this.store.data.studio || { enabled: false, activeId: builtin[0].id, values: {}, layout: [], excluded: [] }; }
+  get config() {
+    if (this.store.data.studio) return this.store.data.studio;
+    const excluded = Object.entries(this.store.data.devices || {}).filter(([, d]) => d && ('color' in d || 'effect' in d || 'nativeMode' in d)).map(([id]) => id);
+    return { enabled: false, activeId: builtin[0].id, values: {}, layout: [], excluded };
+  }
   get fps() { return this.store.data.performance?.fps || 20; }
   devices() { return this.hardware.snapshot().devices.filter(d => d.ledCount > 0 && d.effects.includes('wave')); }
   layout() {
@@ -41,7 +45,7 @@ class Studio {
     return [...saved, ...added];
   }
   snapshot(full = false) {
-    const data = { enabled: this.config.enabled, activeId: this.config.activeId, error: this.error, metrics: { ...this.metrics }, fps: this.fps };
+    const data = { enabled: this.config.enabled, activeId: this.config.activeId, excluded: [...(this.config.excluded || [])], error: this.error, metrics: { ...this.metrics }, fps: this.fps };
     if (full) { data.layout = this.layout(); data.values = this.config.values; data.effects = [...this.effects.values()].map(({ source, canvas, ...effect }) => effect); }
     return data;
   }
@@ -85,10 +89,10 @@ class Studio {
   }
   configure(body) {
     if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['layout', 'activeId', 'values', 'enabled'].includes(k))) throw Error('Configuração de mapa inválida.');
-    const previous = this.config, next = { ...previous };
+    const previous = this.config, next = { ...previous, excluded: [...(previous.excluded || [])] };
     if (Object.hasOwn(body, 'layout')) next.layout = schema.layout(body.layout);
     if (Object.hasOwn(body, 'enabled')) { if (typeof body.enabled !== 'boolean') throw Error('Ativação inválida.'); next.enabled = body.enabled; }
-    if (Object.hasOwn(body, 'activeId')) { if (!this.effects.has(body.activeId)) throw Error('Efeito não encontrado.'); next.activeId = body.activeId; next.values = {}; next.excluded = []; }
+    if (Object.hasOwn(body, 'activeId')) { if (!this.effects.has(body.activeId)) throw Error('Efeito não encontrado.'); if (body.activeId !== previous.activeId) next.values = {}; next.activeId = body.activeId; }
     const effect = this.effects.get(next.activeId);
     if (!effect) throw Error('Efeito não encontrado.');
     next.values = schema.parameters(effect, Object.hasOwn(body, 'values') ? body.values : next.values);
@@ -144,9 +148,13 @@ class Studio {
     for (const client of this.clients) client.res.write(event);
   }
   watch(req, res, authorized) {
-    if (this.clients.size >= 4) throw Error('Limite de prévias simultâneas atingido.');
+    for (const c of this.clients) if (c.res.destroyed || !c.authorized() || c.res.writableLength > 512 * 1024) { c.res.end(); this.clients.delete(c); }
+    const current = authorized?.(), isAdmin = Boolean(current === true || current?.admin);
+    let lanClients = 0;
+    for (const c of this.clients) { const s = c.authorized?.(); if (!(s === true || s?.admin)) lanClients++; }
+    if (this.clients.size >= 4 || (!isAdmin && lanClients >= 2)) throw Object.assign(Error('Limite de prévias simultâneas atingido.'), { status: 503 });
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' }); res.write('retry: 2000\n\n');
-    const client = { req, res, authorized }; this.clients.add(client); res.on('close', () => this.clients.delete(client));
+    const client = { req, res, authorized }; this.clients.add(client); res.on('close', () => this.clients.delete(client)); res.on('error', () => this.clients.delete(client));
     res.write('data: ' + JSON.stringify(this.previewPacket()) + '\n\n');
   }
   stopWorker() { clearTimeout(this.deadline); this.worker?.kill(); this.worker = null; this.busy = false; this.ready = false; this.frames = 0; this.windowAt = Date.now(); this.nextFrame = 0; this.metrics.fps = 0; this.metrics.memoryMB = 0; }

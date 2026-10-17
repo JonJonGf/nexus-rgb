@@ -2,7 +2,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Store } = require('./store');
+const { Store, readJson, writeJson } = require('./store');
 const { presets, applyPreset } = require('./presets');
 const { Security, RateLimiter } = require('./security');
 const { Hardware } = require('./hardware');
@@ -46,11 +46,27 @@ async function createApp(options = {}) {
   fs.mkdirSync(directory, { recursive: true });
   const firstUse=new FirstUse(directory,options.disableWelcome===true);
   const getInterfaces = options.getInterfaces || network.adapters;
+  const networkFile = path.join(directory, 'network.json');
+  let preferredAddress = '';
+  try { const saved = readJson(networkFile, { address: '' }); if (saved && typeof saved.address === 'string' && network.privateIp(saved.address)) preferredAddress = saved.address; } catch {}
   const store = options.store || new Store(directory); const security = new Security(directory, getInterfaces);
   const hardware = options.hardware || new Hardware(store, { port: configuredPorts.sdk });
   const localPort = configuredPorts.panel;
-  const clients = new Set(); const rate = new RateLimiter(240); const assetRate = new RateLimiter(512); const globalRate = new RateLimiter(2000);
+  const clients = new Set();
+  const readRate = new RateLimiter(240), writeRate = new RateLimiter(180), heavyRate = new RateLimiter(60), assetRate = new RateLimiter(512), globalRate = new RateLimiter(2000);
   let local, heartbeat;
+  const resolveLan = (port = local?.address()?.port || localPort) => {
+    const addresses = getInterfaces();
+    const chosen = network.selectAdapter(addresses, preferredAddress);
+    return { addresses, chosen, selectedAddress: chosen?.address || null, lanUrl: chosen ? `http://${chosen.address}:${port}/` : null };
+  };
+  const savePreferredAddress = address => {
+    if (typeof address !== 'string' || (address !== '' && !network.privateIp(address))) throw new Error('Endereço de rede inválido.');
+    const addresses = getInterfaces();
+    if (address !== '' && !addresses.some(a => a.address === address)) throw new Error('Endereço de rede indisponível.');
+    preferredAddress = address;
+    writeJson(networkFile, { address: preferredAddress });
+  };
   const snapshot = () => ({ version: VERSION, library: store.data.library || {favorites:[],categories:{},transitionMs:0}, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices, studio: savedStudio }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length, spatial: Boolean(savedStudio?.enabled) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
   const broadcast = () => {
     const message = `data: ${JSON.stringify(snapshot())}\n\n`;
@@ -103,9 +119,14 @@ async function createApp(options = {}) {
     if (req.headers.origin && req.headers.origin !== origin) return json(res, 403, { error: 'Origem não autorizada.' });
     if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origem não autorizada.' });
     const url = new URL(req.url, origin); const route = url.pathname;
-    const budget = ['GET', 'HEAD'].includes(req.method) && assets.has(route) ? assetRate : rate;
+    const isAsset = ['GET', 'HEAD'].includes(req.method) && assets.has(route);
+    const isHeavy = route === '/api/studio/import' || route === '/api/studio/draft' || /^\/api\/studio\/effects\/[a-f0-9]{24}\/duplicate$/.test(route) || route === '/api/backups' || route.startsWith('/api/backups/') || route === '/api/resources' || route === '/api/diagnostics' || route === '/api/link' || route === '/api/alexa/discover';
+    const budget = isAsset ? assetRate : isHeavy ? heavyRate : ['GET', 'HEAD'].includes(req.method) ? readRate : writeRate;
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
-    if (route === '/api/health' && req.method === 'GET' && isLocal) return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}) } });
+    if (route === '/api/health' && req.method === 'GET' && isLocal) {
+      const lan = resolveLan(lport);
+      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}) } });
+    }
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
       if (req.headers.origin !== origin || req.headers['x-nexus-client'] !== 'web') return json(res, 403, { error: 'Requisição sem proteção de origem.' });
@@ -180,13 +201,23 @@ async function createApp(options = {}) {
       if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin(); store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
-        admin(); return json(res, 200, { urls: getInterfaces().map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), ports: { panel: lport, sdk: configuredPorts.sdk, alexa: alexa.port, discovery: 1900 }, alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });
+        admin(); const lan = resolveLan(lport);
+        return json(res, 200, { urls: lan.addresses.map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), selectedAddress: lan.selectedAddress, lanUrl: lan.lanUrl, ports: { panel: lport, sdk: configuredPorts.sdk, alexa: alexa.port, discovery: 1900 }, alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });
+      }
+      if (route === '/api/network' && req.method === 'POST') {
+        admin(); const body = await readBody(req);
+        if (Object.keys(body).some(k => k !== 'address')) throw new Error('Configuração inválida.');
+        savePreferredAddress(body.address ?? '');
+        const lan = resolveLan(lport);
+        return json(res, 200, { selectedAddress: lan.selectedAddress, lanUrl: lan.lanUrl });
       }
       if (route === '/api/link' && req.method === 'POST') {
-        admin(); const body = await readBody(req); const addresses = getInterfaces(); const chosen = addresses.find(a => a.address === body.address) || addresses[0];
+        admin(); const body = await readBody(req); const addresses = getInterfaces();
+        if (typeof body.address === 'string' && addresses.some(a => a.address === body.address)) savePreferredAddress(body.address);
+        const chosen = addresses.find(a => a.address === body.address) || network.selectAdapter(addresses, preferredAddress);
         if (!chosen) throw new Error('Conecte o PC a uma rede privada Wi-Fi ou Ethernet.');
         const link = `http://${chosen.address}:${lport}/`;
-        return json(res, 200, { link, qr: await QRCode.toDataURL(link, { width: 260, margin: 2 }) });
+        return json(res, 200, { link, address: chosen.address, qr: await QRCode.toDataURL(link, { width: 260, margin: 2 }) });
       }
       if (route === '/api/alexa' && req.method === 'POST') {
         admin(); const body = await readBody(req);

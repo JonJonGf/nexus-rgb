@@ -41,10 +41,46 @@ test('limites de requisições expiram e tabela não cresce indefinidamente', ()
   for (let i = 0; i < 1500; i++) rate.take(String(i), 101);
   assert.ok(rate.entries.size <= 1024);
 });
-test('DNS rebinding, VPNs e endereços públicos não viram destinos locais', () => {
+test('DNS rebinding, VPNs e endereços públicos não viram destinos locais, e seleção prioriza gateway real sem depender da Internet', async t => {
+  const { fixture } = require('./helpers/http-app');
   assert.equal(network.allowedHost('attacker.example:5050', 5050, interfaces), false);
   assert.equal(network.allowedHost('192.168.3.46:5050', 5050, interfaces), true);
   assert.equal(network.sameSubnet('::ffff:192.168.3.7', interfaces), true);
   assert.equal(network.sameSubnet('192.168.30.7', interfaces), false);
-  assert.deepEqual(network.adapters({ VPN: [{ family: 'IPv4', internal: false, address: '10.0.0.1', netmask: '255.255.255.0' }], Ethernet: [{ family: 'IPv4', internal: false, address: '8.8.8.8' }] }), []);
+  const routes = network.parseRoutes([
+    '0.0.0.0          0.0.0.0      192.168.15.1    192.168.15.20     35',
+    '0.0.0.0          0.0.0.0      192.168.3.1     192.168.3.46      20',
+    '0.0.0.0          0.0.0.0      10.8.0.1        10.8.0.2           5',
+    '0.0.0.0          0.0.0.0      172.22.16.1     172.22.16.1       15'
+  ].join('\n'));
+  const raw = {
+    'WireGuard Tunnel': [{ family: 'IPv4', internal: false, address: '10.8.0.2', netmask: '255.255.255.0' }],
+    'Tailscale': [{ family: 'IPv4', internal: false, address: '10.99.0.5', netmask: '255.255.0.0' }],
+    'vEthernet (WSL)': [{ family: 'IPv4', internal: false, address: '172.22.16.1', netmask: '255.255.240.0' }],
+    'vEthernet (Default Switch)': [{ family: 'IPv4', internal: false, address: '172.19.0.1', netmask: '255.255.240.0' }],
+    'vEthernet (Sem Gateway)': [{ family: 'IPv4', internal: false, address: '192.168.88.1', netmask: '255.255.255.0' }],
+    'vEthernet (Bridge LAN)': [{ family: 'IPv4', internal: false, address: '192.168.15.20', netmask: '255.255.255.0' }],
+    'Ethernet Sem Rota': [{ family: 'IPv4', internal: false, address: '192.168.50.10', netmask: '255.255.255.0' }],
+    'Wi-Fi': [{ family: 'IPv4', internal: false, address: '192.168.3.46', netmask: '255.255.255.0' }],
+    'Pública': [{ family: 'IPv4', internal: false, address: '8.8.8.8', netmask: '255.255.255.0' }]
+  };
+  const list = network.adapters(raw, routes);
+  assert.deepEqual(list.map(i => i.address), ['192.168.3.46', '192.168.15.20', '192.168.50.10']);
+  assert.equal(network.selectAdapter(list, '192.168.50.10').address, '192.168.50.10');
+  assert.equal(network.selectAdapter(list, '10.8.0.2').address, '192.168.3.46');
+  const offline = network.adapters({ 'Wi-Fi Local': [{ family: 'IPv4', internal: false, address: '192.168.3.46', netmask: '255.255.255.0' }] }, []);
+  assert.equal(offline.length, 1); assert.equal(offline[0].address, '192.168.3.46');
+
+  const real = network.adapters();
+  if (real.length) {
+    const f = await fixture(t);
+    const chosen = real.at(-1).address;
+    const res = await f.request('/api/network', { method: 'POST', cookie: f.cookie, body: { address: chosen } });
+    assert.equal(res.status, 200); assert.equal(res.json().selectedAddress, chosen);
+    assert.equal(res.json().lanUrl, `http://${chosen}:${f.localPort}/`);
+    assert.equal((await f.request('/api/health')).json().lanUrl, `http://${chosen}:${f.localPort}/`);
+    assert.equal((await f.request('/api/link', { method: 'POST', cookie: f.cookie, body: {} })).json().link, `http://${chosen}:${f.localPort}/`);
+    assert.equal((await f.request('/api/network', { method: 'POST', cookie: f.cookie, body: { address: '10.255.255.1' } })).status, 400);
+    assert.equal((await f.request('/api/network', { method: 'POST', cookie: f.cookie, body: { address: 'invalido' } })).status, 400);
+  }
 });

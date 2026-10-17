@@ -217,16 +217,57 @@ test('prévia comum acompanha exatamente a saída do SDK no arco-íris, perfil, 
   assert.equal(studio.worker, null); assert.equal(studio.metrics.memoryMB, 0);
 });
 
-test('editar geometria preserva a fonte ativa, os ajustes individuais e um efeito pausado', async t => {
-  const id = 'b'.repeat(24), hardware = { connected: true, on() {}, changed() {}, stop() {}, snapshot() { return { connected: true, devices: [{ id, name: 'Peça', type: 1, ledCount: 8, effects: ['static', 'wave'] }] }; } };
+test('editar geometria, pausar/reativar ou trocar efeito preserva exclusões e followMap devolve a peça ao mapa', async t => {
+  const id = 'b'.repeat(24), hardware = { connected: true, on() {}, changed() {}, stop() {}, snapshot() { const excluded = new Set(this.studio?.config.excluded || []); return { connected: true, devices: [{ id, name: 'Peça', type: 1, ledCount: 8, effects: ['static', 'wave'], modes: [], customized: Object.hasOwn(f.app.store.data.devices, id), mapExcluded: excluded.has(id), settings: { power: true, ...f.app.store.data.master, ...(f.app.store.data.devices[id] || {}) } }] }; } };
   const f = await fixture(t, { hardware }), studio = f.app.studio, layout = studio.layout();
   studio.configure({ layout, enabled: false });
   f.app.store.master({ effect: 'rainbow' });
-  f.app.store.device(id, { color: '#00ff00', effect: 'static' });
+  f.app.store.device(id, { color: '#00ff00', effect: 'static', brightness: 55 });
   const before = structuredClone(f.app.store.data), moved = layout.map(i => ({ ...i, x: 0.6 }));
   studio.configure({ layout: moved });
   assert.equal(studio.config.enabled, false); assert.deepEqual(f.app.store.data.master, before.master); assert.deepEqual(f.app.store.data.devices, before.devices); assert.deepEqual(studio.config.excluded, [id]);
-  studio.configure({ enabled: true }); studio.fail('Teste pausado'); studio.configure({ layout });
+  const secondEffect = [...studio.effects.values()][1].id;
+  studio.configure({ activeId: secondEffect, enabled: true });
+  assert.deepEqual(studio.config.excluded, [id]); assert.equal(studio.hasDevice(id), false);
+  studio.configure({ enabled: false }); studio.configure({ enabled: true });
+  assert.deepEqual(studio.config.excluded, [id]); assert.equal(studio.hasDevice(id), false);
+  assert.equal((await f.request('/api/devices/' + id, { method: 'POST', cookie: f.cookie, body: { followMap: false } })).status, 400);
+  assert.equal((await f.request('/api/devices/' + id, { method: 'POST', cookie: f.cookie, body: { followMap: true, color: '#ff0000' } })).status, 400);
+  const follow = await f.request('/api/devices/' + id, { method: 'POST', cookie: f.cookie, body: { followMap: true } });
+  assert.equal(follow.status, 200);
+  assert.deepEqual(studio.config.excluded, []); assert.equal(studio.hasDevice(id), true);
+  assert.deepEqual(f.app.store.data.devices[id], { brightness: 55 });
+  f.app.store.device(id, { color: '#00ff00', effect: 'static' }); delete f.app.store.data.devices[id].brightness;
+  assert.equal((await f.request('/api/devices/' + id, { method: 'POST', cookie: f.cookie, body: { followMap: true } })).status, 200);
+  assert.equal(f.app.store.data.devices[id], undefined);
+  studio.fail('Teste pausado'); studio.configure({ layout });
   assert.equal(studio.error, 'Teste pausado'); assert.equal(studio.worker, null);
   assert.equal(studio.previewPacket().image, null); assert.equal(studio.previewPacket().playback.spatial, false);
+});
+
+test('prévia reserva capacidade para o administrador, limita clientes LAN, descarta clientes lentos e SW ignora /api/', async t => {
+  const { EventEmitter } = require('node:events');
+  const f = await fixture(t), studio = f.app.studio;
+  const openWatch = (admin, writableLength = 0) => {
+    const req = new EventEmitter(); req.headers = {}; req.socket = { remoteAddress: admin ? '127.0.0.1' : '192.168.1.20' };
+    let status = 200, ended = false;
+    const res = Object.assign(new EventEmitter(), { destroyed: false, writableLength, writeHead(code) { status = code; }, write() {}, end() { ended = true; this.destroyed = true; } });
+    try { studio.watch(req, res, () => ({ admin })); }
+    catch (error) { status = error.status || 503; res.end(); }
+    return { req, res, status: () => status, ended: () => ended };
+  };
+  const lan1 = openWatch(false), lan2 = openWatch(false), lan3 = openWatch(false);
+  assert.equal(lan1.status(), 200); assert.equal(lan2.status(), 200);
+  assert.equal(lan3.status(), 503); assert.equal(lan3.ended(), true);
+  const adm1 = openWatch(true), adm2 = openWatch(true), adm3 = openWatch(true);
+  assert.equal(adm1.status(), 200); assert.equal(adm2.status(), 200);
+  assert.equal(adm3.status(), 503); assert.equal(adm3.ended(), true);
+  lan1.res.writableLength = 600 * 1024;
+  const lan4 = openWatch(false);
+  assert.equal(lan1.ended(), true); assert.equal(lan4.status(), 200);
+  for (const c of [lan2, lan4, adm1, adm2]) c.res.emit('close');
+  assert.equal(studio.clients.size, 0);
+
+  const swCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'sw.js'), 'utf8');
+  assert.match(swCode, /url\.pathname\s*===\s*'\/api'\s*\|\|\s*url\.pathname\.startsWith\('\/api\/'\)/);
 });

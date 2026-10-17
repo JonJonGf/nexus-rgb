@@ -140,9 +140,10 @@ class Hardware extends EventEmitter {
     if (changed || wasDetecting !== this.detecting) this.emit('change');
   }
   snapshot() {
+    const excluded = new Set(this.studio ? (this.studio.config.excluded || []) : (this.store.data.studio?.excluded || Object.entries(this.store.data.devices || {}).filter(([, d]) => d && ('color' in d || 'effect' in d || 'nativeMode' in d)).map(([k]) => k)));
     return { connected: this.connected, detecting: this.detecting, error: this.error, controllerCount: this.devices.length, devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
       const { offset, ...component } = channel;
-      return { ...device, ...component, ...(channels ? { modes: [], splitZone: true } : {}), status: this.connected ? 'online' : 'offline', customized: Object.hasOwn(this.store.data.devices, component.id), settings: this.settings(component.id, !!channels) };
+      return { ...device, ...component, ...(channels ? { modes: [], splitZone: true } : {}), status: this.connected ? 'online' : 'offline', customized: Object.hasOwn(this.store.data.devices, component.id), mapExcluded: excluded.has(component.id), settings: this.settings(component.id, !!channels) };
     })) };
   }
   settings(id, splitZone = false) {
