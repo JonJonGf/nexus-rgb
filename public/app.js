@@ -143,7 +143,7 @@
     $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
     if (!admin) $('profile-form').hidden = true;
     $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';
-    $('alexa-enabled').checked = state.alexa.enabled; $('alexa-status').textContent = T(state.alexa.status);
+    if (state.alexa) { $('alexa-enabled').checked = Boolean(state.alexa.enabled); $('alexa-status').textContent = T(state.alexa.status || ''); }
   }
   function renderMini(devices) {
     const container = $('hardware-mini'); container.replaceChildren();
@@ -179,7 +179,7 @@
     const container = $('profiles'); const signature = JSON.stringify([T.locale(), admin, state.profiles]);
     if (container.dataset.signature === signature) return;
     container.dataset.signature = signature; container.replaceChildren();
-    if (!state.profiles.length) return empty(container, admin ? T('Sua próxima combinação começa em + Criar perfil.') : T('Os perfis salvos no PC aparecem aqui.'));
+    if (!state.profiles?.length) return empty(container, admin ? T('Sua próxima combinação começa em + Criar perfil.') : T('Os perfis salvos no PC aparecem aqui.'));
     for (const p of state.profiles) {
       const card = el('article', 'profile-card'); if (/^#[a-f0-9]{6}$/i.test(p.color)) card.style.setProperty('--profile-color', p.color);
       const colors = p.settings?.palette?.length ? p.settings.palette : [p.color];

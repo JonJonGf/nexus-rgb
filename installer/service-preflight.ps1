@@ -1,8 +1,10 @@
-﻿param(
+param(
   [ValidateSet('Prepare','Restore')][string]$Mode='Prepare',
   [Parameter(Mandatory=$true)][string]$Root,
   [ValidateRange(0,3)][int]$RestoreMask=0,
-  [int]$PanelPort=0,[int]$SDKPort=0
+  [int]$PanelPort=0,[int]$SDKPort=0,
+  [int]$SessionId=-1,
+  [string]$TempDir=''
 )
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
@@ -66,6 +68,81 @@ function Invoke-NexusPreparation {
   foreach($definition in $definitions) {
     $service=$services | Where-Object Name -eq $definition.Name | Select-Object -First 1
     if($service.State -eq 'Running'){$mask=$mask -bor $definition.Bit}
+  }
+  $targetSessionId = if ($SessionId -ge 0) { $SessionId } else {
+    try { [System.Diagnostics.Process]::GetCurrentProcess().SessionId } catch { 1 }
+  }
+  # Gracefully close running tray processes in target session before stopping services
+  $native=Join-Path $Root 'NexusRGB.exe'
+  $unownedProcesses=@($processes | Where-Object {
+    $_.ExecutablePath -and [String]::Equals($_.ExecutablePath,$native,[StringComparison]::OrdinalIgnoreCase) -and -not $owned.ContainsKey([int]$_.ProcessId)
+  })
+
+  # Reject if other Windows user sessions have Nexus RGB processes open
+  $foreignProcesses = @($unownedProcesses | Where-Object { $_.SessionId -ne $targetSessionId })
+  if ($foreignProcesses.Count -gt 0) {
+    return 47
+  }
+
+  # Reject if interactive configuration or recovery dialogs are open
+  $dialogProcesses = @($unownedProcesses | Where-Object {
+    $cmd = $_.CommandLine
+    $cmd -and ($cmd -match '--(restart-rgb|configure-ports)')
+  })
+  if ($dialogProcesses.Count -gt 0) {
+    return 48
+  }
+
+  $trayProcesses = @($unownedProcesses | Where-Object {
+    $cmd = $_.CommandLine
+    -not ($cmd -and ($cmd -match '--(restart-rgb|configure-ports|service|hardware-service|self-test)'))
+  })
+
+  if($trayProcesses.Count -gt 0) {
+    if ($targetSessionId -ne 0) {
+      $targetDir = if ($TempDir -and (Test-Path -LiteralPath $TempDir)) { $TempDir } elseif (Test-Path -LiteralPath $env:TEMP) { $env:TEMP } else { $null }
+      if ($targetDir) {
+        try { Set-Content -LiteralPath (Join-Path $targetDir 'nexus-tray-resume.txt') -Value '1' -Encoding ASCII -Force } catch {}
+      }
+    }
+
+    $normRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\').ToUpperInvariant()
+    $hasher = [System.Security.Cryptography.SHA256]::Create()
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($normRoot)
+    $hashBytes = $hasher.ComputeHash($bytes)
+    $sb = New-Object System.Text.StringBuilder(16)
+    for ($i = 0; $i -lt 8; $i++) { [void]$sb.Append($hashBytes[$i].ToString('X2')) }
+    $pathHash = $sb.ToString()
+    $scopedEvent = "Local\NexusRGB.Tray.Exit.$pathHash"
+
+    foreach ($evtName in @($scopedEvent, 'Local\NexusRGB.Tray.Exit')) {
+      try {
+        $handle = [System.Threading.EventWaitHandle]::OpenExisting($evtName)
+        [void]$handle.Set()
+        $handle.Dispose()
+      } catch {}
+    }
+
+    $deadline = [DateTime]::UtcNow.AddSeconds(3)
+    while ([DateTime]::UtcNow -lt $deadline) {
+      $remaining = @(Get-CimInstance Win32_Process | Where-Object {
+        $_.ExecutablePath -and [String]::Equals($_.ExecutablePath,$native,[StringComparison]::OrdinalIgnoreCase) -and -not $owned.ContainsKey([int]$_.ProcessId)
+      })
+      if (-not $remaining.Count) { break }
+      Start-Sleep -Milliseconds 100
+    }
+    $remaining = @(Get-CimInstance Win32_Process | Where-Object {
+      $_.ExecutablePath -and [String]::Equals($_.ExecutablePath,$native,[StringComparison]::OrdinalIgnoreCase) -and -not $owned.ContainsKey([int]$_.ProcessId)
+    })
+    foreach ($p in $remaining) {
+      $current = Get-CimInstance Win32_Process -Filter "ProcessId = $($p.ProcessId)" -ErrorAction SilentlyContinue
+      if ($current -and
+          [String]::Equals($current.ExecutablePath, $native, [StringComparison]::OrdinalIgnoreCase) -and
+          $current.SessionId -eq $targetSessionId -and
+          $current.CreationDate -eq $p.CreationDate) {
+        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+      }
+    }
   }
   try {
     foreach($definition in $definitions) {

@@ -401,3 +401,18 @@ test('revisão de layout impede sobrescrita silenciosa entre clientes concorrent
   assert.match(conflict.json().error, /alterado em outro dispositivo/);
   assert.equal(studio.layout()[0].x, 0.42);
 });
+
+test('descoberta de novos dispositivos sincroniza o mapa automaticamente sem necessidade de troca de efeito', async t => {
+  const f = await fixture(t);
+  const hardware = f.app.hardware;
+  const initial = (await f.request('/api/studio', { cookie: f.cookie })).json();
+  const initialCount = initial.layout.length;
+
+  const newDev = { id: 'b'.repeat(24), name: 'Nova RAM ARGB', ledCount: 8, type: 2, effects: ['wave', 'static'] };
+  hardware.devices.push(newDev);
+
+  const updated = (await f.request('/api/studio', { cookie: f.cookie })).json();
+  assert.equal(updated.layout.length, initialCount + 1);
+  assert.ok(updated.layout.some(item => item.deviceId === 'b'.repeat(24)));
+  assert.equal(updated.activeId, initial.activeId);
+});

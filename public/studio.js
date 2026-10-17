@@ -168,7 +168,7 @@
     const form = $('studio-parameters'), signature = JSON.stringify([T.locale(), data.enabled, effect.id, effect.controls, data.values]);
     if (signature === controlSignature || form.contains(document.activeElement)) return;
     controlSignature = signature; form.replaceChildren();
-    for (const control of data.enabled ? effect.controls : []) {
+    for (const control of data.enabled ? (effect.controls || []) : []) {
       const label = make('label', effect.builtin || effect.recipe ? T(control.label) : control.label); let input;
       if (control.type === 'combobox') { input = make('select'); for (const value of control.values) { const option = make('option', value); option.value = value; input.append(option); } }
       else { input = make('input'); input.type = control.type === 'boolean' ? 'checkbox' : control.type === 'color' ? 'color' : 'number'; if (control.type === 'number') { input.min = control.min; input.max = control.max; input.step = 'any'; } }
@@ -214,7 +214,7 @@
     $('studio-toggle').hidden = !data.enabled;
     $('studio-common-adjust').hidden = Boolean(data.enabled);
     $('studio-profile-form').hidden = !isAdmin || !data.enabled;
-    $('studio-effect-heading').textContent = data.enabled ? effectName(data.effects.find(e => e.id === data.activeId)) : effectNames[state?.master.effect] || '';
+    $('studio-effect-heading').textContent = data.enabled ? effectName(data.effects.find(e => e.id === data.activeId)) : effectNames[state?.master?.effect] || '';
     $('studio-error').hidden = !data.error; $('studio-error').textContent = T(data.error || '');
     $('studio-state').textContent = data.error ? T('Efeito pausado') : data.enabled ? T('Mapa ao vivo') : T('Controle comum');
     renderRecovery();
@@ -274,7 +274,7 @@
   $('studio-picker-close').addEventListener('click', () => $('studio-picker-dialog').close());
   $('studio-library-search').addEventListener('input', () => renderGallery());
   document.querySelectorAll('[data-library]').forEach(b => b.addEventListener('click', () => { libraryFilter = b.dataset.library; document.querySelectorAll('[data-library]').forEach(e => e.setAttribute('aria-pressed', String(e === b))); renderGallery(); }));
-  let loadingPromise = null;
+  let loadingPromise = null, refreshSeq = 0;
   async function refresh(keepDraft = true, force = false) {
     if (!api || document.hidden || !['studio', 'settings'].includes(current)) return;
     if (loading) {
@@ -283,9 +283,11 @@
       if (!api || document.hidden || !['studio', 'settings'].includes(current)) return;
     }
     loading = true;
+    const seq = ++refreshSeq;
     loadingPromise = (async () => {
       try {
         const version = editVersion, next = await api('/api/studio');
+        if (seq !== refreshSeq) return;
         const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values) || JSON.stringify(old.excluded) !== JSON.stringify(next.excluded);
         const layoutChanged = !old || JSON.stringify(old.layout) !== JSON.stringify(next.layout);
         if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) {
@@ -296,11 +298,17 @@
         if (current === 'studio') {
           if (changed) { if (!dragging) { map(); selection(); } renderLibrary(); }
           else status();
-          if (layoutChanged && !dirty && !dragging) { map(); selection(); }
+          if (layoutChanged && !dirty && !dragging) {
+            map();
+            if ((!selected || !data.layout?.some(i => i.key === selected)) && data.layout?.length > 0) {
+              selected = data.layout[0].key;
+            }
+            selection();
+          }
         }
         const text = data.metrics.fps ? data.metrics.fps + T(' FPS renderizados · ') + data.metrics.renderMs + T(' ms/quadro · motor ') + data.metrics.memoryMB + ' MiB' : T('Motor em repouso');
         $('studio-metrics').textContent = text; $('settings-metrics').textContent = text;
-      } catch (e) { error(e); } finally { loading = false; loadingPromise = null; }
+      } catch (e) { error(e); } finally { if (seq === refreshSeq) loading = false; loadingPromise = null; }
     })();
     return loadingPromise;
   }
@@ -605,6 +613,9 @@
       // A frame can still use the preceding geometry while a new edit is
       // being sampled. It describes sent colors, never editable positions.
       drawOutput();
+      if (frame.layout && frame.layout.length > 0 && (!data || !data.layout || data.layout.length === 0) && !dragging) {
+        refresh(true, false);
+      }
     } catch {} };
     stream.onerror = () => {
       stopStream();
@@ -648,10 +659,29 @@
     else {const next=await api('/api/studio/effects/'+card.id+'/duplicate',{name},'POST');next.layout=data.layout;data=next;renderLibrary();const copy=next.effects.find(e=>e.id===next.id);if(copy?.format==='nexus-effect/1'){formulaColors=[...copy.palette];for(const field of ['name','pattern','speed','angle','scale'])$('formula-'+field).value=copy[field];formulaOpen();}}
     renderGallery(true);
   }});
+  function hardwareSignature(hw) {
+    if (!hw) return '';
+    return JSON.stringify([
+      hw.connected,
+      (hw.devices || []).map(d => [
+        d.id,
+        d.name,
+        d.ledCount,
+        d.status,
+        d.mapExcluded,
+        (d.zones || []).map(z => [z.name, z.ledCount]),
+        d.smoothPowerCapable
+      ])
+    ]);
+  }
   window.NexusStudio = {
     open,
     update(next, admin, requestApi, showToast, page) {
+      const prevSig = hardwareSignature(state?.hardware);
       const first = !api; state = next; stateRevision++; isAdmin = admin; api = requestApi; toast = showToast;
+      const nextSig = hardwareSignature(next?.hardware);
+      const devicesChanged = !first && (prevSig !== nextSig);
+      const layoutMissing = Boolean(data && (!data.layout || data.layout.length === 0) && (next?.hardware?.devices?.length || 0) > 0);
       workspace.update(admin);
       calibration.update(admin);
       backups.update(admin);
@@ -683,6 +713,9 @@
       }
       selection();
       if (first) open(page);
+      else if (current === 'studio' && !dragging && (devicesChanged || layoutMissing)) {
+        refresh(true, false);
+      }
     }
   };
 })();

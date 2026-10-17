@@ -301,3 +301,210 @@ test('configuração de transição suave de energia salva duração e informa f
   await expect.poll(async () => (await (await page.request.get('/api/state')).json()).performance.powerTransitionMs || 0).toBe(0);
   await expect(page.locator('#settings-power-transition-label')).toHaveText('Instantânea');
 });
+
+test('sincronização do mapa em etapas, reconexão de hardware, proteção contra resposta obsoleta e undo/redo no navegador', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+
+  const ramDevice = { id: '000000000000000000000001', name: 'RAM RGB', vendor: 'Teste', type: 1, kind: 'device', ledCount: 8, status: 'online', settings: { power: true, color: '#00f0ff', brightness: 80, speed: 40, effect: 'static' }, effects: ['static', 'wave'], modes: [], zones: [] };
+  const moboDevice = { id: '000000000000000000000002', name: 'Placa-mãe', vendor: 'Teste', type: 0, kind: 'device', ledCount: 16, status: 'online', settings: { power: true, color: '#00f0ff', brightness: 80, speed: 40, effect: 'static' }, effects: ['static', 'wave'], modes: [], zones: [] };
+  const gpuDevice = { id: '000000000000000000000003', name: 'Placa de vídeo', vendor: 'Teste', type: 2, kind: 'device', ledCount: 16, status: 'online', settings: { power: true, color: '#00f0ff', brightness: 80, speed: 40, effect: 'static' }, effects: ['static', 'wave'], modes: [], zones: [] };
+
+  let currentHardware = { connected: false, controllerCount: 0, error: null, devices: [] };
+  let currentStudioLayout = [];
+
+  await page.route('**/api/state', async route => {
+    const body = await (await route.fetch()).json();
+    body.hardware = currentHardware;
+    await route.fulfill({ json: body });
+  });
+
+  await page.route('**/api/events', async route => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+      body: `retry: 60000\ndata: ${JSON.stringify({ time: Date.now(), hardware: currentHardware, master: { power: true, brightness: 100, color: '#00f0ff', effect: 'static' }, studio: { excluded: [] }, profiles: [], presets: [], performance: { fps: 20 }, alexa: { enabled: false, status: 'desativada' } })}\n\n`
+    });
+  });
+
+  let studioLayoutRevision = 1;
+  await page.route('**/api/studio', async route => {
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        json: {
+          layout: currentStudioLayout,
+          layoutRevision: studioLayoutRevision,
+          enabled: true,
+          activeId: 'builtin-wave',
+          effects: [{ id: 'builtin-wave', name: 'Onda', builtin: true, format: 'nexus-effect/1', controls: [] }],
+          values: {},
+          metrics: { fps: 20, renderMs: 2, memoryMB: 15 }
+        }
+      });
+    }
+    if (route.request().method() === 'POST') {
+      const payload = route.request().postDataJSON();
+      if (payload?.layout) {
+        currentStudioLayout = payload.layout;
+        studioLayoutRevision++;
+      }
+      return route.fulfill({
+        status: 200,
+        json: {
+          layout: currentStudioLayout,
+          layoutRevision: studioLayoutRevision,
+          enabled: true,
+          activeId: 'builtin-wave',
+          effects: [{ id: 'builtin-wave', name: 'Onda', builtin: true, format: 'nexus-effect/1', controls: [] }],
+          values: {},
+          metrics: { fps: 20, renderMs: 2, memoryMB: 15 }
+        }
+      });
+    }
+    await route.continue();
+  });
+
+  const updateStudio = async hw => {
+    await page.evaluate(hardware => {
+      const state = {
+        hardware,
+        master: { power: true, brightness: 100, color: '#00f0ff', effect: 'static' },
+        performance: { fps: 20 },
+        studio: { excluded: [] },
+        profiles: [],
+        presets: []
+      };
+      window.NexusStudio?.update?.(state, true, (r, b, m) => fetch(r, { method: m, body: b ? JSON.stringify(b) : undefined, headers: { 'Content-Type': 'application/json' } }).then(res => res.json()), () => {}, 'studio');
+    }, hw);
+  };
+
+  // 1. Open Studio without devices
+  await page.goto('/');
+  await page.locator('.nav[data-page=studio]').click();
+
+  await expect(page.locator('#studio-empty')).toBeVisible();
+  await expect(page.locator('.studio-item')).toHaveCount(0);
+  await expect(page.locator('#studio-device-chips button')).toHaveCount(0);
+  await expect(page.locator('#studio-device-form')).toBeHidden();
+
+  // 2. Stage 1: RAM appears without page reload or effect change
+  currentHardware = { connected: true, controllerCount: 1, error: null, devices: [ramDevice] };
+  currentStudioLayout = await page.evaluate(ds => NexusSpatial.defaults(ds), [ramDevice]);
+
+  await updateStudio(currentHardware);
+
+  await expect(page.locator('#studio-empty')).toBeHidden();
+  await expect(page.locator('.studio-item')).toHaveCount(1);
+  await expect(page.locator('#studio-device-chips button')).toHaveCount(1);
+  await expect(page.locator('#studio-device-chips button').first()).toHaveText('RAM RGB');
+  await expect(page.locator('#studio-device-form')).toBeVisible();
+  await expect(page.locator('#studio-item-name')).toHaveValue('RAM RGB');
+
+  // Stage 2: Motherboard appears in stage 2
+  currentHardware = { connected: true, controllerCount: 2, error: null, devices: [ramDevice, moboDevice] };
+  currentStudioLayout = await page.evaluate(ds => NexusSpatial.defaults(ds), [ramDevice, moboDevice]);
+
+  await updateStudio(currentHardware);
+
+  await expect(page.locator('.studio-item')).toHaveCount(2);
+  await expect(page.locator('#studio-device-chips button')).toHaveCount(2);
+
+  // 3. Controller disconnect & reconnect without changing effect
+  currentHardware = { connected: false, controllerCount: 2, error: 'Controlador desconectado.', devices: [ramDevice, moboDevice] };
+  await updateStudio(currentHardware);
+
+  currentHardware = { connected: true, controllerCount: 2, error: null, devices: [ramDevice, moboDevice] };
+  await updateStudio(currentHardware);
+
+  await expect(page.locator('.studio-item')).toHaveCount(2);
+  await expect(page.locator('#studio-empty')).toBeHidden();
+
+  // 4. Identity / capability change with same device count (RAM replaced with GPU)
+  currentHardware = { connected: true, controllerCount: 2, error: null, devices: [gpuDevice, moboDevice] };
+  currentStudioLayout = await page.evaluate(ds => NexusSpatial.defaults(ds), [gpuDevice, moboDevice]);
+  await updateStudio(currentHardware);
+
+  await expect(page.locator('.studio-item')).toHaveCount(2);
+  await expect(page.locator('#studio-device-chips')).toContainText('Placa de vídeo');
+
+  // 5. Select, drag, drop, persistence, and undo/redo
+  const piece = page.locator('.studio-item').first();
+  await piece.click();
+  const initBox = await piece.boundingBox();
+  await page.mouse.move(initBox.x + initBox.width / 2, initBox.y + initBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(initBox.x + initBox.width / 2 + 50, initBox.y + initBox.height / 2 + 20, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator('#studio-dirty')).toHaveText('Salvo automaticamente');
+
+  // Undo position
+  await expect(page.locator('#map-undo')).toBeVisible();
+  await page.locator('#map-undo').click();
+  await expect(page.locator('#map-redo')).toBeVisible();
+  // Redo position
+  await page.locator('#map-redo').click();
+
+  // 6. Stale out-of-order HTTP response rejection (seq guard)
+  let delayedResolve;
+  const delayedPromise = new Promise(res => { delayedResolve = res; });
+  let intercepted = false;
+  await page.route('**/api/studio', async route => {
+    if (!intercepted && route.request().method() === 'GET') {
+      intercepted = true;
+      await delayedPromise;
+      return route.fulfill({
+        status: 200,
+        json: {
+          layout: [{ key: 'old-stale-key', name: 'Stale Piece', count: 4, start: 0, x: 0, y: 0, width: 0.1, height: 0.1, rotation: 0, shape: 'strip' }],
+          layoutRevision: 0,
+          enabled: true,
+          activeId: 'builtin-wave',
+          effects: [{ id: 'builtin-wave', name: 'Onda', builtin: true, controls: [] }],
+          values: {},
+          metrics: { fps: 20, renderMs: 2, memoryMB: 15 }
+        }
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      json: {
+        layout: currentStudioLayout,
+        layoutRevision: studioLayoutRevision,
+        enabled: true,
+        activeId: 'builtin-wave',
+        effects: [{ id: 'builtin-wave', name: 'Onda', builtin: true, controls: [] }],
+        values: {},
+        metrics: { fps: 20, renderMs: 2, memoryMB: 15 }
+      }
+    });
+  });
+
+  await updateStudio(currentHardware);
+  delayedResolve();
+  await page.waitForTimeout(100);
+
+  // Stale layout must NOT replace current active layout
+  await expect(page.locator('.studio-item')).toHaveCount(2);
+  await expect(page.locator('.studio-item[data-key="old-stale-key"]')).toHaveCount(0);
+
+  // 7. Responsive viewports and PT/EN without page reload
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: width > 800 ? 900 : 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+
+  // Switch to English
+  await page.locator('.nav[data-page=settings]').click();
+  await page.locator('#settings-language').selectOption('en');
+  await page.locator('.nav[data-page=studio]').click();
+  await expect(page.locator('#studio-tab-device')).toHaveText('Device');
+
+  // Switch back to Portuguese
+  await page.locator('.nav[data-page=settings]').click();
+  await page.locator('#settings-language').selectOption('pt-BR');
+  await page.locator('.nav[data-page=studio]').click();
+  await expect(page.locator('#studio-tab-device')).toHaveText('Componente');
+
+  expect(errors).toEqual([]);
+});

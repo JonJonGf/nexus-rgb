@@ -673,3 +673,188 @@ test('rotulos de falha e botao de recuperacao estao traduzidos no en.js', () => 
   assert.ok(enSource.includes('"Restart controller"'));
   assert.ok(enSource.includes('"● OpenRGB sem resposta"'));
 });
+
+test('stop durante descricao pendente cancela operacao e limpa registros', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const mock = new Mock([controller('Device1', 'USB:1')]);
+  let pendingDesc;
+  mock.getControllerData = () => new Promise(resolve => { pendingDesc = resolve; });
+  const hardware = new Hardware(store, { makeClient: () => mock, operationTimeout: 5000 });
+  hardware.stopped = false;
+  const connectPromise = hardware.connect();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(hardware.activeOperations.size, 1);
+  assert.equal(hardware.activeTimers.size, 1);
+
+  hardware.stop();
+  await connectPromise;
+  assert.equal(hardware.activeOperations.size, 0);
+  assert.equal(hardware.activeTimers.size, 0);
+  assert.equal(hardware.connected, false);
+});
+
+test('substituicao de conexao cancela operacoes da geracao anterior com ECANCELLED', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  let mock1 = new Mock([controller('Dev1', 'USB:1')]);
+  let mock2 = new Mock([controller('Dev2', 'USB:2')]);
+  let currentMock = mock1;
+  const hardware = new Hardware(store, { makeClient: () => currentMock, operationTimeout: 5000 });
+  hardware.stopped = false;
+  mock1.getControllerData = () => new Promise(() => {});
+
+  const conn1 = hardware.connect();
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal(hardware.generation, 1);
+  assert.equal(hardware.activeOperations.size, 1);
+
+  // Sockets dropping / disconnecting triggers lost() which cancels pending ops of that gen
+  mock1.emit('disconnect');
+  await conn1;
+  assert.equal(hardware.activeOperations.size, 0);
+
+  currentMock = mock2;
+  await hardware.connect();
+  assert.equal(hardware.generation, 2);
+  assert.equal(hardware.activeOperations.size, 0);
+  assert.equal(hardware.connected, true);
+  hardware.stop();
+});
+
+test('timeout de operacao antiga nao contamina diagnostico nem contadores da geracao nova', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const hardware = new Hardware(store, { operationTimeout: 20 });
+  hardware.stopped = false;
+  hardware.generation = 1;
+
+  let oldOperationErr = null;
+  const op = hardware.operation(new Promise(() => {}), 20, { phase: 'controller-description', controllerIndex: 0, generation: 1 })
+    .catch(err => { oldOperationErr = err; });
+
+  hardware.generation = 2;
+  hardware.consecutiveDescriptionHangs = 0;
+  hardware.lastFailure = null;
+
+  await op;
+  assert.equal(oldOperationErr?.code, 'ETIMEDOUT');
+  assert.equal(hardware.consecutiveDescriptionHangs, 0);
+  assert.equal(hardware.lastFailure, null);
+  hardware.stop();
+});
+
+test('resposta ou rejeicao tardia do SDK apos cancelamento nao lanca erro nao tratado', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const hardware = new Hardware(store);
+  hardware.stopped = false;
+  let lateReject;
+  const deferred = new Promise((_, reject) => { lateReject = reject; });
+
+  const op = hardware.operation(deferred, 5000, { generation: hardware.generation });
+  hardware.cancelOperations(new Error('Cancelamento'));
+
+  await assert.rejects(op, err => err.code === 'ECANCELLED');
+  assert.equal(hardware.activeOperations.size, 0);
+
+  lateReject(new Error('late SDK transport closed'));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(hardware.activeOperations.size, 0);
+  hardware.stop();
+});
+
+test('timeout genuino registra detalhes estruturados da falha', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const hardware = new Hardware(store);
+  hardware.stopped = false;
+  hardware.generation = 1;
+
+  await assert.rejects(
+    hardware.operation(new Promise(() => {}), 15, { phase: 'controller-description', controllerIndex: 2, generation: 1 }),
+    err => err.code === 'ETIMEDOUT' && err.phase === 'controller-description' && err.controllerIndex === 2
+  );
+
+  assert.ok(hardware.lastFailure);
+  assert.equal(hardware.lastFailure.code, 'ETIMEDOUT');
+  assert.equal(hardware.lastFailure.phase, 'controller-description');
+  assert.equal(hardware.lastFailure.controllerIndex, 2);
+  assert.equal(hardware.lastFailure.generation, 1);
+  assert.equal(hardware.snapshot().lastFailure.controllerIndex, 2);
+  hardware.stop();
+});
+
+test('stop encerra sem disparar reconexao espuria', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const mock = new Mock([]);
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  hardware.stopped = false;
+  await hardware.connect();
+  assert.equal(hardware.connected, true);
+
+  hardware.stop();
+  assert.equal(hardware.stopped, true);
+  assert.equal(hardware.connected, false);
+  assert.equal(hardware.busy, false);
+  assert.equal(hardware.reconnect, null);
+
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.equal(hardware.reconnect, null);
+  assert.equal(hardware.connected, false);
+});
+
+test('recuperacao de controlador apos falhas zera flags e nao duplica operacoes', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const mock = new Mock([controller('RAM', 'SMBus:ram')]);
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  hardware.stopped = false;
+  hardware.consecutiveDescriptionHangs = 3;
+  hardware.controllerHung = true;
+  hardware.lastFailure = { code: 'ETIMEDOUT', phase: 'controller-description', generation: 0 };
+
+  await hardware.connect();
+  assert.equal(hardware.connected, true);
+  assert.equal(hardware.consecutiveDescriptionHangs, 0);
+  assert.equal(hardware.controllerHung, false);
+  assert.equal(hardware.lastFailure, null);
+  assert.equal(hardware.activeOperations.size, 0);
+  hardware.stop();
+});
+
+test('sem vazamento de timers, listeners ou registros de operacoes', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const mock = new Mock([controller('Board', 'USB:board')]);
+  const hardware = new Hardware(store, { makeClient: () => mock, operationTimeout: 10 });
+  hardware.stopped = false;
+
+  for (let i = 0; i < 5; i++) {
+    await hardware.connect();
+  }
+  for (let i = 0; i < 5; i++) {
+    try {
+      await hardware.operation(new Promise(() => {}), 10, { phase: 'controller-description', generation: hardware.generation });
+    } catch {}
+  }
+
+  assert.equal(hardware.activeTimers.size, 0);
+  assert.equal(hardware.activeOperations.size, 0);
+  assert.ok(hardware.failureHistory.length <= 5);
+  hardware.stop();
+});
+
+test('consulta do SDK que nunca resolve e cancelada com ECANCELLED ao chamar stop, liberando busy e timers', async () => {
+  const store = { data: { master: defaults, devices: {} } };
+  const hardware = new Hardware(store, { operationTimeout: 10000 });
+  hardware.stopped = false;
+  hardware.busy = true;
+
+  const endless = new Promise(() => {});
+  const op = hardware.operation(endless, 10000, { phase: 'controller-description', generation: hardware.generation });
+
+  assert.equal(hardware.activeOperations.size, 1);
+  assert.equal(hardware.activeTimers.size, 1);
+  assert.equal(hardware.busy, true);
+
+  hardware.stop();
+
+  await assert.rejects(op, err => err.code === 'ECANCELLED' && err.cancelled === true);
+  assert.equal(hardware.activeOperations.size, 0);
+  assert.equal(hardware.activeTimers.size, 0);
+  assert.equal(hardware.busy, false);
+});

@@ -177,3 +177,159 @@ test('instalação aguarda ready booleano do painel e limita espera quando Node 
   options.env.NEXUS_TEST_HEALTH_TIMEOUT = '1';
   await assert.rejects(promisify(execFile)('powershell.exe', args, options), error => error.code === 9 && error.stdout.trim() === 'panel-unavailable');
 });
+
+test('preparação encerra o aplicativo de bandeja e registra retorno pós-atualização', { skip: process.platform !== 'win32' }, t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-preflight-tray-'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop'
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Falha ao analisar script.'}
+    foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+    $native=Join-Path $Root 'NexusRGB.exe'
+    $mockServices=@()
+    $mockProcesses=@(
+      [pscustomobject]@{ProcessId=777;ParentProcessId=1;ExecutablePath=$native;Name='NexusRGB.exe';SessionId=1;CreationDate='20261017120000.000000+000';CommandLine='"C:\Program Files\Nexus RGB\NexusRGB.exe" --tray'}
+    )
+    $script:stoppedPids=@()
+    $script:polled=$false
+    function Get-CimInstance([string]$ClassName) {
+      if($ClassName -eq 'Win32_Service'){return $mockServices}
+      if($script:polled){return @()}
+      $script:polled=$true
+      return $mockProcesses
+    }
+    function Get-NetTCPConnection {return @()}
+    function Stop-Process([int]$Id,$Force,$ErrorAction) {$script:stoppedPids+=$Id}
+    $Mode='Prepare'
+    $SessionId=1
+    $TempDir=$env:NEXUS_TEST_TEMP
+    $exitCode=Invoke-NexusPreparation
+    if(-not (Test-Path (Join-Path $TempDir 'nexus-tray-resume.txt'))){throw 'Tray resume marker not created.'}
+    'tray-preflight-success'
+  `;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    encoding: 'utf8', env: { ...process.env, NEXUS_TEST_PREFLIGHT_SCRIPT: path.resolve(__dirname, '..', 'installer', 'service-preflight.ps1'), NEXUS_TEST_TEMP: tempDir }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'tray-preflight-success');
+});
+
+test('preparação rejeita atualização com código 47 quando outra sessão de usuário executa o aplicativo', { skip: process.platform !== 'win32' }, t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-preflight-foreign-'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop'
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Falha ao analisar script.'}
+    foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+    $native=Join-Path $Root 'NexusRGB.exe'
+    $mockServices=@()
+    $mockProcesses=@(
+      [pscustomobject]@{ProcessId=888;ParentProcessId=1;ExecutablePath=$native;Name='NexusRGB.exe';SessionId=2;CreationDate='20261017120000.000000+000';CommandLine='"C:\Program Files\Nexus RGB\NexusRGB.exe" --tray'}
+    )
+    $script:stoppedPids=@()
+    function Get-CimInstance([string]$ClassName) {
+      if($ClassName -eq 'Win32_Service'){return $mockServices}
+      return $mockProcesses
+    }
+    function Get-NetTCPConnection {return @()}
+    function Stop-Process([int]$Id,$Force,$ErrorAction) {$script:stoppedPids+=$Id}
+    $Mode='Prepare'
+    $SessionId=1
+    $TempDir=$env:NEXUS_TEST_TEMP
+    $exitCode=Invoke-NexusPreparation
+    if($exitCode -ne 47){throw "Exit code esperado 47, recebido $exitCode"}
+    if(Test-Path (Join-Path $TempDir 'nexus-tray-resume.txt')){throw 'Marcador não deveria ser criado.'}
+    if($script:stoppedPids.Count -ne 0){throw 'Processos de outra sessão não podem ser encerrados.'}
+    'foreign-session-isolated'
+  `;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    encoding: 'utf8', env: { ...process.env, NEXUS_TEST_PREFLIGHT_SCRIPT: path.resolve(__dirname, '..', 'installer', 'service-preflight.ps1'), NEXUS_TEST_TEMP: tempDir }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'foreign-session-isolated');
+});
+
+test('preparação rejeita com código 48 quando janelas interativas de configuração ou recuperação estão abertas', { skip: process.platform !== 'win32' }, t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-preflight-dialog-'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop'
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Falha ao analisar script.'}
+    foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+    $native=Join-Path $Root 'NexusRGB.exe'
+    $mockServices=@()
+    $mockProcesses=@(
+      [pscustomobject]@{ProcessId=999;ParentProcessId=1;ExecutablePath=$native;Name='NexusRGB.exe';SessionId=1;CreationDate='20261017120000.000000+000';CommandLine='"C:\Program Files\Nexus RGB\NexusRGB.exe" --restart-rgb'}
+    )
+    $script:stoppedPids=@()
+    function Get-CimInstance([string]$ClassName) {
+      if($ClassName -eq 'Win32_Service'){return $mockServices}
+      return $mockProcesses
+    }
+    function Get-NetTCPConnection {return @()}
+    function Stop-Process([int]$Id,$Force,$ErrorAction) {$script:stoppedPids+=$Id}
+    $Mode='Prepare'
+    $SessionId=1
+    $TempDir=$env:NEXUS_TEST_TEMP
+    $exitCode=Invoke-NexusPreparation
+    if($exitCode -ne 48){throw "Exit code esperado 48, recebido $exitCode"}
+    if($script:stoppedPids.Count -ne 0){throw 'Janela interativa não pode ser encerrada à força.'}
+    'dialog-mode-protected'
+  `;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    encoding: 'utf8', env: { ...process.env, NEXUS_TEST_PREFLIGHT_SCRIPT: path.resolve(__dirname, '..', 'installer', 'service-preflight.ps1'), NEXUS_TEST_TEMP: tempDir }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'dialog-mode-protected');
+});
+
+test('preparação em sessão 0 não cria marcador de bandeja e revalida processo antes de encerrar', { skip: process.platform !== 'win32' }, t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-preflight-session0-'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop'
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Falha ao analisar script.'}
+    foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+    $native=Join-Path $Root 'NexusRGB.exe'
+    $mockServices=@()
+    # Tray running in Session 0 (service account), but PID was recycled with different CreationDate
+    $initialProcess = [pscustomobject]@{ProcessId=555;ParentProcessId=1;ExecutablePath=$native;Name='NexusRGB.exe';SessionId=0;CreationDate='20261017120000.000000+000';CommandLine='"C:\Program Files\Nexus RGB\NexusRGB.exe" --tray'}
+    $recycledProcess = [pscustomobject]@{ProcessId=555;ParentProcessId=1;ExecutablePath=$native;Name='NexusRGB.exe';SessionId=0;CreationDate='20261017120005.999999+000';CommandLine='"C:\Program Files\Nexus RGB\NexusRGB.exe" --tray'}
+    $script:stoppedPids=@()
+    $script:pollCount=0
+    function Get-CimInstance([string]$ClassName,[string]$Filter) {
+      if($ClassName -eq 'Win32_Service'){return $mockServices}
+      if($Filter -match 'ProcessId = 555'){
+        # Return recycled process with different CreationDate
+        return $recycledProcess
+      }
+      return @($initialProcess)
+    }
+    function Get-NetTCPConnection {return @()}
+    function Stop-Process([int]$Id,$Force,$ErrorAction) {$script:stoppedPids+=$Id}
+    $Mode='Prepare'
+    $SessionId=0
+    $TempDir=$env:NEXUS_TEST_TEMP
+    $exitCode=Invoke-NexusPreparation
+    if(Test-Path (Join-Path $TempDir 'nexus-tray-resume.txt')){throw 'Marcador de bandeja não pode ser criado na sessão 0.'}
+    if($script:stoppedPids.Count -ne 0){throw 'Processo reciclado não pode ser encerrado.'}
+    'session0-and-pid-revalidation-success'
+  `;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], {
+    encoding: 'utf8', env: { ...process.env, NEXUS_TEST_PREFLIGHT_SCRIPT: path.resolve(__dirname, '..', 'installer', 'service-preflight.ps1'), NEXUS_TEST_TEMP: tempDir }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'session0-and-pid-revalidation-success');
+});

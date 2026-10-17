@@ -176,12 +176,88 @@ internal sealed class PortDialog : Form {
     }
 }
 internal sealed class Tray : ApplicationContext {
+    private sealed class TrayMessageWindow : NativeWindow, IDisposable {
+        private readonly Tray tray;
+        internal TrayMessageWindow(Tray tray) {
+            this.tray = tray;
+            CreateParams cp = new CreateParams {
+                Caption = "NexusRGB_TrayMessageWindow",
+                Style = 0,
+                Width = 0,
+                Height = 0,
+                X = -2000,
+                Y = -2000
+            };
+            CreateHandle(cp);
+        }
+        protected override void WndProc(ref Message m) {
+            const int WM_CLOSE = 0x0010;
+            const int WM_QUERYENDSESSION = 0x0011;
+            const int WM_ENDSESSION = 0x0016;
+            if (m.Msg == WM_QUERYENDSESSION) {
+                m.Result = (IntPtr)1;
+                return;
+            }
+            if (m.Msg == WM_ENDSESSION) {
+                if (m.WParam != IntPtr.Zero) {
+                    tray.ExitThread();
+                }
+                m.Result = IntPtr.Zero;
+                return;
+            }
+            if (m.Msg == WM_CLOSE) {
+                tray.ExitThread();
+                m.Result = IntPtr.Zero;
+                return;
+            }
+            base.WndProc(ref m);
+        }
+        public void Dispose() {
+            DestroyHandle();
+        }
+    }
+
     private readonly NotifyIcon icon;
     private readonly System.Windows.Forms.Timer timer;
     private readonly ToolStripMenuItem status;
+    private readonly EventWaitHandle exitEvent;
+    private readonly RegisteredWaitHandle waitHandle;
+    private readonly TrayMessageWindow messageWindow;
     private bool checking;
     private bool exiting;
+
+    internal static string ComputePathHash(string path) {
+        using (var sha = System.Security.Cryptography.SHA256.Create()) {
+            string norm = Path.GetFullPath(path).TrimEnd('\\').ToUpperInvariant();
+            byte[] bytes = Encoding.UTF8.GetBytes(norm);
+            byte[] hash = sha.ComputeHash(bytes);
+            var sb = new StringBuilder(16);
+            for (int i = 0; i < 8; i++) sb.Append(hash[i].ToString("X2"));
+            return sb.ToString();
+        }
+    }
+
     internal Tray(bool open) {
+        messageWindow = new TrayMessageWindow(this);
+        string eventName = "Local\\NexusRGB.Tray.Exit." + ComputePathHash(Program.Root);
+        bool exitCreated;
+        try {
+            var security = new System.Security.AccessControl.EventWaitHandleSecurity();
+            security.AddAccessRule(new System.Security.AccessControl.EventWaitHandleAccessRule(
+                new System.Security.Principal.SecurityIdentifier(System.Security.Principal.WellKnownSidType.AuthenticatedUserSid, null),
+                System.Security.AccessControl.EventWaitHandleRights.FullControl,
+                System.Security.AccessControl.AccessControlType.Allow
+            ));
+            exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, eventName, out exitCreated, security);
+        } catch {
+            exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, eventName, out exitCreated);
+        }
+        SynchronizationContext uiContext = SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext();
+        waitHandle = ThreadPool.RegisterWaitForSingleObject(exitEvent, (state, timedOut) => {
+            if (!exiting) {
+                uiContext.Post(_ => ExitThread(), null);
+            }
+        }, null, -1, false);
         var menu = new ContextMenuStrip();
         status = new ToolStripMenuItem(L.T("Nexus RGB: verificando serviço")) { Enabled = false }; menu.Items.Add(status);
         menu.Items.Add(L.T("Abrir Nexus RGB"), null, (s, e) => Program.OpenPanel());
@@ -254,7 +330,13 @@ internal sealed class Tray : ApplicationContext {
         if (fallback != null) { Clipboard.SetText(fallback); icon.ShowBalloonTip(3000, L.T("Link copiado"), L.T("Abra este endereço no celular conectado ao mesmo Wi-Fi."), ToolTipIcon.Info); return; }
         icon.ShowBalloonTip(3000, L.T("Rede indisponível"), L.T("Conecte o PC a uma rede Wi-Fi ou Ethernet privada."), ToolTipIcon.Warning);
     }
-    protected override void ExitThreadCore() { exiting = true; timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore(); }
+    protected override void ExitThreadCore() {
+        exiting = true;
+        if (waitHandle != null) waitHandle.Unregister(null);
+        if (exitEvent != null) exitEvent.Dispose();
+        if (messageWindow != null) messageWindow.Dispose();
+        timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore();
+    }
 }
 internal sealed class Worker : ServiceBase {
     private readonly bool hardware;

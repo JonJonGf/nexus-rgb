@@ -1,4 +1,4 @@
-﻿#define AppVersion "0.1.0"
+#define AppVersion "0.1.0"
 #define Payload "..\dist\app"
 [Setup]
 AppId={{BEFFBF04-40A0-4E59-87C0-223B51E92B84}
@@ -70,7 +70,13 @@ Root: HKLM; Subkey: "Software\Classes\nexusrgb"; ValueType: string; ValueName: "
 Root: HKLM; Subkey: "Software\Classes\nexusrgb\shell\open\command"; ValueType: string; ValueData: """{app}\NexusRGB.exe"" --restart-rgb ""%1"""
 [Run]
 Filename: "{app}\NexusRGB.exe"; Description: "{cm:OpenNexus}"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\NexusRGB.exe"; Parameters: "--tray"; Flags: nowait runasoriginaluser; Check: ShouldLaunchTray
 [Code]
+function ProcessIdToSessionId(dwProcessId: DWORD; var pSessionId: DWORD): BOOL;
+  external 'ProcessIdToSessionId@kernel32.dll stdcall';
+function GetCurrentProcessId: DWORD;
+  external 'GetCurrentProcessId@kernel32.dll stdcall';
+
 var
   ServiceResumeMask: Integer;
   PreflightReady: Boolean;
@@ -79,6 +85,17 @@ var
   SetupFailed: Boolean;
   PortsPage: TInputQueryWizardPage;
   PanelPortValue, SDKPortValue, AlexaPortValue: Integer;
+
+function GetInstallerSessionId: DWORD;
+var
+  Pid, Sid: DWORD;
+begin
+  Pid := GetCurrentProcessId;
+  Sid := 1;
+  if not ProcessIdToSessionId(Pid, Sid) then Sid := 1;
+  Result := Sid;
+end;
+
 function PowerShellPath: String;
 begin
   Result := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
@@ -86,6 +103,14 @@ end;
 function LocalText(Portuguese, English: String): String;
 begin
   if ActiveLanguage = 'english' then Result := English else Result := Portuguese;
+end;
+function ShouldLaunchTray: Boolean;
+begin
+  if GetInstallerSessionId = 0 then begin
+    Result := False;
+    Exit;
+  end;
+  Result := FileExists(ExpandConstant('{tmp}\nexus-tray-resume.txt')) or WizardIsTaskSelected('traystartup');
 end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
@@ -107,7 +132,7 @@ begin
   end;
   ExtractTemporaryFile('service-preflight.ps1');
   ExtractTemporaryFile('backup-before-upgrade.ps1');
-  Command := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Prepare -Root "' + ExpandConstant('{app}') + '" -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue);
+  Command := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Prepare -Root "' + ExpandConstant('{app}') + '" -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue) + ' -SessionId ' + IntToStr(GetInstallerSessionId) + ' -TempDir "' + ExpandConstant('{tmp}') + '"';
   if not Exec(PowerShellPath, Command, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then Result := LocalText('Não foi possível verificar os serviços.', 'Could not check services.')
   else if (ExitCode >= 0) and (ExitCode <= 3) then begin
     ServiceResumeMask := ExitCode;
@@ -119,7 +144,24 @@ begin
   else if ExitCode = 42 then Result := LocalText('Existe um serviço com o nome Nexus RGB que não pertence a esta instalação. A preparação não alterou esse serviço.', 'A service named Nexus RGB does not belong to this installation. Preparation did not change that service.')
   else if ExitCode = 43 then Result := LocalText('A pasta de instalação é inválida ou contém um link de sistema de arquivos.', 'The installation folder is invalid or contains a filesystem link.')
   else if ExitCode = 44 then Result := LocalText('Não foi possível preparar a atualização. Os serviços que estavam ativos foram restaurados.', 'Could not prepare the update. Previously running services were restored.')
+  else if ExitCode = 47 then Result := LocalText('Outra sessão de usuário do Windows está executando o Nexus RGB. Feche o aplicativo nas outras sessões antes de continuar.', 'Another Windows user session is running Nexus RGB. Please close the application in other sessions before continuing.')
+  else if ExitCode = 48 then Result := LocalText('Uma janela de configuração ou recuperação do Nexus RGB está aberta. Feche-a antes de continuar.', 'A Nexus RGB configuration or recovery window is open. Close it before continuing.')
   else Result := LocalText('Não foi possível preparar ou restaurar os serviços. Código: ', 'Could not prepare or restore services. Code: ') + IntToStr(ExitCode);
+end;
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  NeedsRestart: Boolean;
+  PrepareError: String;
+begin
+  Result := True;
+  if CurPageID = wpReady then begin
+    NeedsRestart := False;
+    PrepareError := PrepareToInstall(NeedsRestart);
+    if PrepareError <> '' then begin
+      MsgBox(PrepareError, mbError, MB_OK);
+      Result := False;
+    end;
+  end;
 end;
 procedure InitializeWizard;
 var

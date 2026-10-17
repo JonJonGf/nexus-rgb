@@ -66,15 +66,29 @@ class Hardware extends EventEmitter {
     this.devices = []; this.output = new Map(); this.client = null; this.connected = false; this.busy = false; this.stopped = true;
     this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.powerKnown = new Map(); this.powerRamps = new Map();
     this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.discoveryStage = 0; this.discoverySignature = ''; this.discoveryMs = 0; this.retry = 1000; this.dirty = true;
-    this.generation = 0; this.activeTimers = new Set(); this.lastFailure = null; this.failureHistory = [];
+    this.generation = 0; this.activeTimers = new Set(); this.activeOperations = new Set(); this.opSeq = 0;
+    this.lastFailure = null; this.failureHistory = [];
     this.consecutiveDescriptionHangs = 0; this.controllerHung = false; this.sharedAnimations = new Map();
   }
+  cancelOperations(reason, generation = null, client = null) {
+    const err = reason instanceof Error ? reason : new Error(reason || 'Operação cancelada.');
+    if (!err.code) err.code = 'ECANCELLED';
+    err.cancelled = true;
+    for (const op of Array.from(this.activeOperations)) {
+      if ((generation === null || op.generation === generation) &&
+          (client === null || op.client === client)) {
+        op.cancel(err);
+      }
+    }
+  }
   recordFailure(err) {
+    if (this.stopped || err.code === 'ECANCELLED') return;
+    const generation = Number.isInteger(err.generation) ? err.generation : this.generation;
+    if (generation !== this.generation) return;
     const code = err.code || 'controller-error';
     const phase = err.phase || 'unknown';
     const controllerIndex = Number.isInteger(err.controllerIndex) ? err.controllerIndex : null;
     const timeoutMs = Number.isInteger(err.timeoutMs) ? err.timeoutMs : null;
-    const generation = Number.isInteger(err.generation) ? err.generation : this.generation;
     const message = err.message || 'Falha no controlador RGB.';
     const now = Date.now();
     if (this.lastFailure && this.lastFailure.code === code && this.lastFailure.phase === phase && this.lastFailure.controllerIndex === controllerIndex) {
@@ -106,14 +120,60 @@ class Hardware extends EventEmitter {
     const opGen = options.generation ?? this.generation;
     const phase = options.phase || 'unknown';
     const controllerIndex = options.controllerIndex ?? null;
+
+    if (options.generation !== undefined && options.generation !== this.generation) {
+      const err = new Error('Operação cancelada: geração substituída.');
+      err.code = 'ECANCELLED';
+      err.cancelled = true;
+      throw err;
+    }
+    if (this.stopped && this.generation > 0) {
+      const err = new Error('Operação cancelada: hardware encerrado.');
+      err.code = 'ECANCELLED';
+      err.cancelled = true;
+      throw err;
+    }
+
+    if (promise && typeof promise.catch === 'function') {
+      // Prevent late rejections from escaping unhandled
+      promise.catch(() => {});
+    }
+
+    const op = {
+      id: ++this.opSeq,
+      client: opClient,
+      generation: opGen,
+      phase,
+      controllerIndex,
+      timeoutMs: timeout,
+      timer: null,
+      cancel: null,
+      settled: false
+    };
+
     let timer;
     try {
+      this.activeOperations.add(op);
       return await Promise.race([
         promise,
         new Promise((_, reject) => {
+          op.cancel = cancelErr => {
+            if (op.settled) return;
+            op.settled = true;
+            if (timer) {
+              clearTimeout(timer);
+              this.activeTimers.delete(timer);
+            }
+            reject(cancelErr);
+          };
+
           timer = setTimeout(() => {
             this.activeTimers.delete(timer);
+            if (op.settled) return;
+            op.settled = true;
+
             try { opClient?.socket?.destroy(); } catch {}
+
             const isDesc = phase === 'controller-description';
             const msg = isDesc ? 'OpenRGB não respondeu ao consultar um componente.' : 'O controlador RGB não respondeu.';
             const err = new Error(msg);
@@ -122,17 +182,25 @@ class Hardware extends EventEmitter {
             err.controllerIndex = controllerIndex;
             err.generation = opGen;
             err.timeoutMs = timeout;
-            this.recordFailure(err);
+
+            const isCurrentGen = !this.stopped && opGen === this.generation && (!this.client || opClient === this.client);
+            if (isCurrentGen) {
+              this.recordFailure(err);
+            }
             reject(err);
           }, timeout);
+
+          op.timer = timer;
           this.activeTimers.add(timer);
         })
       ]);
     } finally {
+      op.settled = true;
       if (timer) {
         clearTimeout(timer);
         this.activeTimers.delete(timer);
       }
+      this.activeOperations.delete(op);
     }
   }
   async connect() {
@@ -141,12 +209,13 @@ class Hardware extends EventEmitter {
     const prevClient = this.client;
     try { prevClient?.socket?.destroy(); } catch {}
     const gen = ++this.generation;
+    this.cancelOperations(new Error('Conexão substituída por uma nova geração.'));
     for (const timer of this.activeTimers) clearTimeout(timer);
     this.activeTimers.clear();
     const client = this.makeClient(); this.client = client;
-    client.on('error', error => { if (this.client === client && this.generation === gen) this.lost(error); });
-    client.on('disconnect', () => { if (this.client === client && this.generation === gen) this.lost(new Error('Controlador desconectado.')); });
-    client.on('deviceListUpdated', () => { if (this.client === client && this.generation === gen) { this.discoveryStage = 0; this.nextDiscovery = 0; this.dirty = true; } });
+    client.on('error', error => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(error, client, gen); });
+    client.on('disconnect', () => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(new Error('Controlador desconectado.'), client, gen); });
+    client.on('deviceListUpdated', () => { if (this.client === client && this.generation === gen && !this.stopped) { this.discoveryStage = 0; this.nextDiscovery = 0; this.dirty = true; } });
     try {
       await this.operation(client.connect(2500), this.operationTimeout, { phase: 'connect', client, generation: gen });
       if (this.stopped || this.generation !== gen) { client.socket?.destroy(); return; }
@@ -159,7 +228,7 @@ class Hardware extends EventEmitter {
       this.controllerHung = false;
       this.lastFailure = null;
     } catch (error) {
-      if (this.generation === gen) {
+      if (this.generation === gen && !this.stopped) {
         this.connected = false;
         this.error = error.message;
         if (!this.lastFailure || this.lastFailure.generation !== gen) {
@@ -172,6 +241,8 @@ class Hardware extends EventEmitter {
       if (this.generation === gen) {
         this.busy = false; this.emit('change');
         if (!this.connected && !this.stopped) this.scheduleReconnect();
+      } else if (this.stopped) {
+        this.busy = false;
       }
     }
   }
@@ -180,9 +251,13 @@ class Hardware extends EventEmitter {
     this.reconnect = setTimeout(() => { this.reconnect = null; this.connect(); }, this.retry);
     this.retry = Math.min(this.retry * 2, 30000);
   }
-  lost(error) {
+  lost(error, client = null, generation = null) {
+    const opGen = generation ?? this.generation;
+    if (this.stopped || opGen !== this.generation) return;
+    if (client && this.client && client !== this.client) return;
     this.cancelIdentification();
     this.connected = false; this.lostAt = Date.now();
+    this.cancelOperations(new Error('Controlador desconectado.'), opGen, client);
     const isGenericDisconnect = error?.message === 'Controlador desconectado.';
     const hasSpecificFailure = this.lastFailure && this.lastFailure.generation === this.generation && this.error && !this.error.includes('Aguardando');
     if (!isGenericDisconnect || !hasSpecificFailure) {
@@ -541,16 +616,20 @@ class Hardware extends EventEmitter {
   start() { this.stopped = false; this.connect(); this.setFps(); }
   stop() {
     this.stopped = true;
+    this.busy = false;
     this.generation++;
     clearInterval(this.timer);
     clearTimeout(this.identifyTimer);
     this.identification = null;
     clearTimeout(this.reconnect);
     this.reconnect = null;
+    this.cancelOperations(new Error('Operação cancelada: hardware encerrado.'));
     for (const timer of this.activeTimers) clearTimeout(timer);
     this.activeTimers.clear();
     try { this.client?.socket?.destroy(); } catch {}
     try { this.client?.disconnect(); } catch {}
+    this.client = null;
+    this.connected = false;
   }
 }
 module.exports = { Hardware, identity, frame, hue, paletteColor };
