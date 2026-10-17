@@ -271,3 +271,133 @@ test('prévia reserva capacidade para o administrador, limita clientes LAN, desc
   const swCode = fs.readFileSync(path.join(__dirname, '..', 'public', 'sw.js'), 'utf8');
   assert.match(swCode, /url\.pathname\s*===\s*'\/api'\s*\|\|\s*url\.pathname\.startsWith\('\/api\/'\)/);
 });
+
+test('recuperação diferencia causas, promove último funcional só após janela, limita retentativas com quarentena persistente e preserva desligados/exclusões', async t => {
+  const devOn = '1'.repeat(24), devOff = '2'.repeat(24), devExcluded = '3'.repeat(24);
+  let connected = true;
+  const hardware = {
+    get connected() { return connected; },
+    on() {}, changed() {}, stop() {}, cancelIdentification() {},
+    async tick() {},
+    snapshot() {
+      const excluded = new Set(this.studio?.config.excluded || []);
+      return {
+        connected,
+        error: connected ? null : 'Controlador desconectado.',
+        devices: [devOn, devOff, devExcluded].map((id, idx) => ({
+          id, name: 'Peça ' + (idx + 1), type: 1, ledCount: 4, effects: ['static', 'wave'], modes: [],
+          mapExcluded: excluded.has(id),
+          settings: { power: id !== devOff, brightness: 80, color: '#00f0ff', effect: 'static', ...(f.app.store.data.devices[id] || {}) }
+        }))
+      };
+    }
+  };
+  const f = await fixture(t, { hardware, studio: { workingWindowMs: 120, workingMinFrames: 2, retryDelays: [25, 50] } });
+  const studio = f.app.studio;
+  f.app.store.device(devOff, { power: false }, [devOn, devOff, devExcluded]);
+  f.app.store.device(devExcluded, { color: '#ff0055', effect: 'static' }, [devOn, devOff, devExcluded]);
+  f.app.store.profile('Perfil preservado', { palette: ['#112233'], effect: 'wave', brightness: 60, speed: 30 });
+  const layout = spatial.defaults(hardware.snapshot().devices);
+  const client = { res: { destroyed: false, writableLength: 0, write() {}, end() {} }, authorized: () => true };
+  studio.clients.add(client);
+
+  // 1. Activate builtin effect: before workingWindowMs (120ms), it must NOT be promoted to lastWorking yet.
+  const validId = [...studio.effects.values()].find(e => e.builtin).id;
+  studio.configure({ layout, activeId: validId, enabled: true });
+  assert.equal(studio.recoverySnapshot().lastWorking, null);
+  for (let i = 0; i < 60 && !studio.recoverySnapshot().lastWorking; i++) await sleep(20);
+  assert.equal(studio.recoverySnapshot().lastWorking?.activeId, validId);
+  assert.equal(studio.recoverySnapshot().controllerConfirmed, true);
+
+  // 2. Import an effect that fails on frame 2 (timeout/loop). Verify progressive retries (3 total attempts) and quarantine.
+  const hostileId = (await f.request('/api/studio/import', { method: 'POST', cookie: f.cookie, body: { source: source('var n=0;function run(){if(++n>1)while(true){}requestAnimationFrame(run)}requestAnimationFrame(run)') } })).json().id;
+  let spawns = 0;
+  const origSpawn = studio.spawn.bind(studio);
+  studio.spawn = () => { spawns++; return origSpawn(); };
+  studio.configure({ activeId: hostileId, enabled: true });
+  for (let i = 0; i < 120 && !studio.error; i++) await sleep(30);
+  assert.equal(spawns, 3);
+  assert.equal(studio.worker, null);
+  const recEffect = studio.recoverySnapshot();
+  assert.equal(recEffect.active, true);
+  assert.equal(recEffect.kind, 'effect');
+  assert.equal(recEffect.attempts, 3);
+  assert.equal(recEffect.quarantined, true);
+  assert.equal(recEffect.controllerConfirmed, true);
+  assert.equal(recEffect.lastWorking?.activeId, validId);
+  assert.deepEqual(recEffect.actions, ['retry', 'last-working', 'lights-off']);
+  // Problematic effect remains in library for correction; profiles, layout, exclusions and power are untouched.
+  assert.equal(studio.effects.has(hostileId), true);
+  assert.equal(f.app.store.data.profiles.length, 1);
+  assert.equal(f.app.store.data.devices[devOff].power, false);
+  assert.deepEqual(studio.config.excluded, [devExcluded]);
+
+  // 3. Restarting Studio on the same data directory must NOT automatically re-run the quarantined effect.
+  const { Studio } = require('../server/studio');
+  let restartSpawns = 0;
+  const restarted = new Studio(f.app.store, hardware, f.directory, () => {}, { workingWindowMs: 120, retryDelays: [25, 50] });
+  restarted.spawn = () => { restartSpawns++; return origSpawn(); };
+  restarted.clients.add(client);
+  restarted.pump();
+  await sleep(80);
+  assert.equal(restartSpawns, 0);
+  assert.equal(restarted.recoverySnapshot().quarantined, true);
+  assert.equal(restarted.recoverySnapshot().lastWorking?.activeId, validId);
+  restarted.stop();
+
+  // 4. Worker unexpected crash ('worker' kind) and recovery with 'last-working'.
+  studio.spawn = () => {
+    const child = origSpawn();
+    setImmediate(() => child.kill());
+    return child;
+  };
+  const retryRes = await f.request('/api/studio/recover', { method: 'POST', cookie: f.cookie, body: { action: 'retry' } });
+  assert.equal(retryRes.status, 200);
+  for (let i = 0; i < 80 && !studio.error; i++) await sleep(25);
+  assert.equal(studio.recoverySnapshot().kind, 'worker');
+  assert.equal(studio.recoverySnapshot().quarantined, true);
+
+  studio.spawn = origSpawn;
+  const lwRes = await f.request('/api/studio/recover', { method: 'POST', cookie: f.cookie, body: { action: 'last-working' } });
+  assert.equal(lwRes.status, 200);
+  assert.equal(studio.config.activeId, validId);
+  for (let i = 0; i < 60 && !studio.rendered; i++) await sleep(20);
+  assert.equal(studio.error, null);
+  assert.equal(f.app.store.data.devices[devOff].power, false);
+  assert.deepEqual(studio.config.excluded, [devExcluded]);
+
+  // 5. Missing/corrupted effect configuration ('config' kind) and 'lights-off' with disconnected controller.
+  studio.store.data.studio.activeId = 'f'.repeat(24);
+  studio.reset();
+  studio.pump();
+  assert.equal(studio.recoverySnapshot().kind, 'config');
+  connected = false;
+  assert.equal(studio.recoverySnapshot().controllerConfirmed, false);
+  assert.equal(studio.recoverySnapshot().controllerState, 'unconfirmed');
+  const offRes = await f.request('/api/studio/recover', { method: 'POST', cookie: f.cookie, body: { action: 'lights-off' } });
+  assert.equal(offRes.status, 200);
+  assert.equal(f.app.store.data.master.power, false);
+  assert.equal(offRes.json().recovery.controllerConfirmed, false);
+  connected = true;
+  assert.equal(studio.recoverySnapshot().controllerConfirmed, true);
+  assert.equal(studio.recoverySnapshot().controllerState, 'lights-off');
+  studio.clients.delete(client);
+});
+
+test('revisão de layout impede sobrescrita silenciosa entre clientes concorrentes com status 409', async t => {
+  const f = await fixture(t), studio = f.app.studio;
+  const entry = { key: 'ram', deviceId: 'a'.repeat(24), name: 'RAM', start: 0, count: 4, x: 0.5, y: 0.5, width: 0.5, height: 0.1, rotation: 0, shape: 'strip', columns: 4, reverse: false };
+  const initial = (await f.request('/api/studio', { cookie: f.cookie })).json();
+  assert.equal(initial.layoutRevision, 1);
+  const movedA = [{ ...entry, x: 0.42 }];
+  const resA = await f.request('/api/studio', { method: 'POST', cookie: f.cookie, body: { layout: movedA, baseLayoutRevision: initial.layoutRevision } });
+  assert.equal(resA.status, 200);
+  assert.equal(resA.json().layoutRevision, 2);
+
+  // Stale client still holding revision 1 tries to overwrite or undo:
+  const movedB = [{ ...entry, x: 0.75 }];
+  const conflict = await f.request('/api/studio', { method: 'POST', cookie: f.cookie, body: { layout: movedB, baseLayoutRevision: 1 } });
+  assert.equal(conflict.status, 409);
+  assert.match(conflict.json().error, /alterado em outro dispositivo/);
+  assert.equal(studio.layout()[0].x, 0.42);
+});

@@ -58,11 +58,13 @@ const DISCOVERY_STAGES = [1500, 1500, 3000, 6000, 15000, 30000, 60000];
 class Hardware extends EventEmitter {
   constructor(store, options = {}) {
     super(); this.store = store; this.port = options.port || 6743;
+    this.now = options.now || (() => performance.now());
     // SDK 0.6.0 cannot parse newer zone flag bits. Protocol 4 retains colors,
     // native modes, brightness, matrices and segments without that broken parser.
     this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
     this.devices = []; this.output = new Map(); this.client = null; this.connected = false; this.busy = false; this.stopped = true;
-    this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.discoveryStage = 0; this.discoverySignature = ''; this.discoveryMs = 0; this.retry = 1000; this.dirty = true;
+    this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.powerKnown = new Map(); this.powerRamps = new Map();
+    this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.discoveryStage = 0; this.discoverySignature = ''; this.discoveryMs = 0; this.retry = 1000; this.dirty = true;
   }
   async operation(promise, timeout = 4000) {
     let timer;
@@ -78,7 +80,7 @@ class Hardware extends EventEmitter {
     try {
       await this.operation(client.connect(2500));
       if (this.stopped) { client.socket?.destroy(); return; }
-      this.modes.clear(); this.applied.clear(); this.discoveryStage = 0; this.discoverySignature = ''; await this.discover(); this.connected = true;
+      this.modes.clear(); this.applied.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = ''; await this.discover(); this.connected = true; this.lostAt = null;
       this.retry = 1000; this.error = null; this.dirty = true;
     } catch (error) { this.connected = false; this.error = error.message; client.socket?.destroy(); }
     finally {
@@ -93,7 +95,7 @@ class Hardware extends EventEmitter {
   }
   lost(error) {
     this.cancelIdentification();
-    this.connected = false; this.error = error.message; this.modes.clear(); this.discoveryStage = 0; this.discoverySignature = ''; this.emit('change');
+    this.connected = false; this.lostAt = Date.now(); this.error = error.message; this.modes.clear(); this.powerKnown.clear(); this.powerRamps.clear(); this.discoveryStage = 0; this.discoverySignature = ''; this.emit('change');
     if (!this.busy) this.scheduleReconnect();
   }
   get detecting() { return Boolean(!this.stopped && this.connected && this.discoveryStage < (this.devices.length ? 1 : 3)); }
@@ -128,6 +130,7 @@ class Hardware extends EventEmitter {
     const channels = new Set(devices.flatMap(device => (device.components || [device]).map(component => component.id)));
     for (const id of this.animations.keys()) if (!channels.has(id)) this.animations.delete(id);
     for (const id of this.output.keys()) if (!channels.has(id)) this.output.delete(id);
+    for (const id of this.powerKnown.keys()) if (!channels.has(id)) { this.powerKnown.delete(id); this.powerRamps.delete(id); }
     const signature = JSON.stringify(devices.map(d => [d.id, d.sdkId, d.name, d.vendor, d.type, d.ledCount, d.modes, d.zones, d.components?.map(c => [c.id, c.name, c.kind, c.zoneId, c.ledCount, c.offset])]));
     const changed = signature !== this.discoverySignature;
     this.discoverySignature = signature;
@@ -139,11 +142,69 @@ class Hardware extends EventEmitter {
     if (changed) this.dirty = true;
     if (changed || wasDetecting !== this.detecting) this.emit('change');
   }
+  canSmoothPower(id, settings, direct = true, checkStudio = true) {
+    if (!direct) return false;
+    if (settings.nativeMode === undefined) return true;
+    return Boolean(checkStudio && this.studio?.hasDevice(id));
+  }
+  isPowerTransitioning(id) {
+    return this.powerRamps.has(id);
+  }
+  powerMultiplier(id, settingsPower, canSmooth = true, now = this.now()) {
+    const targetPower = Boolean(settingsPower);
+    const configuredMs = Number(this.store.data.performance?.powerTransitionMs) || 0;
+    const fullDuration = canSmooth && configuredMs >= 200 ? configuredMs : 0;
+    if (!this.powerKnown.has(id)) {
+      this.powerKnown.set(id, targetPower);
+      this.powerRamps.delete(id);
+      return targetPower ? 1 : 0;
+    }
+    let current = this.powerKnown.get(id) ? 1 : 0;
+    if (this.powerRamps.has(id)) {
+      const ramp = this.powerRamps.get(id);
+      const p = ramp.duration > 0 ? Math.min(1, Math.max(0, (now - ramp.startedAt) / ramp.duration)) : 1;
+      current = ramp.from + (ramp.to - ramp.from) * p;
+    }
+    if (this.powerKnown.get(id) !== targetPower) {
+      this.powerKnown.set(id, targetPower);
+      const to = targetPower ? 1 : 0;
+      const distance = Math.abs(to - current);
+      if (fullDuration <= 0 || distance <= 0.001) {
+        this.powerRamps.delete(id);
+        return to;
+      }
+      this.powerRamps.set(id, {
+        from: current,
+        to,
+        startedAt: now,
+        duration: Math.max(1, Math.round(fullDuration * distance))
+      });
+      return current;
+    }
+    if (this.powerRamps.has(id)) {
+      const ramp = this.powerRamps.get(id);
+      if (fullDuration <= 0) {
+        this.powerRamps.delete(id);
+        return ramp.to;
+      }
+      const p = ramp.duration > 0 ? Math.min(1, Math.max(0, (now - ramp.startedAt) / ramp.duration)) : 1;
+      if (p >= 1) {
+        this.powerRamps.delete(id);
+        return ramp.to;
+      }
+      return ramp.from + (ramp.to - ramp.from) * p;
+    }
+    return targetPower ? 1 : 0;
+  }
   snapshot() {
     const excluded = new Set(this.studio ? (this.studio.config.excluded || []) : (this.store.data.studio?.excluded || Object.entries(this.store.data.devices || {}).filter(([, d]) => d && ('color' in d || 'effect' in d || 'nativeMode' in d)).map(([k]) => k)));
+    const transitionMs = this.store.data.performance?.powerTransitionMs || 0;
+    const studioActive = Boolean(this.studio?.config.enabled && !this.studio?.error);
     return { connected: this.connected, detecting: this.detecting, error: this.error, controllerCount: this.devices.length, devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
       const { offset, ...component } = channel;
-      return { ...device, ...component, ...(channels ? { modes: [], splitZone: true } : {}), status: this.connected ? 'online' : 'offline', customized: Object.hasOwn(this.store.data.devices, component.id), mapExcluded: excluded.has(component.id), settings: this.settings(component.id, !!channels) };
+      const settings = this.settings(component.id, !!channels);
+      const smoothPowerCapable = Boolean(direct && (settings.nativeMode === undefined || (studioActive && !excluded.has(component.id))));
+      return { ...device, ...component, ...(channels ? { modes: [], splitZone: true } : {}), status: this.connected ? 'online' : 'offline', customized: Object.hasOwn(this.store.data.devices, component.id), mapExcluded: excluded.has(component.id), smoothPowerCapable, powerTransitionFallback: Boolean(transitionMs >= 200 && !smoothPowerCapable), settings };
     })) };
   }
   settings(id, splitZone = false) {
@@ -185,17 +246,31 @@ class Hardware extends EventEmitter {
     this.applied.delete(parent.id); this.changed();
   }
   rememberOutput(id, colors, settings) {
-    this.output.set(id, { colors, at: Date.now(), source: this.identification?.id === id ? 'identify' : !settings.power ? 'off' : settings.nativeMode !== undefined ? 'native' : this.studio?.hasDevice(id) ? 'map' : 'software' });
+    const activePower = Boolean(settings.power || this.powerRamps.has(id));
+    this.output.set(id, { colors, at: Date.now(), source: this.identification?.id === id ? 'identify' : !activePower ? 'off' : settings.nativeMode !== undefined ? 'native' : this.studio?.hasDevice(id) ? 'map' : 'software' });
   }
   outputFor(id) { return this.connected ? this.output.get(id) : null; }
-  renderFrame(id, settings, count, seconds) {
+  renderFrame(id, settings, count, seconds, now = this.now()) {
     if (this.identification?.id === id) return Array.from({length:count},(_,n) => ({red:0,green:this.identification.led === null || this.identification.led === n ? 64 : 0,blue:this.identification.led === null || this.identification.led === n ? 64 : 0}));
-    const spatial = this.studio?.colorsFor(id, settings, count);
-    if (spatial) return this.blend(id,spatial,settings);
-    const signature = JSON.stringify([settings.effect, settings.color, settings.palette, settings.power]);
-    let animation = this.animations.get(id);
-    if (!animation || animation.signature !== signature) { animation = { signature, startedAt: seconds }; this.animations.set(id, animation); }
-    return this.blend(id,frame(settings, count, Math.max(0, seconds - animation.startedAt)),settings);
+    const parent = this.devices.find(d => d.id === id || d.components?.some(c => c.id === id));
+    const canSmooth = this.canSmoothPower(id, settings, !parent || !!parent.direct) && settings.brightness > 0;
+    const mult = this.powerMultiplier(id, settings.power, canSmooth, now);
+    if (mult <= 0) {
+      if (!settings.power) this.animations.delete(id);
+      return Array.from({ length: count }, () => ({ red: 0, green: 0, blue: 0 }));
+    }
+    const effective = settings.power ? settings : { ...settings, power: true };
+    const spatial = this.studio?.colorsFor(id, effective, count);
+    const base = spatial
+      ? this.blend(id, spatial, effective)
+      : (() => {
+          const signature = JSON.stringify([effective.effect, effective.color, effective.palette, true]);
+          let animation = this.animations.get(id);
+          if (!animation || animation.signature !== signature) { animation = { signature, startedAt: seconds }; this.animations.set(id, animation); }
+          return this.blend(id, frame(effective, count, Math.max(0, seconds - animation.startedAt)), effective);
+        })();
+    if (mult >= 1) return base;
+    return base.map(c => ({ red: Math.round(c.red * mult), green: Math.round(c.green * mult), blue: Math.round(c.blue * mult) }));
   }
   async applyMode(device, mode, settings, perLedColors = false) {
     const config = { ...mode };
@@ -212,7 +287,9 @@ class Hardware extends EventEmitter {
     if (this.identification && Date.now() >= this.identification.until) this.cancelIdentification();
     const animated = this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
-      return s.power && s.brightness > 0 && d.direct && !('nativeMode' in s) && (this.transitionState?.from.has(component.id) || !this.studio?.hasDevice(component.id) && s.effect !== 'static');
+      const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
+      const powerChanged = this.powerKnown.has(component.id) && this.powerKnown.get(component.id) !== Boolean(s.power);
+      return this.powerRamps.has(component.id) || (canSmooth && powerChanged) || (s.power && canSmooth && (this.transitionState?.from.has(component.id) || !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
     }));
     if (!this.dirty && !animated && Date.now() < this.nextDiscovery) return;
     this.busy = true; let changedErrors = false;
@@ -220,32 +297,39 @@ class Hardware extends EventEmitter {
       if ((this.client.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
       if (Date.now() >= this.nextDiscovery) await this.discover();
       this.dirty = false;
-      const seconds = performance.now() / 1000;
+      const tickNow = this.now(), seconds = tickNow / 1000;
       for (const d of this.devices) {
         const channels = d.components || [d];
+        for (const component of channels) {
+          if (this.identification?.id === component.id) continue;
+          const s = this.settings(component.id, !!d.components);
+          this.powerMultiplier(component.id, s.power, this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0, tickNow);
+        }
         const signature = JSON.stringify(channels.map(component => {
           const s = this.settings(component.id, !!d.components);
           const identify = this.identification?.id === component.id ? this.identification : null;
-          const lit = Boolean(identify || (s.power && (s.brightness > 0 || s.nativeMode !== undefined)));
+          const powerRamp = this.powerRamps.has(component.id);
+          const lit = Boolean(identify || powerRamp || (s.power && (s.brightness > 0 || s.nativeMode !== undefined)));
           return lit
-            ? { id: component.id, count: component.ledCount, ...s, identify, spatial: !identify && this.studio?.hasDevice(component.id) ? this.studio.revision : null }
+            ? { id: component.id, count: component.ledCount, ...s, identify, powerRamp, spatial: !identify && this.studio?.hasDevice(component.id) ? this.studio.revision : null }
             : { id: component.id, count: component.ledCount, lit: false, power: Boolean(s.power) };
         }));
         const changed = this.applied.get(d.id) !== signature;
         const animation = channels.some(component => {
           const s = this.settings(component.id, !!d.components);
-          return s.power && s.brightness > 0 && d.direct && s.nativeMode === undefined && (this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static');
+          const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
+          return this.powerRamps.has(component.id) || (s.power && canSmooth && (this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
         });
         if (!changed && !animation) continue;
         if (d.components) {
           const oldError = d.error;
           const colors = Array(d.ledCount);
           for (const component of d.components) {
-            const zoneColors = this.renderFrame(component.id, this.settings(component.id, true), component.ledCount, seconds);
+            const zoneColors = this.renderFrame(component.id, this.settings(component.id, true), component.ledCount, seconds, tickNow);
             for (let index = 0; index < zoneColors.length; index++) colors[component.offset + index] = zoneColors[index];
           }
           const allOff = d.components.every(component => {
-            if (this.identification?.id === component.id) return false;
+            if (this.identification?.id === component.id || this.powerRamps.has(component.id)) return false;
             const s = this.settings(component.id, true);
             return !s.power || s.brightness === 0;
           });
@@ -264,17 +348,20 @@ class Hardware extends EventEmitter {
         }
         const settings = { ...this.settings(d.id) };
         const identifying = this.identification?.id === d.id;
+        const fading = this.powerRamps.has(d.id);
         if (identifying) { settings.power = true; delete settings.nativeMode; }
         if (this.studio?.hasDevice(d.id)) delete settings.nativeMode;
         const oldError = d.error;
-        const mode = identifying ? d.direct : !settings.power ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
+        const activePower = Boolean(settings.power || fading);
+        const mode = identifying ? d.direct : !activePower ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
         if (!mode) { d.error = 'Este dispositivo não oferece controle de cor compatível.'; }
-        else if (settings.power && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
+        else if (activePower && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
         else {
-          await this.applyMode(d, mode, settings, mode.flagList.includes('perLedColor') && (!settings.power || settings.nativeMode === undefined));
+          const modeSettings = fading && !settings.power ? { ...settings, power: true } : settings;
+          await this.applyMode(d, mode, modeSettings, mode.flagList.includes('perLedColor') && (!activePower || settings.nativeMode === undefined));
           let colors = null;
-          if ((!settings.power || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) { colors = this.renderFrame(d.id, settings, d.ledCount, seconds); this.client.updateLeds(d.sdkId, colors); }
-          if (!settings.power && !colors) colors = Array.from({ length: d.ledCount }, () => ({ red: 0, green: 0, blue: 0 }));
+          if ((!activePower || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) { colors = this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow); this.client.updateLeds(d.sdkId, colors); }
+          if (!activePower && !colors) colors = Array.from({ length: d.ledCount }, () => ({ red: 0, green: 0, blue: 0 }));
           this.rememberOutput(d.id, colors, settings);
           d.error = null; this.applied.set(d.id, signature);
         }

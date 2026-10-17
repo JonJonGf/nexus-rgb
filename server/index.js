@@ -76,7 +76,7 @@ async function createApp(options = {}) {
     }
   };
   const alexa = new Alexa(store, hardware, directory, broadcast, { port: configuredPorts.alexa, getInterfaces });
-  const studio = new Studio(store, hardware, directory, broadcast); hardware.studio = studio;
+  const studio = new Studio(store, hardware, directory, broadcast, options.studio); hardware.studio = studio;
   const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
   const resources = new Resources();
@@ -165,6 +165,7 @@ async function createApp(options = {}) {
       if(draftRoute&&req.method==='GET'){admin();draftPreview.watch(draftRoute[1],res,()=>security.session(req)?.admin);return;}
       if(draftRoute&&req.method==='DELETE'){admin();draftPreview.remove(draftRoute[1]);return json(res,200,{stopped:true});}
       if (route === '/api/studio/play' && req.method === 'POST') { const body = await readBody(req); if (!body || Object.keys(body).some(k => !['activeId', 'values', 'enabled'].includes(k))) throw Error('Comando de efeito inválido.'); studio.configure(body); return json(res, 200, studio.snapshot(true)); }
+      if (route === '/api/studio/recover' && req.method === 'POST') { const body = await readBody(req); if (!body || Object.keys(body).some(k => k !== 'action')) throw Error('Comando de recuperação inválido.'); await studio.recover(body.action); broadcast(); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/studio' && req.method === 'POST') { admin(); studio.configure(await readBody(req, 128 * 1024)); return json(res, 200, studio.snapshot(true)); }
       if (route === '/api/studio/preview' && req.method === 'GET') { studio.watch(req, res, () => security.session(req)); return; }
       if (route === '/api/studio/import' && req.method === 'POST') { admin(); const body = await readBody(req, 256 * 1024); const id = await studio.import(body.source); return json(res, 200, { id, ...studio.snapshot(true) }); }

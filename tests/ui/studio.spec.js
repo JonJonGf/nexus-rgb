@@ -203,3 +203,101 @@ test('indicador fora do mapa, botão Voltar a seguir o mapa e reconexão da pré
   await expect(page.locator('.studio-item.excluded')).toHaveCount(0);
   await expect(page.locator('#studio-piece-excluded')).toBeHidden();
 });
+
+test('painel de recuperação explica falha do efeito, restaura último funcional e permite manter luzes apagadas', async ({ page }) => {
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  const initialStudio = await (await page.request.get('/api/studio')).json();
+  const validEffect = initialStudio.effects.find(e => e.builtin);
+  let recoveredAction = null;
+  let failureActive = true;
+  const mockRecovery = () => ({
+    active: true,
+    kind: 'effect',
+    message: 'O efeito excedeu o tempo de resposta e foi pausado.',
+    attempts: 3,
+    maxAttempts: 3,
+    quarantined: true,
+    retrying: false,
+    controllerConfirmed: false,
+    controllerState: 'unconfirmed',
+    lastWorking: { activeId: validEffect.id, name: validEffect.name, promotedAt: Date.now() },
+    actions: ['retry', 'last-working', 'lights-off']
+  });
+  await page.route('**/api/studio', async route => {
+    if (route.request().method() !== 'GET') return route.continue();
+    const res = await route.fetch();
+    const body = await res.json();
+    if (failureActive) {
+      body.enabled = true;
+      body.error = 'O efeito excedeu o tempo de resposta e foi pausado.';
+      body.recovery = mockRecovery();
+    }
+    await route.fulfill({ json: body });
+  });
+  await page.route('**/api/studio/preview', async route => {
+    const packet = {
+      image: null,
+      layout: initialStudio.layout,
+      enabled: true,
+      power: true,
+      connected: !failureActive,
+      error: failureActive ? 'O efeito excedeu o tempo de resposta e foi pausado.' : null,
+      recovery: failureActive ? mockRecovery() : { active: false, kind: null, message: null, attempts: 0, maxAttempts: 3, quarantined: false, retrying: false, controllerConfirmed: true, controllerState: 'spatial', lastWorking: { activeId: validEffect.id, name: validEffect.name, promotedAt: Date.now() }, actions: [] },
+      playback: { spatial: !failureActive, effect: 'static', name: validEffect.name },
+      output: []
+    };
+    await route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 50000\ndata: ' + JSON.stringify(packet) + '\n\n' });
+  });
+  await page.route('**/api/studio/recover', async route => {
+    const reqBody = route.request().postDataJSON();
+    recoveredAction = reqBody.action;
+    if (reqBody.action === 'last-working') failureActive = false;
+    const res = await route.fetch();
+    const body = await res.json();
+    if (failureActive) {
+      body.enabled = true;
+      body.error = 'O efeito excedeu o tempo de resposta e foi pausado.';
+      body.recovery = mockRecovery();
+    } else {
+      body.error = null;
+      body.recovery = { active: false, kind: null, message: null, attempts: 0, maxAttempts: 3, quarantined: false, retrying: false, controllerConfirmed: true, controllerState: 'spatial', lastWorking: { activeId: validEffect.id, name: validEffect.name, promotedAt: Date.now() }, actions: [] };
+    }
+    await route.fulfill({ status: 200, json: body });
+  });
+
+  await page.locator('.nav[data-page=studio]').click();
+  await expect(page.locator('#studio-recovery')).toBeVisible();
+  await expect(page.locator('#studio-recovery-kind')).toHaveText('ERRO DO EFEITO');
+  await expect(page.locator('#studio-recovery-message')).toHaveText('O efeito excedeu o tempo de resposta e foi pausado.');
+  await expect(page.locator('#studio-recovery-detail')).toContainText('o estado físico do último quadro nas luzes não pôde ser confirmado');
+  await expect(page.locator('#studio-recover-retry')).toBeVisible();
+  await expect(page.locator('#studio-recover-last')).toBeVisible();
+  await expect(page.locator('#studio-recover-off')).toBeVisible();
+
+  await page.locator('#studio-recover-off').click();
+  expect(recoveredAction).toBe('lights-off');
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).master.power).toBe(false);
+
+  await page.locator('#studio-recover-last').click();
+  expect(recoveredAction).toBe('last-working');
+  await expect(page.locator('#studio-recovery')).toBeHidden();
+});
+
+test('configuração de transição suave de energia salva duração e informa fallback para modo nativo', async ({ page }) => {
+  await page.goto('/'); await expect(page.locator('#power')).toBeEnabled();
+  await page.locator('.nav[data-page=settings]').click();
+  await expect(page.locator('#settings-power-transition')).toHaveValue('0');
+  await expect(page.locator('#settings-power-transition-label')).toHaveText('Instantânea');
+
+  await page.locator('#settings-power-transition').selectOption('800');
+  await expect(page.locator('#settings-power-transition-label')).toHaveText('0,8 s');
+  await page.locator('#settings-fps-save').click();
+
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).performance.powerTransitionMs).toBe(800);
+
+  // Reset to instant default (0) and verify persistence:
+  await page.locator('#settings-power-transition').selectOption('0');
+  await page.locator('#settings-fps-save').click();
+  await expect.poll(async () => (await (await page.request.get('/api/state')).json()).performance.powerTransitionMs || 0).toBe(0);
+  await expect(page.locator('#settings-power-transition-label')).toHaveText('Instantânea');
+});

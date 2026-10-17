@@ -20,6 +20,7 @@
 .health-table { overflow-x:auto; }
 .health-table table { border-collapse:collapse; width:100%; font-size:12px; }
 .health-table th,.health-table td { padding:10px; text-align:left; border-bottom:1px solid var(--border); }
+.diagnostic-categories { display:flex; gap:8px 16px; flex-wrap:wrap; margin:12px 0; font-size:11px; }
 #diagnostic-content { max-height:350px; overflow:auto; border:1px solid var(--border); padding:15px; font-size:11px; }
 .calibration-probe { display:flex; align-items:end; gap:10px; flex-wrap:wrap; padding-bottom:20px; border-bottom:1px solid var(--border); }
 .calibration-probe label { max-width:180px; }
@@ -113,6 +114,12 @@
 .studio-device-chips button.excluded { border-style: dashed; border-color: #cfb58f90; color: #cfb58f; }
 .studio-piece-excluded { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; padding: 10px 12px; border: 1px solid #8c673950; background: #241e1670; border-radius: 5px; }
 .studio-piece-excluded p { margin: 0; color: #cfb58f; line-height: 1.45; }
+.studio-recovery { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; padding: 12px 16px; border-color: #d6685360; background: #22141695; }
+.studio-recovery-info { min-width: 0; flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px; }
+.studio-recovery-info .eyebrow { color: #f28f79; }
+.studio-recovery-info strong { font-size: 13px; overflow-wrap: anywhere; }
+.studio-recovery-info p { margin: 0; line-height: 1.45; overflow-wrap: anywhere; }
+#studio-recovery-actions { margin: 0; flex-wrap: wrap; }
 .studio-item span { position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%) rotate(calc(-1 * var(--rotation))); color: #fff; font: 9px var(--mono); white-space: nowrap; width: max-content; max-width: min(160px,180%); overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px #000; pointer-events: none; }
 .studio-item i { display: block; position: absolute; inset: 20%; border: 1px dashed #ffffff40; border-radius: inherit; pointer-events: none; }
 .studio-item:focus-visible { outline-offset: 4px; }

@@ -30,7 +30,9 @@
     if (saving || !dirty || !isAdmin || dragging) return;
     saving = true; lastSave = Date.now(); const version = editVersion;
     try {
-      const next = await api('/api/studio', { layout: structuredClone(data.layout) }, 'POST');
+      const payload = { layout: structuredClone(data.layout) };
+      if (Number.isInteger(data.layoutRevision)) payload.baseLayoutRevision = data.layoutRevision;
+      const next = await api('/api/studio', payload, 'POST');
       savedVersion = version; dirty = editVersion !== savedVersion;
       // Buttons retain references to these items in their pointer handlers.
       // An acknowledgement must not swap them for detached JSON objects.
@@ -39,6 +41,14 @@
       $('studio-dirty').textContent = dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
       $('studio-retry').hidden = true;
     } catch (e) {
+      if (String(e?.message || '').includes('alterado em outro dispositivo')) {
+        dirty = false; savedVersion = editVersion;
+        error(e);
+        await refresh(false);
+        $('studio-dirty').textContent = T('Mapa atualizado por outro dispositivo');
+        $('studio-retry').hidden = true;
+        return;
+      }
       $('studio-dirty').textContent = T('Não foi possível salvar'); $('studio-retry').hidden = false; error(e);
       // Keep the local edit for an explicit retry; do not flood a failed API.
       return;
@@ -166,6 +176,39 @@
       label.append(input); form.append(label);
     }
   }
+  function renderRecovery() {
+    const box = $('studio-recovery'); if (!box || !data) return;
+    const rec = data.recovery;
+    const active = Boolean(data.error || rec?.active);
+    box.hidden = !active;
+    if (!active) return;
+    const kind = rec?.kind || 'effect';
+    const labels = {
+      effect: 'ERRO DO EFEITO',
+      worker: 'FALHA DO PROCESSO DO EFEITO',
+      config: 'CONFIGURAÇÃO INVÁLIDA',
+      controller: 'PERDA DO OPENRGB'
+    };
+    $('studio-recovery-kind').textContent = T(labels[kind] || labels.effect);
+    $('studio-recovery-message').textContent = T(rec?.message || data.error || '');
+    const parts = [];
+    if (kind === 'controller') parts.push(T('A reconexão automática está ativa com espera progressiva.'));
+    else if (rec?.quarantined) parts.push(T('Execução interrompida após repetidas falhas. O efeito não será retomado sozinho ao reiniciar.'));
+    else if (rec?.retrying) parts.push(T('Tentando recuperar automaticamente com espera progressiva…'));
+    else parts.push(T('A versão com problema foi mantida na biblioteca para correção.'));
+    if (!rec?.controllerConfirmed) parts.push(T('Controlador desconectado: o estado físico do último quadro nas luzes não pôde ser confirmado.'));
+    else if (rec?.controllerState === 'lights-off' || state?.master?.power === false) parts.push(T('Controlador conectado: luzes confirmadas apagadas.'));
+    else parts.push(T('Controlador conectado: saída comum preservada nos componentes ativos.'));
+    if (rec?.lastWorking) {
+      const lwEffect = data.effects?.find(e => e.id === rec.lastWorking.activeId);
+      parts.push(T('Último efeito funcional validado: ') + (effectName(lwEffect) || rec.lastWorking.name));
+    }
+    $('studio-recovery-detail').textContent = parts.join(' ');
+    const actions = rec?.actions || (data.error ? ['retry', ...(rec?.lastWorking ? ['last-working'] : []), 'lights-off'] : []);
+    $('studio-recover-retry').hidden = !actions.includes('retry');
+    $('studio-recover-last').hidden = !actions.includes('last-working');
+    $('studio-recover-off').hidden = !actions.includes('lights-off');
+  }
   function status() {
     $('studio-toggle').hidden = !data.enabled;
     $('studio-common-adjust').hidden = Boolean(data.enabled);
@@ -173,6 +216,7 @@
     $('studio-effect-heading').textContent = data.enabled ? effectName(data.effects.find(e => e.id === data.activeId)) : effectNames[state?.master.effect] || '';
     $('studio-error').hidden = !data.error; $('studio-error').textContent = T(data.error || '');
     $('studio-state').textContent = data.error ? T('Efeito pausado') : data.enabled ? T('Mapa ao vivo') : T('Controle comum');
+    renderRecovery();
     controls();
   }
   async function sharedPlay(route, body) {
@@ -236,7 +280,10 @@
       const version = editVersion, next = await api('/api/studio');
       const old = data, changed = !old || old.activeId !== next.activeId || old.effects.length !== next.effects.length || JSON.stringify(old.values) !== JSON.stringify(next.values) || JSON.stringify(old.excluded) !== JSON.stringify(next.excluded);
       const layoutChanged = !old || JSON.stringify(old.layout) !== JSON.stringify(next.layout);
-      if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) next.layout = old.layout;
+      if (old && (!layoutChanged || ((dirty || saving || dragging || editVersion !== version) && keepDraft))) {
+        next.layout = old.layout;
+        if ((dirty || saving || dragging || editVersion !== version) && keepDraft) next.layoutRevision = old.layoutRevision;
+      }
       data = next;
       if (current === 'studio') {
         if (changed) { if (!dragging) { map(); selection(); } renderLibrary(); }
@@ -247,7 +294,21 @@
       $('studio-metrics').textContent = text; $('settings-metrics').textContent = text;
     } catch (e) { error(e); } finally { loading = false; }
   }
-  async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty || dragging) next.layout = data.layout; data = next; renderLibrary(); if (!dragging) { map(); selection(); } } return Boolean(next); }
+  async function play(body) { const next = await request('/api/studio/play', body, 'POST'); if (next) { if (dirty || dragging) { next.layout = data.layout; next.layoutRevision = data.layoutRevision; } data = next; renderLibrary(); if (!dragging) { map(); selection(); } } return Boolean(next); }
+  async function recoverAction(action) {
+    const next = await request('/api/studio/recover', { action }, 'POST');
+    if (next) {
+      if (dirty || dragging) { next.layout = data.layout; next.layoutRevision = data.layoutRevision; }
+      data = next;
+      renderLibrary();
+      if (!dragging) { map(); selection(); }
+      if (action === 'lights-off') toast(T(next.recovery?.controllerConfirmed ? 'Luzes mantidas apagadas.' : 'Iluminação desligada no painel. O estado físico aguarda o controlador.'));
+      else if (action === 'last-working') toast(T('Último efeito funcional restaurado.'));
+    }
+  }
+  $('studio-recover-retry').addEventListener('click', () => recoverAction('retry'));
+  $('studio-recover-last').addEventListener('click', () => recoverAction('last-working'));
+  $('studio-recover-off').addEventListener('click', () => recoverAction('lights-off'));
   $('studio-toggle').addEventListener('click', () => play({ enabled: !data.enabled }));
   function parameters(event) {
     event.preventDefault(); const values = {};
@@ -312,7 +373,22 @@
     try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + T(': limite de 128 KiB.')); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
   });
   let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'], formulaDraft, formulaValid = true, formulaSaving = false, formulaTimer, formulaPreviewOpen = false, formulaDrawDirty = true, formulaStarted = 0, formulaSeconds = 0, formulaProfileId;
-  let formulaHTML=false,codeBusy=false;const formulaBuffers={json:'',html:''};
+  let formulaHTML=false,codeBusy=false,formulaHistorySuspended=false,formulaLastValidJSON='';const formulaBuffers={json:'',html:''},formulaHistory=new NexusMapModel.History(40);
+  function updateFormulaHistoryButtons() {
+    const uBtn = $('formula-undo'), rBtn = $('formula-redo'), restoreBtn = $('formula-restore-valid');
+    if (!uBtn || !rBtn || !restoreBtn) return;
+    const uLabel = formulaHistory.undoLabel, rLabel = formulaHistory.redoLabel;
+    uBtn.hidden = rBtn.hidden = formulaHTML;
+    uBtn.disabled = formulaSaving || formulaHTML || !formulaHistory.undoable;
+    rBtn.disabled = formulaSaving || formulaHTML || !formulaHistory.redoable;
+    uBtn.textContent = uLabel ? T('Desfazer') + ' ' + T(uLabel) + ' ↶' : T('Desfazer ↶');
+    rBtn.textContent = rLabel ? T('Refazer') + ' ' + T(rLabel) + ' ↷' : T('Refazer ↷');
+    uBtn.title = uLabel ? T('Desfazer') + ' ' + T(uLabel) : T('Desfazer');
+    rBtn.title = rLabel ? T('Refazer') + ' ' + T(rLabel) : T('Refazer');
+    uBtn.dataset.action = uLabel || ''; rBtn.dataset.action = rLabel || '';
+    restoreBtn.hidden = formulaValid || formulaHTML || !formulaLastValidJSON;
+    restoreBtn.disabled = formulaSaving;
+  }
   const codePreview=NexusCodePreview.create({api:(...args)=>api(...args),source:$('studio-source'),canvas:$('formula-preview'),parameters:$('formula-code-parameters'),metadata:$('formula-code-metadata'),status:message=>{$('formula-preview-note').textContent=message;$('formula-preview-toggle').textContent=T(codePreview.playing()?'Pausar prévia':'Testar prévia');},error:message=>{$('formula-error').textContent=message;$('formula-error').hidden=false;$('formula-preview-toggle').textContent=T('Testar prévia');},busy:value=>{codeBusy=value;formulaValidity(formulaValid);$('formula-preview-toggle').textContent=T(value?'Validando código…':codePreview.playing()?'Pausar prévia':'Testar prévia');}});
   function formulaMode(html,pasted){
     formulaStop();if(html!==formulaHTML){if(pasted===undefined)formulaBuffers[formulaHTML?'html':'json']=$('studio-source').value;$('studio-source').value=pasted??formulaBuffers[html?'html':'json'];}formulaHTML=html;$('formula-format').value=html?'html':'json';$('formula-json-fields').hidden=html;$('formula-palette-preview').hidden=html;$('formula-code-parameters').hidden=!html;$('formula-code-metadata').hidden=!html;$('formula-intro').hidden=html;
@@ -321,7 +397,7 @@
     const summary=$('formula-advanced').querySelector('summary');summary.dataset.i18n=html?'Código HTML / Canvas':'Editar JSON · avançado';summary.textContent=T(summary.dataset.i18n);
     const help=$('formula-code-help');help.dataset.i18n=html?'Cole o HTML completo, incluindo meta, canvas e script. A prévia executa em um processo isolado. Áudio, imagens e scripts externos não são suportados.':'JSON válido atualiza os controles e a prévia aberta. Alterar os controles gera o JSON correspondente.';help.textContent=T(help.dataset.i18n);
     if(html){$('formula-advanced').open=true;codePreview.changed();formulaValidity(Boolean($('studio-source').value.trim()));}else formulaReadout();
-    $('formula-error').hidden=true;
+    $('formula-error').hidden=true; updateFormulaHistoryButtons();
   }
   $('formula-format').addEventListener('change',()=>{formulaMode($('formula-format').value==='html');if(!formulaHTML){if($('studio-source').value)formulaFromJSON();else formulaPalette();}});
   function formulaValidity(valid) {
@@ -332,6 +408,7 @@
     $('formula-colors').querySelectorAll('input,button').forEach(e=>{e.disabled = formulaSaving || e.dataset.unavailable === 'true';});
     $('studio-source').disabled = $('formula-profile').disabled = $('studio-formula-close').disabled = $('formula-format').disabled = formulaSaving;
     $('formula-code-parameters').querySelectorAll('input,select').forEach(e=>e.disabled=formulaSaving);
+    updateFormulaHistoryButtons();
   }
   function formulaReadout() {
     if (!formulaDraft || formulaHTML) return;
@@ -358,31 +435,70 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&formulaHTML)formulaStop();});
   function formulaOpen() {
     formulaStop(); formulaProfileId = null; formulaPreviewOpen = false; formulaSeconds = 0; $('formula-preview-wrap').hidden = true;
-    formulaMode(false);$('formula-error').hidden = true; formulaPalette(); $('studio-picker-dialog').close(); $('studio-formula-dialog').showModal(); $('formula-name').focus();
+    formulaHistorySuspended = true;
+    try {
+      formulaMode(false);$('formula-error').hidden = true; formulaPalette();
+      if (formulaDraft) formulaHistory.reset(structuredClone(formulaDraft));
+    } finally { formulaHistorySuspended = false; }
+    updateFormulaHistoryButtons();
+    $('studio-picker-dialog').close(); $('studio-formula-dialog').showModal(); $('formula-name').focus();
   }
   function formulaFromJSON() {
     try {
       formulaDraft = NexusRecipe.parse($('studio-source').value);
       formulaBuffers.json=$('studio-source').value;
+      formulaLastValidJSON = $('studio-source').value;
       for (const key of ['name','pattern','speed','angle','scale']) $('formula-'+key).value = formulaDraft[key];
-      formulaColors = [...formulaDraft.palette]; formulaPalette(false); formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); return true;
+      formulaColors = [...formulaDraft.palette]; formulaPalette(false);
+      if (!formulaHistorySuspended && formulaDraft) formulaHistory.record(structuredClone(formulaDraft));
+      formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); return true;
     } catch (e) { formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; return false; }
   }
   $('studio-source').addEventListener('input',()=>{
     const raw=$('studio-source').value;if(!formulaHTML&&!raw.trimStart().startsWith('{')&&/<canvas\b/i.test(raw)&&/<script\b/i.test(raw))formulaMode(true,raw);
     if(formulaHTML){formulaBuffers.html=raw;codePreview.changed();formulaValidity(Boolean(raw.trim()));$('formula-error').hidden=true;}else formulaFromJSON();
   });
-  function formulaSource() {
+  function formulaSource(record = true) {
     const recipe = { format: 'nexus-effect/1', name: $('formula-name').value, pattern: $('formula-pattern').value, palette: formulaColors, speed: Number($('formula-speed').value), angle: Number($('formula-angle').value), scale: Number($('formula-scale').value) };
     $('studio-source').value = JSON.stringify(recipe, null, 2);
     formulaBuffers.json=$('studio-source').value;
-    try { formulaDraft = NexusRecipe.normalize(recipe); formulaValidity(true); $('formula-error').hidden = true; formulaReadout(); } catch(e) { formulaDraft = null; formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
+    try {
+      formulaDraft = NexusRecipe.normalize(recipe);
+      formulaLastValidJSON = $('studio-source').value;
+      if (record && !formulaHistorySuspended && formulaDraft) formulaHistory.record(structuredClone(formulaDraft));
+      formulaValidity(true); $('formula-error').hidden = true; formulaReadout();
+    } catch(e) { formulaValidity(false); $('formula-error').textContent = T(e.message); $('formula-error').hidden = false; }
   }
+  function applyFormulaSnapshot(snapshot) {
+    if (!snapshot || formulaSaving || formulaHTML) return;
+    formulaHistorySuspended = true;
+    try {
+      for (const key of ['name', 'pattern', 'speed', 'angle', 'scale']) $('formula-' + key).value = snapshot[key];
+      formulaColors = [...snapshot.palette];
+      formulaPalette(true);
+    } finally { formulaHistorySuspended = false; }
+    updateFormulaHistoryButtons();
+  }
+  $('formula-undo').addEventListener('click', () => applyFormulaSnapshot(formulaHistory.undo()));
+  $('formula-redo').addEventListener('click', () => applyFormulaSnapshot(formulaHistory.redo()));
+  $('formula-restore-valid').addEventListener('click', () => {
+    if (!formulaLastValidJSON || formulaSaving) return;
+    $('studio-source').value = formulaLastValidJSON;
+    formulaFromJSON();
+  });
+  $('studio-formula-dialog').addEventListener('keydown', e => {
+    if (formulaSaving || formulaHTML || e.target === $('studio-source') || !(e.ctrlKey || e.metaKey) || !['z', 'y'].includes(e.key.toLowerCase())) return;
+    e.preventDefault();
+    if (e.key.toLowerCase() === 'y' || e.shiftKey) applyFormulaSnapshot(formulaHistory.redo());
+    else applyFormulaSnapshot(formulaHistory.undo());
+  });
   function formulaPalette(writeSource = true) {
     const container = $('formula-colors'); container.replaceChildren();
     formulaColors.forEach((value, i) => {
       const wrap = make('div', undefined, 'formula-color'), input = make('input'); input.type = 'color'; input.value = value; input.setAttribute('aria-label', T`Cor ${i + 1} do efeito`);
-      input.addEventListener('input', () => { formulaColors[i] = input.value; formulaSource(); }); wrap.append(input);
+      input.addEventListener('input', () => { formulaColors[i] = input.value; formulaSource(false); });
+      input.addEventListener('change', () => { formulaColors[i] = input.value; formulaSource(true); });
+      wrap.append(input);
       for (const [delta, text] of [[-1, '←'], [1, '→'], [0, '×']]) {
         const button = make('button', text); button.type = 'button'; button.setAttribute('aria-label', (delta ? T('Mover') : T('Remover')) + T(' cor ') + (i + 1) + (delta ? delta < 0 ? T(' para esquerda') : T(' para direita') : ''));
         button.disabled = delta ? i + delta < 0 || i + delta >= formulaColors.length : formulaColors.length === 1;
@@ -391,10 +507,12 @@
       }
       container.append(wrap);
     });
-    $('formula-add-color').disabled = formulaColors.length >= 8; if (writeSource) formulaSource();
+    $('formula-add-color').disabled = formulaColors.length >= 8; if (writeSource) formulaSource(true);
   }
   $('formula-add-color').addEventListener('click', () => { if (formulaColors.length < 8) { formulaColors.push('#ffffff'); formulaPalette(); } });
-  for (const key of ['name', 'pattern', 'speed', 'angle', 'scale']) $('formula-' + key).addEventListener('input', formulaSource);
+  for (const key of ['name', 'pattern', 'angle', 'scale']) $('formula-' + key).addEventListener('input', () => formulaSource(true));
+  $('formula-speed').addEventListener('input', () => formulaSource(false));
+  $('formula-speed').addEventListener('change', () => formulaSource(true));
   $('studio-new').addEventListener('click', formulaOpen);
   $('studio-formula-close').addEventListener('click', () => $('studio-formula-dialog').close());
   $('studio-formula-form').addEventListener('submit', async event => {
@@ -418,10 +536,39 @@
     finally { button.disabled = false; }
   });
   $('studio-remove-effect').addEventListener('click', async () => { const result = await request('/api/studio/effects/' + data.activeId, undefined, 'DELETE'); if (result) { result.layout = data.layout; data = result; renderLibrary(); } });
-  function fpsLabel() { const fps = Number($('settings-fps').value); $('settings-fps-label').textContent = fps + ' FPS'; document.querySelectorAll('[data-fps]').forEach(b => b.classList.toggle('active', Number(b.dataset.fps) === fps)); }
+  function fpsLabel() {
+    const fps = Number($('settings-fps').value);
+    $('settings-fps-label').textContent = fps + ' FPS';
+    document.querySelectorAll('[data-fps]').forEach(b => b.classList.toggle('active', Number(b.dataset.fps) === fps));
+    const transitionEl = $('settings-power-transition');
+    if (transitionEl) {
+      const transitionMs = Number(transitionEl.value) || 0;
+      const secs = (transitionMs / 1000).toFixed(1);
+      $('settings-power-transition-label').textContent = transitionMs > 0 ? (T.locale() === 'en' ? secs : secs.replace('.', ',')) + ' s' : T('Instantânea');
+      const fallbackDevices = (state?.hardware?.devices || []).filter(d => d.smoothPowerCapable === false);
+      const note = $('settings-power-transition-note');
+      if (note) {
+        note.textContent = transitionMs > 0 && fallbackDevices.length
+          ? T('Fallback instantâneo ativo para ') + fallbackDevices.map(d => d.name).join(', ') + T(' (modo nativo do hardware ou sem controle por LED).')
+          : T('Aplica um fade temporário ao ligar ou apagar no painel, por peça ou pela Alexa, sem alterar brilho, cores ou perfis salvos.');
+      }
+    }
+  }
   $('settings-fps').addEventListener('input', () => { fpsDirty = true; fpsLabel(); });
+  $('settings-power-transition')?.addEventListener('change', () => { fpsDirty = true; fpsLabel(); });
   document.querySelectorAll('[data-fps]').forEach(button => button.addEventListener('click', () => { fpsDirty = true; $('settings-fps').value = button.dataset.fps; fpsLabel(); }));
-  $('settings-fps-form').addEventListener('submit', async event => { event.preventDefault(); const result = await request('/api/settings', { fps: Number($('settings-fps').value) }, 'POST'); if (result) { fpsDirty = false; $('settings-fps').value = result.performance.fps; fpsLabel(); toast(T('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.')); } });
+  $('settings-fps-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const powerTransitionMs = Number($('settings-power-transition')?.value) || 0;
+    const result = await request('/api/settings', { fps: Number($('settings-fps').value), powerTransitionMs }, 'POST');
+    if (result) {
+      fpsDirty = false;
+      $('settings-fps').value = result.performance.fps;
+      if ($('settings-power-transition')) $('settings-power-transition').value = String(result.performance.powerTransitionMs || 0);
+      fpsLabel();
+      toast(T('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.'));
+    }
+  });
   let streamTimer = null, streamDelay = 2000;
   function stopStream() { clearTimeout(streamTimer); streamTimer = null; stream?.close(); stream = null; }
   function connectPreview() {
@@ -434,6 +581,12 @@
       image.hidden = !frame.image || !frame.enabled || !frame.power || !frame.connected || Boolean(frame.error);
       if (!image.hidden) image.src = 'data:image/png;base64,' + frame.image;
       else image.removeAttribute('src');
+      if (data && ('error' in frame || frame.recovery)) {
+        const prevError = data.error, prevRec = JSON.stringify(data.recovery);
+        data.error = frame.error ?? null;
+        if (frame.recovery) data.recovery = frame.recovery;
+        if (prevError !== data.error || prevRec !== JSON.stringify(data.recovery)) status();
+      }
       // A frame can still use the preceding geometry while a new edit is
       // being sampled. It describes sent colors, never editable positions.
       drawOutput();
@@ -464,7 +617,7 @@
   window.addEventListener('nexus:languagechange', () => {
     if (data) { status(); renderGallery(); map(); selection(); if (liveFrame) drawOutput(); }
     $('studio-dirty').textContent = !$('studio-retry').hidden ? T('Não foi possível salvar') : dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
-    renderPorts();
+    renderPorts(); fpsLabel();
     // Translating palette buttons must not replace an advanced JSON draft.
     const source = $('studio-source').value; formulaPalette(false); $('studio-source').value = source; formulaValidity(formulaValid); formulaReadout(); $('formula-preview-toggle').textContent = T(formulaTimer || codePreview.playing() ? 'Pausar prévia' : 'Testar prévia');
   });
@@ -491,8 +644,22 @@
       library.update(admin);
       renderGallery();
       document.querySelectorAll('.studio-admin').forEach(e => { if (!e.closest('#studio-formula-form')) e.hidden = !admin; }); $('settings-fps-save').disabled = !admin; $('settings-fps').disabled = !admin;
+      if ($('settings-power-transition')) $('settings-power-transition').disabled = !admin;
       document.querySelectorAll('[data-fps]').forEach(e => { e.disabled = !admin; }); $('settings-admin-note').hidden = admin;
-      if (!fpsDirty && document.activeElement !== $('settings-fps')) { $('settings-fps').value = next.performance?.fps || 20; fpsLabel(); }
+      if (!fpsDirty && document.activeElement !== $('settings-fps') && document.activeElement !== $('settings-power-transition')) {
+        $('settings-fps').value = next.performance?.fps || 20;
+        const transitionEl = $('settings-power-transition');
+        if (transitionEl) {
+          const val = String(next.performance?.powerTransitionMs || 0);
+          if (![...transitionEl.options].some(o => o.value === val)) {
+            const opt = document.createElement('option'); opt.value = val; opt.textContent = (Number(val) / 1000).toFixed(1) + ' s'; transitionEl.append(opt);
+          }
+          transitionEl.value = val;
+        }
+        fpsLabel();
+      } else {
+        fpsLabel();
+      }
       $('studio-readonly-note').hidden = admin;
       if (data) {
         const excludedChanged = Array.isArray(next.studio?.excluded) && JSON.stringify(data.excluded) !== JSON.stringify(next.studio.excluded);

@@ -273,3 +273,109 @@ test('controladora multizona usa Off nativo somente quando todas as zonas estão
   assert.deepEqual(mock.calls.filter(c => c[0] === 'mode'), [['mode', 0, 2]]);
   assert.deepEqual(mock.calls.find(c => c[0] === 'leds' && c[1] === 0)[2], [{ red: 0, green: 0, blue: 0 }, { red: 100, green: 0, blue: 0 }, { red: 100, green: 0, blue: 0 }, { red: 0, green: 0, blue: 0 }]);
 });
+
+test('transição suave de energia aplica fade em energia geral, individual e Alexa, inverte da intensidade atual, usa fallback em modo nativo e encerra envios ao apagar', async t => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+  const { Store } = require('../server/store');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-smooth-power-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const store = new Store(dir);
+  store.master({ power: true, color: '#ff0000', brightness: 80, effect: 'static' });
+  assert.throws(() => store.performance({ fps: 20, powerTransitionMs: 100 }), /200 a 3000/);
+  assert.throws(() => store.performance({ fps: 20, powerTransitionMs: 3500 }), /200 a 3000/);
+  store.performance({ fps: 20, powerTransitionMs: 400 });
+  assert.equal(store.data.performance.powerTransitionMs, 400);
+
+  let clock = 1000;
+  const directDev = controller(' Barra LED ', 'USB:direct', true);
+  directDev.modes.push({ id: 7, name: 'Off', flagList: [] });
+  const nativeDev = controller('Placa Nativa', 'USB:native', false);
+  nativeDev.modes.push({ id: 3, name: 'Static', flagList: ['modeSpecificColor', 'brightness'], brightnessMin: 0, brightnessMax: 100, colorMin: 1, colors: [] });
+  nativeDev.modes.push({ id: 7, name: 'Off', flagList: [] });
+
+  const mock = new Mock([directDev, nativeDev]);
+  const hardware = new Hardware(store, { makeClient: () => mock, now: () => clock });
+  t.after(() => hardware.stop());
+  hardware.stopped = false;
+  await hardware.connect();
+  const [bar, board] = hardware.snapshot().devices;
+  store.device(board.id, { nativeMode: 0 }, [bar.id, board.id]);
+
+  // Initial tick applies full target brightness (80% of 255 = 204) without starting a ramp.
+  await hardware.tick();
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 204);
+  const snap1 = hardware.snapshot().devices;
+  assert.equal(snap1.find(d => d.id === bar.id).smoothPowerCapable, true);
+  assert.equal(snap1.find(d => d.id === bar.id).powerTransitionFallback, false);
+  assert.equal(snap1.find(d => d.id === board.id).smoothPowerCapable, false);
+  assert.equal(snap1.find(d => d.id === board.id).powerTransitionFallback, true);
+
+  // Track store.save calls: only the power command itself saves, never the intermediate animation frames.
+  let saves = 0;
+  const origSave = store.save.bind(store);
+  store.save = () => { saves++; return origSave(); };
+
+  // Alexa / general power off (400 ms fade):
+  store.power(false);
+  hardware.changed();
+  assert.equal(saves, 1);
+  assert.equal(store.data.master.brightness, 80, 'Brilho salvo não deve mudar');
+
+  // Frame at t=1000 starts ramp (1.0), native device immediately switches to Off mode (id 7):
+  mock.calls = [];
+  await hardware.tick();
+  assert.deepEqual(mock.calls.find(c => c[0] === 'mode' && c[1] === 1), ['mode', 1, 7], 'Modo nativo usa fallback instantâneo');
+  assert.equal(hardware.isPowerTransitioning(bar.id), true);
+
+  // Mid-fade at t=1200 (50% elapsed -> mult = 0.5 -> red = 102):
+  clock = 1200;
+  await hardware.tick();
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 102);
+  assert.equal(saves, 1, 'Nenhum salvamento em disco durante os quadros da rampa');
+
+  // Mid-transition reversal at t=1200: turn power back ON!
+  // Must start from current intensity (0.5 -> 102) with remaining duration 200 ms, without flash or jump.
+  store.power(true);
+  hardware.changed();
+  assert.equal(saves, 2);
+  await hardware.tick();
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 102, 'Reversão parte da intensidade atual sem salto');
+
+  // Halfway through reversed ramp at t=1300 (100 ms of 200 ms -> mult = 0.75 -> red = 153):
+  clock = 1300;
+  await hardware.tick();
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 153);
+
+  // End of reversed ramp at t=1400 (200 ms of 200 ms -> mult = 1.0 -> red = 204):
+  clock = 1400;
+  await hardware.tick();
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 204);
+  assert.equal(hardware.isPowerTransitioning(bar.id), false);
+
+  // Subsequent ticks on static effect send zero commands:
+  mock.calls = [];
+  clock = 1500;
+  await hardware.tick();
+  assert.equal(mock.calls.length, 0);
+
+  // Individual device power off (bar only) fades to 0 and then stops all writes:
+  store.device(bar.id, { power: false }, [bar.id, board.id]);
+  hardware.changed();
+  await hardware.tick(); // t=1500: ramp starts
+  clock = 1700;
+  await hardware.tick(); // t=1700: 50% (red = 102)
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 102);
+  clock = 1900;
+  await hardware.tick(); // t=1900: 100% (red = 0, mode Off applied)
+  assert.equal(hardware.outputFor(bar.id).colors[0].red, 0);
+  assert.equal(hardware.outputFor(bar.id).source, 'off');
+  assert.equal(hardware.isPowerTransitioning(bar.id), false);
+
+  // Once off, no further SDK calls are sent on subsequent ticks:
+  mock.calls = [];
+  clock = 2100;
+  await hardware.tick();
+  clock = 2300;
+  await hardware.tick();
+  assert.equal(mock.calls.length, 0, 'Ao apagar, encerrar envios desnecessários');
+});

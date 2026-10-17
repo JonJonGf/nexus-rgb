@@ -59,7 +59,11 @@ class Store {
     this.data = readJson(this.file, { version: 1, master: defaults, devices: {}, profiles: [], alexaEnabled: false });
     if (this.data.version !== 1) throw new Error('Versão de configuração incompatível.');
     validatePatch(this.data.master);
-    if (this.data.performance && (!Number.isInteger(this.data.performance.fps) || this.data.performance.fps < 5 || this.data.performance.fps > 60)) throw Error('Configuração de FPS inválida.');
+    if (this.data.performance) {
+      if (!Number.isInteger(this.data.performance.fps) || this.data.performance.fps < 5 || this.data.performance.fps > 60) throw Error('Configuração de FPS inválida.');
+      const transitionMs = this.data.performance.powerTransitionMs;
+      if (transitionMs !== undefined && (!Number.isInteger(transitionMs) || (transitionMs !== 0 && (transitionMs < 200 || transitionMs > 3000)))) throw Error('Configuração de transição de energia inválida.');
+    }
     this.data.devices ??= {};
     this.data.profiles ??= [];
     this.data.zones ??= {};
@@ -77,8 +81,13 @@ class Store {
   }
   master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; if (this.data.studio && ('color' in valid || 'effect' in valid)) this.data.studio = { ...this.data.studio, enabled: false, excluded: [] }; else if (this.data.studio) this.data.studio = { ...this.data.studio, excluded: [] }; this.data.devices = {}; this.save(); }
   performance(patch) {
-    if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some(k => k !== 'fps') || !Number.isInteger(patch.fps) || patch.fps < 5 || patch.fps > 60) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
-    this.data.performance = { fps: patch.fps }; this.save();
+    if (!patch || typeof patch !== 'object' || Array.isArray(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['fps', 'powerTransitionMs'].includes(k))) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
+    const fps = Object.hasOwn(patch, 'fps') ? patch.fps : (this.data.performance?.fps ?? 20);
+    if (!Number.isInteger(fps) || fps < 5 || fps > 60) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
+    const powerTransitionMs = Object.hasOwn(patch, 'powerTransitionMs') ? patch.powerTransitionMs : (this.data.performance?.powerTransitionMs ?? 0);
+    if (!Number.isInteger(powerTransitionMs) || (powerTransitionMs !== 0 && (powerTransitionMs < 200 || powerTransitionMs > 3000))) throw Error('Transição de energia: escolha 0 (instantânea) ou de 200 a 3000 ms.');
+    this.data.performance = powerTransitionMs > 0 ? { fps, powerTransitionMs } : { fps };
+    this.save();
   }
   library(patch, keys) {
     if(!patch||typeof patch!=='object'||Array.isArray(patch)||Object.keys(patch).some(k=>!['key','favorite','category','transitionMs'].includes(k)))throw Error('Ajuste de biblioteca inválido.');
