@@ -156,7 +156,6 @@ test('indicador fora do mapa, botão Voltar a seguir o mapa e reconexão da pré
   const mockState = async () => {
     const s = await (await page.request.get('/api/state')).json();
     s.hardware = { connected: true, controllerCount: 1, error: null, devices: [device()] };
-    if (s.studio) s.studio.excluded = excluded ? [id] : [];
     return s;
   };
   await page.route('**/api/state', async route => route.fulfill({ json: await mockState() }));

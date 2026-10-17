@@ -43,3 +43,25 @@ test('metadados de dependências não escapam da pasta de licenças nem sobrescr
  for(const version of ['../../outside','..\\..\\outside','bad:stream']){meta(version);assert.throws(()=>collectLicenses(root),/inválido/);assert.equal(fs.existsSync(path.join(dir,'outside-LICENSE')),false);}
  meta('1.0.0');const external=path.join(dir,'outside.txt');fs.writeFileSync(external,'keep');fs.linkSync(external,path.join(root,'licenses','example-1.0.0-LICENSE'));assert.equal(collectLicenses(root).length,1);assert.equal(fs.readFileSync(external,'utf8'),'keep');assert.equal(fs.readFileSync(path.join(root,'licenses','example-1.0.0-LICENSE'),'utf8'),'license');
 });
+test('Studio.remove, duplicate e loadRecovery exigem IDs hexadecimais registrados e confinam operações à pasta esperada',async t=>{
+ const dir=directory(t),outside=path.join(dir,'outside.json');fs.writeFileSync(outside,'{"keep":true}');
+ fs.writeFileSync(path.join(dir,'recovery.json'),JSON.stringify({version:1,workingHistory:[{activeId:'../outside',values:{},versionKey:'x'},{activeId:'__proto__',values:{},versionKey:'y'},{activeId:'a'.repeat(24),values:{},versionKey:'z'}]}));
+ const store=new Store(dir),{Studio,builtin}=require('../server/studio');
+ const hardware={connected:false,on(){},changed(){},stop(){},snapshot:()=>({connected:false,devices:[]})};
+ const studio=new Studio(store,hardware,dir,()=>{});
+ t.after(()=>studio.stop());
+ assert.equal(studio.workingHistory.length,0);
+ const id=await studio.import(JSON.stringify({format:'nexus-effect/1',name:'Segurança ID',pattern:'wave',palette:['#00ff99','#00c8ff'],speed:25,angle:0,scale:1}));
+ assert.match(id,/^[a-f0-9]{24}$/);
+ const effectFile=path.resolve(studio.directory,id+'.json');
+ assert.equal(path.dirname(effectFile),path.resolve(studio.directory));
+ assert.equal(fs.existsSync(effectFile),true);
+ for(const bad of ['../outside','..\\outside','../settings','__proto__','constructor','0'.repeat(24),builtin[0].id]){
+  assert.throws(()=>studio.remove(bad),/não pode ser removido/);
+  if(bad!==builtin[0].id)await assert.rejects(studio.duplicate(bad,'Cópia'),/Nome do efeito/);
+ }
+ assert.equal(fs.readFileSync(outside,'utf8'),'{"keep":true}');
+ studio.remove(id);
+ assert.equal(fs.existsSync(effectFile),false);
+ assert.equal(fs.readFileSync(outside,'utf8'),'{"keep":true}');
+});

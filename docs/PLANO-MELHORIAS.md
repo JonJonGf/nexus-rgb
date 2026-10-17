@@ -34,9 +34,13 @@ O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usu�
 - **Reconectar dispositivo** com revisão da origem/destino e das configurações migradas; aproveitar número de série confiável quando disponível e exigir escolha em casos ambíguos. Não adivinhar por fabricante, nome e contagem de LEDs.
 - Melhorar diagnóstico da porta da Alexa, incluindo possível uso pelo Windows/HTTP.sys, sem encerrar serviços alheios ou impedir desnecessariamente o controle RGB pelo painel.
 
-## Implementado na alpha.24 (validação física de transição suave pendente no hardware real): edição, energia, diagnóstico e recuperação
+## Implementado na alpha.24–alpha.26 (validação física pendente no hardware real): edição, energia, diagnóstico e recuperação
 
-As quatro propostas abaixo foram detalhadas em 16/10/2026 e implementadas em 17/10/2026 na `v0.1.0-alpha.24`, com validação automatizada completa (unidade, integração, interface e instalador). A validação visual física da transição suave de energia nos LEDs reais depende da instalação autorizada pelo usuário no PC de validação.
+As quatro propostas abaixo foram detalhadas em 16/10/2026 e implementadas em 17/10/2026 (`v0.1.0-alpha.24` a `v0.1.0-alpha.26`), com validação automatizada completa (unidade, integração, interface e instalador). Permanecem explicitamente pendentes, até teste autorizado no hardware físico real:
+- Suavidade das transições de energia e ausência de clarões nos LEDs físicos.
+- Inversão de comandos durante uma transição em andamento no controlador real.
+- Preservação física de dispositivos apagados individualmente e excluídos do mapa durante transições e recuperações.
+- Recuperação após desconexão do controlador real e comportamento físico do último quadro deixado nos LEDs.
 
 ### 1. Desfazer e refazer no mapa e no editor de efeitos
 

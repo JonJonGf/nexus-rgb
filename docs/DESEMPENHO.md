@@ -2,48 +2,77 @@
 
 <a id="alpha24"></a>
 
-## Edição, energia, diagnóstico e recuperação — v0.1.0-alpha.24
+## Edição, energia, diagnóstico e recuperação — v0.1.0-alpha.24 a v0.1.0-alpha.26
 
-Ensaios de 17/10/2026 no Ryzen 5 3600 (6 núcleos / 12 threads), Windows 11 build 26300, Node v24.20.0. Comparação antes/depois das quatro propostas implementadas na `v0.1.0-alpha.24` (recuperação após falhas, desfazer/refazer, diagnóstico com revisão e transição suave de energia).
+Ensaios de 17/10/2026 no Ryzen 5 3600 (6 núcleos / 12 processadores lógicos, 31,89 GiB de RAM), Windows 11 Pro build 26300 (`10.0.26300`), Node v24.20.0. Esta seção separa explicitamente:
 
-### Processos instalados em repouso (antes e depois do ciclo de desenvolvimento)
+1. **Comparações entre versões em ambiente isolado** (`v0.1.0-alpha.23`, commit `2414264f8f061e8866f54759686760f8a9265053`, contra o código de `v0.1.0-alpha.24`–`v0.1.0-alpha.26`, commits `f9df27f` / `4b2eaa2`), executadas com SDK simulado e diretórios temporários.
+2. **Variações observadas na mesma versão instalada no host** (`v0.1.0-alpha.23`), que permaneceu em execução nos serviços do Windows durante o ciclo de desenvolvimento porque a substituição da instalação física exige autorização explícita do usuário.
 
-Leituras comparáveis dos processos da instalação (`NexusRGB`, `node` e `OpenRGB`) com a versão `v0.1.0-alpha.23` instalada na sessão de serviços, sem tocar no hardware físico durante os testes isolados:
+### 1. Comparação entre versões — Interface no navegador (`v0.1.0-alpha.23` vs `v0.1.0-alpha.24`–`alpha.26`)
 
-| Processo | Antes (`alpha.23`, repouso) | Depois (`alpha.23` instalada após bateria de testes) |
+Duas rodadas contrabalanceadas em ordem inversa (`round 0` e `round 1`) executadas por `node scripts/benchmark-ui.cjs v0.1.0-alpha.23`:
+- **Configuração do ensaio:** Microsoft Edge sem janela (`headless: true`, viewport 1366 × 900), 3 controladoras / 5 componentes / 92 LEDs simulados, 4 perfis, 32 efeitos (3 nativos + 29 importados), efeito **Aurora espacial** solicitado a **20 FPS** com prévia SSE ativa.
+- **Amostragem:** um processo de navegador novo por cenário; **3 s de aquecimento** seguidos de **5 amostras** com intervalo solicitado de **3 s** (4 intervalos + tempo de coleta PowerShell/CDP, resultando em janela efetiva de **13,43 a 13,49 s** por execução).
+- **Escopo da comparação:** nas execuções `baseline`, os arquivos estáticos de interface (`index.html`, `app.js`, `studio.js`, `style.css`, `studio.css`, `spatial.js`) são servidos a partir de `git show v0.1.0-alpha.23:public/<arquivo>` (`2414264`), enquanto nas execuções `novo` são servidos da árvore de trabalho (`f9df27f`/`4b2eaa2`). O servidor isolado de fixture (`tests/fixtures/ui-benchmark-worker.js`) é compartilhado entre as rodadas.
+
+| Cenário (média das 2 rodadas; R0 / R1 entre parênteses) | CPU média do navegador¹ | RAM residente média (RSS)² | Pico de RSS² | Memória privada média³ | Heap JS médio⁴ | Ocupação thread principal⁵ | FPS solicitados / renderizados |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Mapa `alpha.23` (`2414264`, PT-BR) | 0,61% (0,64% / 0,58%) | 503,65 MiB (506,31 / 501,00) | 524,54 MiB | 356,89 MiB (360,37 / 353,41) | 3,92 MiB | 1,28% | 20 / 20,00 |
+| Mapa novo (`f9df27f`, PT-BR) | 0,58% (0,57% / 0,58%) | 505,13 MiB (508,57 / 501,68) | 525,61 MiB | 355,19 MiB (357,47 / 352,91) | 3,95 MiB | 1,27% | 20 / 20,00 |
+| Mapa novo (`f9df27f`, EN) | 0,59% (0,59% / 0,60%) | 508,19 MiB (505,32 / 511,06) | 527,91 MiB | 356,23 MiB (354,98 / 357,49) | 4,10 MiB | 1,29% | 20 / 20,00 |
+| Biblioteca aberta (`f9df27f`, EN) | 0,66% (0,66% / 0,66%) | 515,37 MiB (516,76 / 513,97) | 535,97 MiB | 377,31 MiB (379,37 / 375,26) | 4,17 MiB | 1,53% | 20 / 20,00 |
+
+**O que compõe os ~505 MiB desta tabela e como a atribuição foi feita:**
+- Em cada amostra (`scripts/benchmark-ui.cjs:31-35`), o script consulta `SystemInfo.getProcessInfo` via sessão CDP do navegador (`browser.newBrowserCDPSession()`), obtém os PIDs de **toda a árvore multiprocesso dedicada do Microsoft Edge** (processo principal `browser`, processo `renderer` da aba, processo `GPU` e subprocessos utilitários de rede/armazenamento do Chromium) e consulta `Get-Process -Id <ids>` no PowerShell.
+- A coluna **RAM residente média (RSS)** (~503–515 MiB) soma `WorkingSet64` de todos esses processos Edge; páginas de DLLs do Windows e do próprio Edge mapeadas em múltiplos subprocessos são contadas uma vez por subprocesso. A **memória privada média** (`PrivateMemorySize64` somado da mesma árvore Edge) ficou em **355,19 a 377,31 MiB**, enquanto o **Heap JavaScript V8 da página** (`JSHeapUsedSize` no renderer) foi de apenas **3,92 a 4,17 MiB**.
+- **Processos excluídos desta soma:** o próprio script Node do benchmark (`scripts/benchmark-ui.cjs`), o processo de automação do Playwright, o servidor Node do mock SDK (`tests/fixtures/ui-benchmark-worker.js`), o filho `studio-worker.js` e todos os serviços instalados do Nexus/OpenRGB no Windows.
+- **Por que não comparar diretamente com o SignalRGB:** (a) quando o painel web do Nexus está fechado, o consumo dessa árvore do navegador é **0 MiB** (apenas os serviços de segundo plano permanecem ativos); (b) a soma bruta de `WorkingSet64` de uma árvore Chromium multiprocesso inclui GPU, utilitários e páginas compartilhadas contadas múltiplas vezes; e (c) o SignalRGB não foi medido neste computador sob condições equivalentes de controladoras, quantidade de LEDs, efeito, FPS e critério de soma de processos.
+- **Interpretação da variação:** dentro da própria baseline `alpha.23` (PT-BR), a diferença entre a Rodada 0 e a Rodada 1 foi de **0,05 ponto percentual de CPU** (`0,64%` vs `0,58%`) e **5,31 MiB de RSS** (`506,31` vs `501,00 MiB`); no código novo (PT-BR), a variação entre rodadas foi de **6,89 MiB de RSS** (`508,57` vs `501,68 MiB`). Portanto, a diferença média entre `alpha.23` e o código novo (`0,61%` vs `0,58%` de CPU; `503,65` vs `505,13 MiB` de RSS; `356,89` vs `355,19 MiB` privados) **está dentro do ruído normal de amostragem** e não representa ganho nem regressão de desempenho.
+
+### 2. Comparação entre versões — Servidor Node e motor espacial (`v0.1.0-alpha.23` vs `v0.1.0-alpha.24`–`alpha.26`)
+
+Sete cenários sequenciais executados com `node scripts/benchmark-engine.cjs` tanto na baseline `v0.1.0-alpha.23` (commit `2414264f8f061e8866f54759686760f8a9265053`, em worktree isolada temporária) quanto no código novo (`f9df27f` / `4b2eaa2`):
+- **Configuração do ensaio:** API HTTP real do Nexus + classe `Hardware` real conectada a SDK simulado (3 controladoras, 5 componentes, 92 LEDs) + processo filho `server/studio-worker.js`.
+- **Amostragem:** **3 s de aquecimento** e **21 amostras** com espera solicitada de **1 s** entre amostras (20 intervalos + tempo de execução do coletor PowerShell, resultando em janela efetiva de **26,58 a 26,96 s** por cenário).
+- **Processos incluídos:** exclusivamente o processo Node do servidor (`child`) e, quando o efeito espacial está ativo, o processo filho `studio-worker.js` (`state.worker`). **Excluídos:** navegador, OpenRGB, supervisores `NexusRGB.exe`, bandeja, driver e o processo pai do benchmark.
+
+| Cenário · FPS solicitados | CPU `alpha.23` → novo¹ | RSS médio `alpha.23` → novo² | Pico de RSS `alpha.23` → novo² | Privada média `alpha.23` → novo³ | FPS renderizados (`alpha.23` / novo) | Renderização média (`alpha.23` / novo) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Mapa desativado, estático · 20 FPS | 0,06% → 0,03% | 49,22 → 49,04 MiB | 51,15 → 51,08 MiB | 25,71 → 24,91 MiB | 0,00 / 0,00 | 0,00 / 0,00 ms |
+| Aurora, sem prévia · 20 FPS | 0,43% → 0,40% | 134,60 → 134,63 MiB | 141,38 → 141,18 MiB | 76,73 → 76,45 MiB | 20,04 / 19,98 | 0,35 / 0,32 ms |
+| Aurora, sem prévia · 60 FPS | 0,77% → 0,87% | 161,93 → 163,07 MiB | 184,19 → 186,04 MiB | 111,18 → 112,84 MiB | 60,01 / 59,99 | 0,33 / 0,34 ms |
+| Aurora, com prévia · 60 FPS | 1,08% → 1,20% | 185,84 → 187,15 MiB | 188,43 → 189,77 MiB | 141,06 → 141,31 MiB | 60,03 / 60,02 | 0,32 / 0,33 ms |
+| HTML próprio, sem prévia · 20 FPS | 0,34% → 0,39% | 232,65 → 232,98 MiB | 243,10 → 244,29 MiB | 227,62 → 229,29 MiB | 20,03 / 20,04 | 0,79 / 0,81 ms |
+| HTML próprio, sem prévia · 60 FPS | 0,87% → 0,92% | 251,38 → 252,39 MiB | 256,93 → 257,55 MiB | 234,50 → 235,55 MiB | 59,99 / 60,05 | 0,74 / 0,72 ms |
+| HTML próprio, com prévia · 60 FPS | 1,11% → 1,08% | 260,70 → 262,16 MiB | 275,63 → 277,21 MiB | 244,43 → 245,26 MiB | 60,02 / 59,96 | 0,76 / 0,72 ms |
+
+**Interpretação:** os sete cenários mantiveram a taxa alvo (20 ou 60 FPS) e tempos médios de renderização equivalentes (`0,32–0,35 ms` em Aurora; `0,72–0,81 ms` no HTML Canvas próprio). As oscilações de `0,03` a `0,12` ponto percentual de CPU e de `0,18` a `1,46 MiB` de RSS/memória privada entre as duas execuções sequenciais ocorrem em ambos os sentidos e estão dentro da variação normal de agendamento do Windows e coleta de lixo do V8.
+
+### 3. Variação observada na mesma versão instalada no host (`v0.1.0-alpha.23`)
+
+Como a instalação física deste PC permaneceu na `v0.1.0-alpha.23` (`2414264f8f061e8866f54759686760f8a9265053`) aguardando autorização do usuário para atualizar o serviço real, as duas leituras pontuais abaixo mostram **apenas a oscilação normal em repouso da própria `v0.1.0-alpha.23` instalada** antes e depois de rodar a bateria de testes isolados — **não medem o consumo da `v0.1.0-alpha.24`–`alpha.26` instalada**:
+
+| Processo instalado (`v0.1.0-alpha.23` / `2414264`) | Leitura inicial em repouso | Leitura após bateria isolada |
 | --- | ---: | ---: |
-| `NexusRGB` (bandeja, Sessão 1) | 38,22 MiB Working Set (27,48 MiB Private) | 41,92 MiB Working Set (29,89 MiB Private) |
-| `NexusRGB` (supervisor painel, Sessão 0) | 22,29 MiB Working Set (17,27 MiB Private) | 22,75 MiB Working Set (17,27 MiB Private) |
-| `NexusRGB` (supervisor OpenRGB, Sessão 0) | 22,62 MiB Working Set (17,18 MiB Private) | 23,06 MiB Working Set (17,18 MiB Private) |
-| `node` (servidor do painel, Sessão 0) | 52,98 MiB Working Set (32,12 MiB Private) | 56,99 MiB Working Set (33,00 MiB Private) |
-| `OpenRGB` (controlador SDK, Sessão 0) | 26,82 MiB Working Set (7,26 MiB Private) | 26,82 MiB Working Set (7,26 MiB Private) |
+| `NexusRGB.exe --tray` (bandeja, Sessão 1) | 38,22 MiB RSS (27,48 MiB privada) | 41,92 MiB RSS (29,89 MiB privada) |
+| `NexusRGB.exe --service` (supervisor do painel, Sessão 0) | 22,29 MiB RSS (17,27 MiB privada) | 22,75 MiB RSS (17,27 MiB privada) |
+| `NexusRGB.exe --hardware-service` (supervisor OpenRGB, Sessão 0) | 22,62 MiB RSS (17,18 MiB privada) | 23,06 MiB RSS (17,18 MiB privada) |
+| `runtime\node.exe` (servidor do painel, Sessão 0) | 52,98 MiB RSS (32,12 MiB privada) | 56,99 MiB RSS (33,00 MiB privada) |
+| `openrgb\OpenRGB.exe` (controlador SDK, Sessão 0) | 26,82 MiB RSS (7,26 MiB privada) | 26,82 MiB RSS (7,26 MiB privada) |
 
-### Navegador (`v0.1.0-alpha.23` vs `v0.1.0-alpha.24`)
+### 4. Definições das métricas e cálculo de CPU
 
-Duas rodadas em ordem inversa com `node scripts/benchmark-ui.cjs v0.1.0-alpha.23`, Edge sem janela (1366 × 900), 3 controladoras / 5 componentes / 92 LEDs simulados, Aurora a 20 FPS com prévia ativa:
+- ¹ **Percentual de CPU (`cpuPercentOfMachine` / `cpuPercent`):** representa a fração da **capacidade total da máquina considerando todos os 12 processadores lógicos** (`os.cpus().length = 12` / `os.availableParallelism() = 12`), onde `100%` equivale aos 12 threads saturados simultaneamente:
+  - Em `scripts/benchmark-ui.cjs:39`: `100 * (cpuFinal - cpuInicial) / segundosDecorridos / 12`, onde `cpu` soma `cpuTime` (em segundos) de todos os processos da árvore Edge via `SystemInfo.getProcessInfo`.
+  - Em `scripts/benchmark-engine.cjs:75`: `100 * (cpuFinal - cpuInicial) / segundosDecorridos / 12`, onde `cpu` soma `Get-Process.CPU` (tempo acumulado de kernel + usuário em segundos) do servidor Node e do `studio-worker.js`.
+  - Em `server/resources.js:19` (painel de saúde em Configurações): `Math.min(100, (ticks - old.ticks) / 10000 / (at - old.at) / processors * 100)`, convertendo `TotalProcessorTime.Ticks` (`10.000` ticks de `100 ns` por milissegundo) pelo intervalo decorrido em `ms` e dividindo pelos processadores lógicos.
+- ² **RAM residente / Working Set (`WorkingSet64` / RSS):** páginas atualmente residentes na RAM física (`bytes / 1.048.576`). Quando somada entre múltiplos processos, páginas compartilhadas de DLLs/executáveis podem ser contadas mais de uma vez.
+- ³ **Memória privada (`PrivateMemorySize64`):** memória virtual comprometida exclusivamente por cada processo. É uma métrica distinta do *Working Set* e **não deve ser somada** à coluna de RSS.
+- ⁴ **Heap JS (`JSHeapUsedSize`):** memória ocupada pelo heap V8 do processo `renderer` da página; já está contida na memória do navegador e **não deve ser somada** ao RSS ou à memória privada.
+- ⁵ **Ocupação da thread principal (`mainThreadBusyPercent`):** `100 * (TaskDurationFinal - TaskDurationInicial) / segundosDecorridos` no processo `renderer` da página.
 
-| Cenário | CPU média do navegador | RAM residente média | Pico de RAM | Heap JS médio | FPS renderizados |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Mapa `alpha.23` (baseline, PT-BR) | 0,61% | 503,65 MiB | 524,54 MiB | 3,92 MiB | 20,00 |
-| Mapa `alpha.24` (novo, PT-BR) | 0,58% | 505,13 MiB | 525,61 MiB | 3,95 MiB | 20,00 |
-| Mapa `alpha.24` (novo, EN) | 0,59% | 508,19 MiB | 527,91 MiB | 4,10 MiB | 20,00 |
-| Biblioteca `alpha.24` (novo, EN) | 0,66% | 515,37 MiB | 535,97 MiB | 4,17 MiB | 20,00 |
-
-### Servidor e motor (`v0.1.0-alpha.24`)
-
-Sete cenários sequenciais com `node scripts/benchmark-engine.cjs` (SDK simulado de 92 LEDs em 3 controladoras, janelas de ~26,8 s):
-
-| Cenário | CPU de servidor + motor | RAM residente média | Pico de RAM | FPS renderizados | Renderização média |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Mapa desativado, estático · 20 FPS | 0,03% | 49,04 MiB | 51,08 MiB | 0,00 | 0,00 ms |
-| Aurora, sem prévia · 20 FPS | 0,40% | 134,63 MiB | 141,18 MiB | 19,98 | 0,32 ms |
-| Aurora, sem prévia · 60 FPS | 0,87% | 163,07 MiB | 186,04 MiB | 59,99 | 0,34 ms |
-| Aurora, com prévia · 60 FPS | 1,20% | 187,15 MiB | 189,77 MiB | 60,02 | 0,33 ms |
-| HTML próprio, sem prévia · 20 FPS | 0,39% | 232,98 MiB | 244,29 MiB | 20,04 | 0,81 ms |
-| HTML próprio, sem prévia · 60 FPS | 0,92% | 252,39 MiB | 257,55 MiB | 60,05 | 0,72 ms |
-| HTML próprio, com prévia · 60 FPS | 1,08% | 262,16 MiB | 277,21 MiB | 59,96 | 0,72 ms |
-
-Limites: os ensaios do motor e do navegador utilizam SDK simulado em processos isolados e não comprovam suavidade física dos LEDs no controlador real.
+[Dados da interface (`alpha.23` vs novo)](benchmarks/2026-10-17-alpha24-ui.json) · [Dados do motor (`alpha.23`)](benchmarks/2026-10-17-alpha23-engine.json) · [Dados do motor (novo)](benchmarks/2026-10-17-alpha24-engine.json). Limites: ensaios em processos isolados com SDK simulado não comprovam a suavidade física dos LEDs no controlador real.
 
 <a id="alpha15"></a>
 

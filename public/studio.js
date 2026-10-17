@@ -108,7 +108,8 @@
   function error(e) { toast?.(e.message || String(e)); }
   async function request(route, body, method) { try { return await api(route, body, method); } catch (e) { error(e); return null; } }
   function isExcluded(deviceId) {
-    return Boolean((data?.excluded || state?.studio?.excluded || []).includes(deviceId) || state?.hardware?.devices?.find(d => d.id === deviceId)?.mapExcluded);
+    if (Array.isArray(data?.excluded)) return data.excluded.includes(deviceId);
+    return Boolean((state?.studio?.excluded || []).includes(deviceId) || state?.hardware?.devices?.find(d => d.id === deviceId)?.mapExcluded);
   }
   function selection(force = false) {
     const value = item(); $('studio-device-form').hidden = !value;
@@ -332,6 +333,8 @@
     const value = item(); if (!value) return;
     if (await sharedPlay('/api/devices/' + value.deviceId, { followMap: true })) {
       if (Array.isArray(data?.excluded)) data.excluded = data.excluded.filter(id => id !== value.deviceId);
+      const dev = state?.hardware?.devices?.find(d => d.id === value.deviceId);
+      if (dev) dev.mapExcluded = false;
       map(); selection(true);
     }
   });
