@@ -9,7 +9,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   - `v0.1.0-alpha.24` (`f9df27ff1c3f48163466b2d09bc00d40fff61d27`): publicada com todos os 3 workflows verdes e assets oficiais disponíveis.
   - `v0.1.0-alpha.25` (`4b2eaa2f4a53d96c4530efee8e32a17f5f0bd650`): passou nos workflows da tag `Validar Nexus RGB` e `CodeQL`, mantida conforme regra de imutabilidade.
   - `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`): publicada em `releases/tag/v0.1.0-alpha.26` após aprovação nos workflows com assets oficiais e SHA-256 conferidos.
-  - `v0.1.0-alpha.27`: primeira entrega de robustez de hardware e recuperação manual supervisionada.
+  - `v0.1.0-alpha.27` (`c29211b`): commit de código e tag `v0.1.0-alpha.27` publicados no GitHub; workflows disparados ([Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233690), [Validar Nexus RGB (tag)](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233684), [CodeQL](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233612) e [Validar Nexus RGB (main)](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233610)).
 - **PC de validação (versão instalada e conferida):** o PC físico permanece com a versão oficial `v0.1.0-alpha.26` (`commit 4924d76e894ac590fdee6bba8ed5053dab3d1be6`, `development: false`) funcionando normalmente, até que o usuário autorize explicitamente a instalação assistida da `v0.1.0-alpha.27`.
 - **Investigação da perda de conexão com OpenRGB e solução na alpha.27:** a causa observada de perda parcial de resposta de controladores SMBus/DRAM foi tratada na camada do Nexus RGB com isolamento estrito de geração, preservação diagnóstica do erro real, notificação com recuperação manual direta pelo protocolo local do sistema operacional e sincronismo temporal de fase entre dispositivos ao religar. Não é declarada correção definitiva de deadlock no driver C++ do OpenRGB, mas a aplicação agora lida com o estado de forma resiliente e transparente.
 - **Limites dos testes físicos (próximo passo no hardware real):**
@@ -81,8 +81,10 @@ Os passos de implementação acima são a sequência sugerida para as melhorias 
   - Validador de release (`node scripts/check-release.cjs v0.1.0-alpha.27`): aprovado.
 - **Compilação e instalador:**
   - Executáveis compilados localmente com sucesso via `scripts/build-native.ps1` e `scripts/build.ps1`: `NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`.
-- **Git e instalação:**
-  - A instalação real no PC físico permanece na `v0.1.0-alpha.26`. Atualização para `v0.1.0-alpha.27` aguarda autorização explícita do usuário.
+- **Git, publicação e instalação:**
+  - Código commitado no commit `c29211b` e tag anotada `v0.1.0-alpha.27` enviados para o GitHub.
+  - Workflows acionados: [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233690), [Validar Nexus RGB (tag)](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233684), [CodeQL](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233612) e [Validar Nexus RGB (main)](https://github.com/JonJonGf/nexus-rgb/actions/runs/39044233610).
+  - A instalação real no PC físico permanece na `v0.1.0-alpha.26`. Atualização assistida para `v0.1.0-alpha.27` aguarda autorização explícita do usuário.
 
 ### 17/10/2026 — Segunda perda de conexão e recuperação autorizada
 
