@@ -1,6 +1,5 @@
 'use strict';
 const { execFile } = require('node:child_process');
-const path = require('node:path');
 
 const KNOWN_CONFLICTING_APPS = [
   { id: 'icue', name: 'Corsair iCUE', exes: ['icue.exe'] },
@@ -28,8 +27,7 @@ class Conflicts {
       if (process.platform !== 'win32') {
         return resolve({ supported: false, enabled: false });
       }
-      const reg = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'reg.exe');
-      execFile(reg, ['query', 'HKCU\\Software\\Microsoft\\Lighting', '/v', 'AmbientLightingEnabled'], {
+      execFile('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Lighting', '/v', 'AmbientLightingEnabled'], {
         windowsHide: true,
         timeout: 3000,
         encoding: 'utf8'
@@ -52,8 +50,7 @@ class Conflicts {
       if (process.platform !== 'win32') {
         return resolve([]);
       }
-      const tasklist = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tasklist.exe');
-      execFile(tasklist, ['/FO', 'CSV', '/NH'], {
+      execFile('tasklist.exe', ['/FO', 'CSV', '/NH'], {
         windowsHide: true,
         timeout: 4000,
         encoding: 'utf8'
