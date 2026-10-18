@@ -6,7 +6,7 @@
  * sub-millisecond hardware communication on Windows, with zero third-party dependencies.
  */
 
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 
@@ -15,49 +15,20 @@ class HidBridge {
     this.isTest = isTest || process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT) || process.execArgv.includes('--test');
     const candidatePaths = [
       binaryPath,
-      path.resolve(__dirname, '../../native/nexus-hid.exe'),
       path.resolve(__dirname, '../../nexus-hid.exe'),
       path.resolve(__dirname, '../nexus-hid.exe'),
-      path.resolve(__dirname, '../../dist/native/nexus-hid.exe')
+      path.resolve(__dirname, '../../dist/native/nexus-hid.exe'),
+      path.resolve(__dirname, '../../native/nexus-hid.exe')
     ].filter(Boolean);
     this.binaryPath = candidatePaths.find(p => fs.existsSync(p)) || candidatePaths[0];
-    this.sourcePath = path.resolve(__dirname, '../../native/NexusHidBridge.cs');
     this.process = null;
     this.ready = false;
     this.pendingCallbacks = [];
     this.buffer = '';
 
     if (!this.isTest && process.platform === 'win32') {
-      this.ensureBinary();
       this.start();
     }
-  }
-
-  ensureBinary() {
-    if (fs.existsSync(this.binaryPath)) return true;
-    if (!fs.existsSync(this.sourcePath)) return false;
-
-    try {
-      const compiler = path.join(
-        process.env.SystemRoot || 'C:\\Windows',
-        'Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe'
-      );
-      if (fs.existsSync(compiler)) {
-        execFileSync(compiler, [
-          '/nologo',
-          '/codepage:65001',
-          '/target:exe',
-          '/platform:x64',
-          '/optimize+',
-          `/out:${this.binaryPath}`,
-          this.sourcePath
-        ], { timeout: 10000 });
-        return fs.existsSync(this.binaryPath);
-      }
-    } catch {
-      return false;
-    }
-    return false;
   }
 
   start() {

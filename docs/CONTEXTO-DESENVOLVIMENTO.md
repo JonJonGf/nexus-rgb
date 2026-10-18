@@ -255,6 +255,12 @@ Os passos de implementação acima são a sequência sugerida para as melhorias 
 
 ## Histórico de entregas
 
+### 18/10/2026 — Instalação das skills e rascunho do setup do repositório
+
+- O usuário invocou explicitamente `/setup-matt-pocock-skills`, retomando a instalação/configuração antes adiada durante a entrega do outro agente. O instalador oficial local de skills foi utilizado para instalar `setup-matt-pocock-skills`, `diagnosing-bugs`, `tdd` e `codebase-design` no diretório de skills do usuário, fora do produto, a partir do commit fixo `49dd158d1076134a641b33efb035946536778336` de `mattpocock/skills`. Os arquivos instalados e os templates do setup foram lidos.
+- Exploração: repositório GitHub `JonJonGf/nexus-rgb`, `AGENTS.md` presente, sem `CLAUDE.md`, sem configuração prévia `docs/agents/`, sem glossário/ADRs e sem monorepo ou skill de triagem instalada. Não criar etiquetas nem documentos vazios. Preparado rascunho de seção Agent skills e de `docs/agents/issue-tracker.md`/`domain.md`; aguarda revisão do usuário antes de gravar esses arquivos conforme a skill solicita.
+- O setup não autoriza mensagens/issues externas nem altera as regras de hardware, privacidade ou publicação. Não houve teste do produto, alteração de código, serviço, instalação real ou correção do GitHub. Git conferido na branch main sobre `0da822e`, limpo antes deste registro; apenas esta continuidade está modificada localmente. Nenhum commit/tag/publicação novo. Próximo passo: aplicar o rascunho após confirmação e validar documentação.
+
 ### 18/10/2026 — Retomada pelo Codex e avaliação de skills de engenharia
 
 - Pedido atual do usuário: ler o handoff da alpha.36 e avaliar `https://github.com/mattpocock/skills`, explicar a utilidade e aproveitar boas práticas antes de iniciar a próxima tarefa. O erro reportado no GitHub fica para uma etapa posterior; não houve investigação ou correção de workflows nesta entrega.
