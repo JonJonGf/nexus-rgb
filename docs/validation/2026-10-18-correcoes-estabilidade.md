@@ -2,9 +2,9 @@
 
 ## Escopo e estado
 
-O usuário autorizou corrigir os problemas encontrados e relatou que o teclado deixou de ser reconhecido na alpha.36. O trabalho foi feito na branch `codex/reliability-alpha37`, partindo de `8a11684`. Nenhuma instalação, UAC, reinicialização de serviço, escrita física em RGB ou publicação foi executada.
+O usuário autorizou corrigir os problemas encontrados e relatou que o teclado deixou de ser reconhecido na alpha.36. O trabalho foi feito na branch `codex/reliability-alpha37`, partindo de `8a11684`. A implementação e os testes foram isolados. Depois de compilar, o usuário autorizou explicitamente instalar o candidato no PC; a execução e os limites estão registrados abaixo e no contexto. Não houve publicação.
 
-O número da branch indica uma próxima entrega candidata; não afirma que exista uma alpha.37 publicada. A instalação e a Release oficiais continuam na alpha.36 até uma atualização explicitamente autorizada.
+O número da branch indica uma próxima entrega candidata; não afirma que exista uma alpha.37 publicada. A Release oficial continua alpha.36; o PC recebeu posteriormente o candidato de desenvolvimento `52b9ac9` com autorização.
 
 ## Mudanças de comportamento
 
@@ -44,7 +44,7 @@ A compilação final de desenvolvimento concluiu a partir de `52b9ac9067ae557231
 - Desinstalador local: `dist/NexusRGB-Uninstall-0.1.0.exe`, SHA-256 `873d7faca5fc4e05a05d70202b4d856300687441c9e6ee94985f1f3bbfbcf638`.
 - A compilação preliminar anterior foi substituída pelo pacote final. A nova evidência de processo e a documentação posteriores ao commit de código não alteram os binários.
 
-O pacote não foi publicado nem instalado. Foi solicitada autorização específica para abrir o instalador candidato com progresso visível, sem reiniciar Windows ou instalar PawnIO. Sem essa resposta, não executar UAC, serviços ou testes físicos.
+O pacote não foi publicado. Após resposta explícita do usuário, foi instalado com progresso visível, sem reiniciar Windows e com PawnIO desmarcado. Serviços de rede e hardware confirmados ativos, bandeja na sessão do usuário e ponte na sessão de serviço. Conferidos 58 arquivos instalados contra a fonte e a identificação `52b9ac9/development`. Configuração byte a byte preservada, 11 perfis e hashes de 36 efeitos importados mantidos. A API detectou os seis componentes online, incluindo o Royal Kludge RK61; foi solicitado teste humano de iluminação e digitação, ainda sem confirmação. Evidências privadas em `data/candidate-52b9ac9-install/`.
 
 ## Limites e testes necessários antes de chamar de validado fisicamente
 
