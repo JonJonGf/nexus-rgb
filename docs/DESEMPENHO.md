@@ -1,5 +1,33 @@
 # Desempenho do Nexus RGB
 
+## Revisão da candidata após alpha.36 — 18/10/2026
+
+Comparação local entre `8a11684` e a candidata corrigida, sem alterar a instalação real. Ryzen 5 3600, 12 processadores lógicos, Node 24.20.0. O mesmo harness do motor usou SDK simulado, três controladoras, cinco componentes e 92 LEDs; os dois descritores de RAM são SMBus e conservam o limite de 20 FPS. Cada cenário teve três segundos de aquecimento e 21 amostras, com janelas medidas de aproximadamente 27–31 segundos. Os sete cenários foram executados primeiro na baseline e depois na candidata, sem outros benchmarks concorrentes.
+
+### Servidor e processo do efeito, sem navegador/OpenRGB
+
+| Cenário | FPS solicitado | RAM anterior / candidata (MiB RSS) | CPU anterior / candidata |
+| --- | ---: | ---: | ---: |
+| Estático, mapa desativado | 20 | 50,0 / 50,3 | 0,07% / 0,03% |
+| Aurora, sem prévia | 20 | 136,4 / 137,4 | 0,38% / 0,65% |
+| Aurora, sem prévia | 60 | 167,3 / 171,6 | 1,02% / 1,24% |
+| Aurora, com prévia | 60 | 194,5 / 205,7 | 1,55% / 1,69% |
+| HTML sintético próprio, sem prévia | 20 | 243,7 / 245,4 | 0,53% / 0,81% |
+| HTML sintético próprio, sem prévia | 60 | 252,8 / 254,8 | 1,07% / 1,56% |
+| HTML sintético próprio, com prévia | 60 | 261,3 / 268,9 | 1,41% / 1,93% |
+
+CPU é a fração da máquina inteira. O renderizador acompanhou aproximadamente 20 ou 60 FPS conforme o cenário; isso não mede a taxa física dos LEDs. Sem prévia, o motor inclui apenas servidor e filho do efeito. Com prévia, inclui também a produção/transmissão de PNG, mas não o navegador que o exibiria.
+
+A candidata usou mais CPU nas amostras animadas (diferença de 0,14 a 0,51 ponto percentual) e até 11,3 MiB extras de RSS médio. Esses resultados **não demonstram ganho de desempenho**. São amostras curtas de uma única máquina sob atividade normal de fundo; não isolam a causa, não comprovam estabilidade por horas nem permitem atribuir toda diferença à alteração do mapa. Uma comparação mais longa e repetida deve preceder qualquer promessa de otimização.
+
+### Navegador, medido separadamente
+
+O mapa PT-BR no Edge isolado teve média de **502,5 MiB / 0,95% CPU** com os arquivos de interface anteriores e **508,0 MiB / 0,90% CPU** com os novos. Heap JavaScript médio: **4,05 / 3,92 MiB**. Foram oito execuções em duas ordens invertidas, também incluindo inglês e biblioteca; nenhum erro de página foi observado. O backend era o mesmo durante a troca dos arquivos de interface. A apresentação inicial foi encerrada antes de medir.
+
+RSS do navegador soma processos e pode contar páginas compartilhadas mais de uma vez. Não some esse valor ao do motor para anunciar um total exato. OpenRGB, driver, supervisores e bandeja instalados não fazem parte desses escopos. O comparativo não mede SignalRGB e não certifica ausência de vazamento.
+
+Os [resultados e método em JSON](benchmarks/2026-10-18-review.json) permitem conferir os valores sem arredondamento. As correções de preservação de backup e do instalador não alteram o caminho de renderização exercitado neste ensaio.
+
 <a id="alpha24"></a>
 
 ## Edição, energia, diagnóstico e recuperação — v0.1.0-alpha.24 a v0.1.0-alpha.26

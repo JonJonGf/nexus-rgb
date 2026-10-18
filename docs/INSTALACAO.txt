@@ -14,10 +14,14 @@ painel não abrir. Isso pede administrador para atualizar o firewall e os servi�
 Ao trocar a porta do painel, atualize o link salvo no celular. A porta UDP 1900
 da descoberta Alexa é fixa; alguns Echos precisam que a ponte HTTP fique em 80.
 
-Feche o aplicativo Nexus antigo, outro OpenRGB e os programas RGB do fabricante
-antes de instalar. Não execute dois controladores ao mesmo tempo.
-Para atualizar o Nexus, feche também seu ícone ao lado do relógio usando
-"Fechar ícone (manter as luzes)". Fechar apenas o navegador não encerra o ícone.
+Feche outros aplicativos RGB, cópias separadas do OpenRGB e programas RGB
+do fabricante antes de instalar. Não execute dois controladores ao mesmo tempo.
+Ao atualizar, o instalador fecha automaticamente o ícone desta instalação
+e prepara os serviços. Configurações ou recuperações abertas precisam ser
+concluídas antes. Outras sessões de usuário são preservadas.
+Na escolha da pasta, mantenha o padrão ou selecione um destino exclusivo
+protegido em disco local NTFS. Atualizações mantêm a pasta já instalada;
+para mudar de pasta, desinstale preservando os dados e instale novamente.
 Os perfis e ajustes ficam em %ProgramData%\NexusRGB\app\settings.json e são
 mantidos na atualização, desinstalação e reinstalação.
 A biblioteca importada fica na subpasta effects desse mesmo diretório. Ao fazer

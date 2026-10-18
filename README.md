@@ -284,6 +284,8 @@ A remoção desativa e remove os serviços e as regras próprias de firewall. Se
 
 ## 📊 Quanto o Nexus consome?
 
+**Revisão de 18/10/2026 — candidata após alpha.36, ainda não publicada:** servidor e motor, com SDK simulado, usaram **137,4 MiB / 0,65% CPU** com Aurora a 20 FPS e **171,6 MiB / 1,24% a 60 FPS**, sem prévia. Em repouso estático, foram **50,3 MiB / 0,03%**. O navegador com o mapa, medido separadamente, usou cerca de **508 MiB / 0,90%**. CPU considera a máquina de 12 threads; esses escopos excluem OpenRGB, driver, supervisores e bandeja e não devem ser somados como um total exato. A candidata consumiu mais CPU em alguns cenários do motor; não há promessa de ganho ou prova de estabilidade prolongada. Veja o [comparativo e os limites](docs/DESEMPENHO.md#revisão-da-candidata-após-alpha36--18102026).
+
 **Candidata alpha.15, incorporada na alpha.16 — medição de 16/10/2026:** o navegador com o mapa usou **0,62% de CPU / 489,39 MiB**, contra **0,54% / 486,05 MiB** na interface alpha.14. Em outro ensaio, **somente servidor + motor** com Aurora somaram **0,41% / 132,71 MiB a 20 FPS** e **0,83% / 157,11 MiB a 60 FPS**. CPU considera as 12 threads; RAM soma conjuntos residentes. São janelas curtas com SDK simulado, sem medir LEDs físicos. **OpenRGB, serviços, bandeja e driver ficam fora dessas somas.** Os escopos são separados; veja [método, sete cenários e dados](docs/DESEMPENHO.md#alpha15).
 
 <details>

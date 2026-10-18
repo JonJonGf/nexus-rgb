@@ -16,8 +16,12 @@ Alexa discovery uses UDP 1900; some Echos require HTTP port 80.
 
 Close older Nexus, other OpenRGB instances and manufacturer RGB apps before
 installing. Avoid running two controllers for the same hardware.
-For updates, exit the Nexus tray icon using Exit tray (keep lights running).
-Closing the browser does not exit the tray icon.
+During updates, setup closes this installation's tray icon automatically and
+prepares its services. Finish open configuration or recovery windows first.
+Other Windows user sessions are preserved.
+Keep the default installation folder or choose a dedicated protected folder
+on a local NTFS disk. Updates keep the existing folder; to relocate, uninstall
+preserving data, then install again.
 
 Profiles, map, calibration and settings are stored in
 %ProgramData%\NexusRGB\app\settings.json; imports are in its effects folder.
