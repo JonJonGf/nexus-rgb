@@ -33,7 +33,11 @@ function Session {
 function State {Invoke-RestMethod ($origin+'/api/state') -WebSession $script:session}
 function Setup([string]$Phase) {
   $log=Join-Path $reports ($Phase+'.log')
-  $process=Start-Process -FilePath $Installer -ArgumentList ('/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /DIR="'+$root+'" /PANELPORT='+$PanelPort+' /SDKPORT='+$SDKPort+' /ALEXAPORT='+$AlexaPort+' /LOG="'+$log+'"') -WindowStyle Hidden -Wait -PassThru
+  $process=Start-Process -FilePath $Installer -ArgumentList ('/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /DIR="'+$root+'" /PANELPORT='+$PanelPort+' /SDKPORT='+$SDKPort+' /ALEXAPORT='+$AlexaPort+' /LOG="'+$log+'"') -WindowStyle Hidden -PassThru
+  # Start-Process -Wait waits for the entire tree, including the deliberately
+  # persistent tray reopened by setup. Wait for setup's own exit, with a deadline.
+  if(-not $process.WaitForExit(180000)){throw ('Installer '+$Phase+' did not exit within 180 seconds; inspect its setup log.')}
+  $process.Refresh()
   Check ($process.ExitCode -in 0,3010) ('Installer '+$Phase+' exited successfully')
   Wait-Panel; Session
 }

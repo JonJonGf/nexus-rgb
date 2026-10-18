@@ -6,6 +6,34 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+test('VM setup waits for installer exit without waiting for its reopened tray child', {skip:process.platform!=='win32'}, t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-setup-wait-'));
+  t.after(async()=>{await new Promise(resolve=>setTimeout(resolve,4000));if(path.dirname(path.resolve(directory))!==path.resolve(os.tmpdir())||!path.basename(directory).startsWith('nexus-setup-wait-'))throw Error('Unsafe fixture cleanup');fs.rmSync(directory,{recursive:true,force:true});});
+  const executable=path.join(directory,'parent.exe'),source=path.join(directory,'parent.cs');
+  fs.writeFileSync(source,'using System;using System.IO;using System.Diagnostics;using System.Threading;class Parent{static void Main(string[] args){if(args.Length==1&&args[0]=="child"){Thread.Sleep(3500);return;}Process.Start(new ProcessStartInfo(Process.GetCurrentProcess().MainModule.FileName,"child"){UseShellExecute=false,CreateNoWindow=true});}}');
+  const compiled=spawnSync(path.join(process.env.SystemRoot,'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),['/nologo','/out:'+executable,source],{encoding:'utf8',windowsHide:true});
+  assert.equal(compiled.status,0,compiled.stdout+compiled.stderr);
+  const script=String.raw`
+    $ErrorActionPreference='Stop'
+    $Installer=$env:NEXUS_SETUP_EXE; $reports=$env:NEXUS_SETUP_DATA; $root=$reports
+    $PanelPort=5050; $SDKPort=6743; $AlexaPort=80
+    function Check([bool]$Condition,[string]$Name){if(-not $Condition){throw $Name}}
+    function Wait-Panel {}
+    function Session {}
+    $tokens=$null; $errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_SETUP_SOURCE,[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Invalid VM script'}
+    $definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Setup'},$true)
+    . ([scriptblock]::Create($definition.Extent.Text))
+    $watch=[Diagnostics.Stopwatch]::StartNew()
+    Setup 'fixture'
+    if($watch.Elapsed.TotalSeconds -ge 2.5){throw 'Setup waited for its persistent tray child'}
+    'installer-only-wait-passed'
+  `;
+  const result=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{encoding:'utf8',windowsHide:true,timeout:15000,env:{...process.env,NEXUS_SETUP_EXE:executable,NEXUS_SETUP_DATA:directory,NEXUS_SETUP_SOURCE:path.resolve(__dirname,'../scripts/test-installed-package.ps1')}});
+  assert.equal(result.status,0,result.stderr+result.stdout);assert.match(result.stdout,/installer-only-wait-passed/);
+});
+
 test('teste destrutivo de instalação recusa execução fora de runner descartável', { skip: process.platform !== 'win32' }, () => {
   const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.resolve(__dirname, '..', 'scripts', 'test-installed-package.ps1'), '-Installer', 'does-not-exist.exe'], {
     encoding: 'utf8', env: { ...process.env, GITHUB_ACTIONS: 'false', RUNNER_ENVIRONMENT: 'local' }
