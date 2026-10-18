@@ -40,8 +40,8 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
     - Validação de release (`scripts/check-release.cjs v0.1.0-alpha.36`): aprovada com sucesso.
   - **Preparação da versão `v0.1.0-alpha.36`:** criação das notas de versão em `docs/releases/v0.1.0-alpha.36.md`, atualização dos links de download e documentação em `README.md`, e validação estrita com `scripts/check-release.cjs v0.1.0-alpha.36` aprovada.
   - **Processos em Segundo Plano:** todos finalizados (`manage_task list` limpo, `nexus-hid` e servidor de teste parados).
-  - **Estado do Git:** commit de código e tag `v0.1.0-alpha.36` na branch `main`.
-  - **Próximo Passo:** enviar a tag e a branch para o repositório remoto (`origin/main` e `origin/v0.1.0-alpha.36`), acionando os workflows automatizados de publicação.
+  - **Estado do Git:** commits `66f1a39`, `eae654b` e `d533383` enviados para `origin/main`; tag `v0.1.0-alpha.36` enviada para `origin`.
+  - **Próximo Passo:** os workflows automatizados de publicação (`publish-release.yml`, `installer.yml`, `codeql.yml`) foram disparados no GitHub Actions para validação e publicação da release v0.1.0-alpha.36.
   - **Decisões e Feedback do Usuário:**
     1. *Layout do Teclado no Mapa do Setup:* o usuário apontou que o teclado era renderizado incorretamente no Setup Map como uma única fita estreita de 61 LEDs aglomerados em linha reta ("ele detecta o teclado todo como apenas 1 led e isso faz ele n funcionar direto os efeitos [...] veja o layout do teclado e como ele fica disponibilizado no teclado para funcionar direito além de identificar todos os leds da placa").
     2. *Eliminação do Tremor / Piscar Rápido:* o usuário relatou que o teclado piscava em frequência muito rápida ("além de ficar piscando mt rapido. reveja isso"). O diagnóstico confirmou que o motor de renderização a 20 FPS (50 ms) estava enviando repetidamente relatórios de modo estático ao microcontrolador SinoWealth 8051, resetando o timer interno de PWM a cada 50 ms.
