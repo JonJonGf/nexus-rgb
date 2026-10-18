@@ -62,6 +62,13 @@ function VerifyPermissions {
   Check (@($appAcl.Access | Where-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -eq 'S-1-5-19' -and ($_.FileSystemRights -band [Security.AccessControl.FileSystemRights]::Modify) -eq [Security.AccessControl.FileSystemRights]::Modify}).Count -gt 0) 'LocalService can save app data'
 }
 function Uninstall([string]$Phase) {
+  # Interactive sessions restore their tray after upgrade. Close only this
+  # VM's installed tray before checking the intentionally retained uninstall guard.
+  $trayPath=Join-Path $root 'NexusRGB.exe'
+  foreach($tray in @(Get-CimInstance Win32_Process | Where-Object {$_.ExecutablePath -eq $trayPath -and $_.SessionId -eq [Diagnostics.Process]::GetCurrentProcess().SessionId -and $_.CommandLine -match '(?i)(?:^|\s)--tray(?:\s|$)'})) {
+    $current=Get-CimInstance Win32_Process -Filter ('ProcessId='+$tray.ProcessId)
+    if($current -and $current.ExecutablePath -eq $trayPath -and $current.CreationDate -eq $tray.CreationDate){Stop-Process -Id $tray.ProcessId -Force}
+  }
   $entry=Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{BEFFBF04-40A0-4E59-87C0-223B51E92B84}_is1'
   $uninstaller=$entry.UninstallString.Trim('"')
   Check ($uninstaller.StartsWith($root+'\',[StringComparison]::OrdinalIgnoreCase) -and [IO.Path]::GetFileName($uninstaller) -match '^unins\d+\.exe$') 'Uninstall registration points inside Nexus installation'

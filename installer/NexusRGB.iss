@@ -29,7 +29,8 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 InfoBeforeFile=..\docs\INSTALACAO.txt
-AppMutex=Local\NexusRGB.Tray
+; Installation closes only owned tray processes in preflight. An AppMutex here
+; would abort at startup before that code can run. Uninstall keeps its guard below.
 CloseApplications=yes
 RestartApplications=no
 UsePreviousTasks=yes
@@ -251,6 +252,12 @@ begin
     end;
     SetupFailed := False;
   end;
+end;
+function InitializeUninstall: Boolean;
+begin
+  Result := not CheckForMutexes('Local\NexusRGB.Tray');
+  if not Result then
+    SuppressibleMsgBox(LocalText('Feche o ícone do Nexus RGB antes de desinstalar. Os serviços e dados foram mantidos.', 'Close the Nexus RGB tray icon before uninstalling. Services and data were preserved.'), mbInformation, MB_OK, IDOK);
 end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var ExitCode: Integer;

@@ -7,6 +7,7 @@ permissions:
 jobs:
   install:
     strategy:
+      fail-fast: false
       matrix:
         ports:
           - { panel: 5050, sdk: 6743, alexa: 80, customDirectory: false }
@@ -32,6 +33,7 @@ jobs:
         run: ./scripts/download-vendor.ps1
       - run: npm run build
       - run: npm run test:installer
+      - run: node scripts/test-installer-tray.js
       - name: Instalar, atualizar, recuperar, remover e reinstalar
         shell: powershell
         run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }} -CustomDirectory:$${{ matrix.ports.customDirectory }}
