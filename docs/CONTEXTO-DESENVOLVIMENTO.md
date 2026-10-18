@@ -16,8 +16,9 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   - **Testes Executados e Resultados Observados:**
     - `node --test tests/native-controllers.test.js`: 6/6 testes aprovados em ~100 ms.
     - `node --test --test-concurrency=2 tests/*.test.js`: todos os 182 testes unitários aprovados (176 de baseline + 6 novos) com 0 falhas, 0 cancelamentos e 0 pulados.
-  - **Estado do Git:** commit de código `bd6c0f9` enviado com sucesso para `origin/main` (`main` sincronizada).
-  - **Próximo Passo:** suporte ativo e validado em simulação e testes unitários (182 testes verdes); pronto para testes com hardware físico ou novos modelos de controladoras conforme demanda.
+  - **Preparação da versão `v0.1.0-alpha.35`:** criação das notas de versão em `docs/releases/v0.1.0-alpha.35.md`, atualização dos links de download e documentação em `README.md`, e validação estrita com `scripts/check-release.cjs v0.1.0-alpha.35` aprovada.
+  - **Estado do Git:** commit de preparação e tag `v0.1.0-alpha.35` para acionamento dos workflows automatizados de validação de instalador (`installer.yml`), CodeQL (`codeql.yml`) e publicação (`publish-release.yml`).
+  - **Próximo Passo:** monitorar a execução dos workflows no GitHub Actions e verificar os assets compilados do instalador (`NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`).
 
 ## Situação atual — 17/10/2026
 
