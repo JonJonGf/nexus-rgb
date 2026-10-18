@@ -12,7 +12,9 @@ Publicação, atualização do PC e testes físicos exigem etapas separadas da a
 
 ### Refinamentos seguintes — mapa e destino do instalador
 
-Implementados no código, ainda fora do candidato instalado: mapa inclui apenas componentes com controle espacial por LED, com orientação para controlar modos internos em Dispositivos; instalador oferece escolha de pasta protegida e mantém a anterior durante atualizações. Serviços, recuperação, portas e remoção acompanham o caminho registrado. Trocar uma instalação existente de pasta requer desinstalar preservando dados e reinstalar; não foi criada migração automática. Validação completa de instalação em pasta personalizada na VM continua pendente. Consulte o [contexto](CONTEXTO-DESENVOLVIMENTO.md).
+Implementados no código, ainda fora do candidato instalado: mapa inclui apenas componentes com controle espacial por LED, com orientação para controlar modos internos em Dispositivos; instalador oferece escolha de pasta protegida e mantém a anterior durante atualizações. Serviços, recuperação, portas e remoção acompanham o caminho registrado. Trocar uma instalação existente de pasta requer desinstalar preservando dados e reinstalar; não foi criada migração automática.
+
+O [fechamento de validação](validation/2026-10-18-fechamento.md) concluiu os ciclos completos em duas VMs (pasta padrão e personalizada), com 86 verificações em cada uma. Atualização com bandeja aberta, preservação de mapa/calibração, recuperação e reinstalação passaram após corrigir um bloqueio antecipado do instalador e a espera indevida do próprio harness. Testes gerais: 214; interface: 43; CodeQL concluído com os falsos positivos locais revisados e documentados. Consumo medido e limites estão no [relatório de desempenho](DESEMPENHO.md#revisão-da-candidata-após-alpha36--18102026). A instalação real continua anterior a essas alterações; nova Release/instalação são etapas separadas.
 
 ## Implementado na alpha.20, com resultado físico registrado: comunicação da Alexa
 
