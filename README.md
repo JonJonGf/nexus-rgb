@@ -1,13 +1,13 @@
-# ⚡ Nexus RGB
+# ⚡ Nexus RGB Studio
 
 <p align="center">
-  <img src="docs/assets/nexus-banner.svg" alt="Nexus RGB — Seu RGB. Sua rede. Seu controle. Windows, OpenRGB incluído, controle local e Alexa para ligar e desligar." width="100%">
+  <img src="docs/assets/nexus-banner.svg" alt="Nexus RGB Studio — Seu RGB. Sua rede. Seu controle. Windows, OpenRGB incluído, controle local e Alexa para ligar e desligar." width="100%">
 </p>
 
 <p align="center">
-  <b>A iluminação do seu setup, do seu jeito.</b><br>
-  Controle os componentes RGB do PC pelo computador, celular ou tablet.<br>
-  Escolha suas cores no Nexus e use a Alexa para acender ou apagar as luzes.
+  <b>Nexus RGB Studio — O estúdio espacial de iluminação e controle RGB local para Windows.</b><br>
+  Posicione suas peças no mapa 2D, crie ou importe efeitos contínuos e controle a iluminação do seu setup pelo PC ou celular.<br>
+  Motor inteligente de taxa dupla (Dual-Rate Engine: 60 FPS fluido / 20 FPS seguro para RAM), integração local com Alexa e zero telemetria.
 </p>
 
 <p align="center">
@@ -17,6 +17,7 @@
 
 <p align="center">
   <a href="#instalacao">Instalar</a> ·
+  <a href="#studio">Estúdio Espacial</a> ·
   <a href="#celular">Usar no celular</a> ·
   <a href="#alexa">Configurar Alexa</a> ·
   <a href="#ajuda">Resolver problemas</a> ·
@@ -25,7 +26,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.32 · Gratuito e de código aberto.** Esta prévia traz correção definitiva de taxa dupla no Studio (mapa espacial): efeitos a 60 FPS fluidos para placa-mãe e controladoras, com contenção estrita a 20 FPS para módulos de memória RAM no barramento SMBus/I2C sob qualquer efeito. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.32 · Gratuito e de código aberto.** Esta versão traz o Nexus RGB Studio com taxa dupla inteligente: efeitos a 60 FPS fluidos para placa-mãe e controladoras, com contenção física rigorosa a 20 FPS para memórias RAM no barramento SMBus/I2C sob qualquer efeito. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 
@@ -35,28 +36,24 @@ Em **Configurações → Ajuda e primeiros passos**, abra o guia local formatado
 
 A apresentação inicial aparece somente no primeiro acesso de uma instalação nova. O registro fica na pasta de dados e é preservado ao reabrir ou atualizar; a ajuda continua acessível nas Configurações. Instalações já existentes não recebem a apresentação novamente.
 
-## ✨ O que o Nexus faz
+## ✨ O que o Nexus RGB Studio faz
 
-| 🖥️ No computador | 📱 No celular | 🗣️ Com a Alexa |
+| 🗺️ Estúdio Espacial 2D | 🖥️ Controle Total & LAN | 🗣️ Comandos de Voz Alexa |
 | :--- | :--- | :--- |
-| Cor, brilho e efeitos para o setup inteiro ou por componente. | O mesmo painel no navegador, pelo link da sua rede. | Uma única luz: **Iluminação Nexus**, para ligar e desligar. |
-| Perfis salvos e seis cenas prontas para começar. | Sem conta, login ou leitura obrigatória de QR Code. | Preserva as cores, os efeitos e os ajustes individuais ao religar. |
+| Organize ventoinhas, memórias e placa-mãe no mapa real do gabinete. | Painel direto no navegador do PC, celular ou tablet via rede local. | Uma única luz: **Iluminação Nexus**, para ligar e desligar por voz. |
+| Efeitos contínuos atravessando o setup no espaço 2D sem cortes de fase. | Sem contas na nuvem, sem telemetria e sem leitura obrigatória de QR Code. | Preserva cores, efeitos e posições espaciais intactas ao religar. |
 
-- **OpenRGB incluído:** o instalador prepara o controlador e as dependências. Você não precisa instalar Node.js nem configurar um servidor OpenRGB à parte.
-- **Cada componente, do seu jeito:** RAM, placa-mãe, controladoras e periféricos compatíveis aparecem a partir da detecção real do OpenRGB.
-- **RGB e ARGB separados:** quando o hardware informa um mapa completo de zonas e permite cor por LED, as portas e a iluminação interna aparecem como componentes independentes.
-- **O layout acompanha sua cor:** a cor estática escolhida também muda a identidade visual do painel.
-- **Um efeito atravessando o setup:** organize as peças no mapa, divida faixas de LEDs e ajuste rotação, tamanho e ordem.
-- **Mapa compartilhado:** acompanhe Iluminação e Perfis pelas cores enviadas a cada LED. Escolha perfis e cenas no mapa; nos efeitos espaciais, solte a peça para aplicar e salvar sua posição sem reiniciar a animação.
-- **Sua biblioteca de efeitos:** três efeitos espaciais incluídos, fórmulas Nexus em JSON e importação local experimental de HTML Canvas, com autoria preservada. O criador oferece doze padrões, colagem de HTML/Canvas compatível, prévia isolada antes de aplicar e [documentação dos padrões](docs/EFEITOS.md) ([English](docs/EFFECTS.md)).
-- **Português e inglês:** escolha em **Configurações → Idioma da interface**. A preferência é salva por navegador e não muda as luzes ou os nomes dos seus perfis. O instalador também oferece os dois idiomas; na bandeja do Windows, use **Idioma / Language** para as janelas nativas. As preferências do navegador e do Windows são independentes, sem serviço de tradução externo.
-- **Mapa calibrado:** vários anéis, primeiro LED, sentido e ordem física por peça; grupos, seleção múltipla, grade e desfazer/refazer. [Veja como configurar](docs/MAPA-E-CALIBRACAO.md).
-- **Biblioteca organizada:** favoritos, categorias e cópias de perfis/efeitos. A transição entre perfis e a transição suave ao ligar/desligar (0,2 a 3,0 s) são opcionais; o padrão ao ligar/desligar permanece instantâneo.
-- **Backup completo:** exporte ajustes, mapa e efeitos; revise antes de restaurar. O Nexus guarda uma cópia anterior à restauração e à atualização.
-- **Saúde e versão:** acompanhe os processos da instalação e prepare um diagnóstico revisável por categorias antes de compartilhar. A consulta opcional de atualizações no GitHub funciona por clique, sem baixar nem instalar automaticamente. [Backup, diagnóstico e atualizações](docs/BACKUP-E-DIAGNOSTICO.md).
-- **Fluidez configurável:** escolha de 5 a 60 FPS na aba Configurações; padrão de 20 FPS.
-- **Início com o Windows:** os serviços são configurados para iniciar automaticamente, mesmo antes do login. Fechar a janela mantém o controle em segundo plano.
-- **Recuperação pelo próprio app:** reinicie Nexus e OpenRGB pelas Configurações no PC, pelo ícone da bandeja ou pelo menu Iniciar. Os perfis e configurações são preservados; o Windows pede administrador.
+- **Estúdio Espacial 2D (Nexus Studio):** arraste, rotacione e escale cada componente no mapa do gabinete. Os efeitos de iluminação atravessam o espaço físico do setup com fidelidade geométrica real.
+- **Motor Inteligente Dual-Rate (60 FPS / 20 FPS):** placa-mãe, fitas ARGB e controladoras USB rodam a 60 FPS ultrafluidos, enquanto módulos DRAM são mantidos em 20 FPS seguros para evitar sobrecarga no barramento SMBus/I2C.
+- **OpenRGB incluído:** o instalador prepara o controlador e as dependências nativas. Você não precisa instalar Node.js nem gerenciar servidores OpenRGB externos.
+- **Criador de Efeitos & Canvas:** biblioteca com 12 padrões visuais, fórmulas matemáticas em JSON e importação de efeitos HTML5 Canvas em ambiente isolado, com autoria preservada.
+- **Controle individual e por zona:** RAM, placa-mãe, portas ARGB independentes e periféricos aparecem a partir da detecção real do hardware.
+- **Deduplicação e controle de fluxo:** economia de até 98% no tráfego de dados locais em efeitos estáticos e descarte preventivo de quadros sob contenção do sistema.
+- **Português e inglês:** escolha em **Configurações → Idioma da interface** (PT-BR e EN nativos, sem serviços de tradução externos).
+- **Mapa calibrado:** calibração de anéis de ventoinha, primeiro LED, rotação, grupos, seleção múltipla e desfazer/refazer. [Veja como configurar](docs/MAPA-E-CALIBRACAO.md).
+- **Backup completo:** exporte ajustes, mapa e efeitos; restauração supervisionada com histórico de segurança. [Backup, diagnóstico e atualizações](docs/BACKUP-E-DIAGNOSTICO.md).
+- **Início com o Windows e bandeja nativa:** executável leve em C# na bandeja do sistema (`Local\NexusRGB.Tray`), iniciando junto ao Windows e pronto antes do login.
+- **Recuperação pelo próprio app:** reinicie os serviços pelas Configurações com restauração de estado e isolamento contra falhas.
 - **Controle na LAN:** o painel e os efeitos funcionam na rede local, sem depender de uma conta ou servidor externo do Nexus.
 
 <a id="instalacao"></a>
