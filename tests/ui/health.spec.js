@@ -32,3 +32,24 @@ test('painel distingue detecção inicial e descoberta parcial antes de declarar
   await expect(page.locator('#notice')).toContainText('1 found so far');
   await expect(page.locator('#health-state')).toHaveText('Detecting components');
 });
+test('painel exibe avisos de Iluminação Dinâmica e softwares conflitantes com tradução',async({page})=>{
+  await page.route('**/api/conflicts',async route=>{
+    await route.fulfill({
+      json:{
+        hasConflicts:true,
+        dynamicLighting:{supported:true,enabled:true},
+        conflicts:[{id:'icue',name:'Corsair iCUE',process:'icue.exe'}]
+      }
+    });
+  });
+  await page.goto('/');await expect(page.locator('#power')).toBeEnabled();
+  await page.locator('.nav[data-page=settings]').click();
+  const box=page.locator('#health-conflicts');
+  await expect(box).toBeVisible();
+  await expect(box).toContainText('Iluminação Dinâmica do Windows');
+  await expect(box).toContainText('Corsair iCUE');
+  await page.locator('#settings-language').selectOption('en');
+  await expect(box).toContainText('Windows Dynamic Lighting');
+  await expect(box).toContainText('Conflicting software running: Corsair iCUE');
+});
+

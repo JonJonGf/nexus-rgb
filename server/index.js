@@ -18,6 +18,7 @@ const { about } = require('./about');
 const { Backups, MAX: BACKUP_MAX } = require('./backup');
 const { Resources } = require('./resources');
 const { diagnostics } = require('./diagnostics');
+const { Conflicts } = require('./conflicts');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -80,6 +81,7 @@ async function createApp(options = {}) {
   const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
   const resources = new Resources();
+  const conflicts = options.conflicts || new Conflicts();
   hardware.on('change', broadcast);
   function headers(res) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
@@ -120,7 +122,7 @@ async function createApp(options = {}) {
     if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origem não autorizada.' });
     const url = new URL(req.url, origin); const route = url.pathname;
     const isAsset = ['GET', 'HEAD'].includes(req.method) && assets.has(route);
-    const isHeavy = route === '/api/studio/import' || route === '/api/studio/draft' || /^\/api\/studio\/effects\/[a-f0-9]{24}\/duplicate$/.test(route) || route === '/api/backups' || route.startsWith('/api/backups/') || route === '/api/resources' || route === '/api/diagnostics' || route === '/api/link' || route === '/api/alexa/discover';
+    const isHeavy = route === '/api/studio/import' || route === '/api/studio/draft' || /^\/api\/studio\/effects\/[a-f0-9]{24}\/duplicate$/.test(route) || route === '/api/backups' || route.startsWith('/api/backups/') || route === '/api/resources' || route === '/api/diagnostics' || route === '/api/conflicts' || route === '/api/link' || route === '/api/alexa/discover';
     const budget = isAsset ? assetRate : isHeavy ? heavyRate : ['GET', 'HEAD'].includes(req.method) ? readRate : writeRate;
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     if (route === '/api/health' && req.method === 'GET' && isLocal) {
@@ -143,6 +145,7 @@ async function createApp(options = {}) {
       if (route === '/api/about' && req.method === 'GET') return json(res,200,about());
       if (route === '/api/resources' && req.method === 'GET') {admin();return json(res,200,await resources.sample());}
       if (route === '/api/diagnostics' && req.method === 'GET') {admin();return json(res,200,diagnostics(hardware,studio,store,resources));}
+      if (route === '/api/conflicts' && req.method === 'GET') {admin();return json(res,200,await conflicts.sample());}
       if (route === '/api/backups' && req.method === 'GET') {admin();return json(res,200,backups.export());}
       if (route === '/api/backups/review' && req.method === 'POST') {admin();return json(res,200,await backups.review(await readBody(req,BACKUP_MAX)));}
       if (route === '/api/backups/restore' && req.method === 'POST') {admin();const body=await readBody(req);if(Object.keys(body).length!==1||!Object.hasOwn(body,'token'))throw Error('Comando de restauração inválido.');const result=backups.apply(body.token);if(store.data.alexaEnabled)alexa.start();else alexa.stop();broadcast();return json(res,200,result);}

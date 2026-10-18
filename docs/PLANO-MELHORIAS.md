@@ -32,6 +32,12 @@ O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usu�
 
 - Recuperação de OpenRGB parcialmente indisponível: primeira etapa implementada na `v0.1.0-alpha.27` (isolamento de geração, falha estruturada, componentes offline, sincronia de RAM ao ligar/desligar e recuperação manual supervisionada via `nexusrgb://restart`) e refinada na preparação da alpha.28 (cancelamento explícito com `ECANCELLED`, descarte de contaminação de diagnósticos entre gerações, atualização automática do mapa do Studio sem precisar trocar de efeito, compatibilidade com Windows Restart Manager e encerramento limpo/retorno automático da bandeja pelo instalador com isolamento de sessão). Opção automática futura permanece em planejamento supervisionado. Consulte a [proposta detalhada](RECUPERACAO-CONTROLADOR.md).
 
+### Detecção de conflitos de iluminação e softwares concorrentes
+
+| Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |
+| :--- | :--- | :--- | :--- | :--- |
+| **Disputa de controle e travamentos por softwares externos e Windows Dynamic Lighting:** no Windows 11, a Iluminação Dinâmica do SO e outros softwares RGB de fabricantes (iCUE, Armoury Crate, L-Connect, Razer Synapse, etc.) disputam portas USB e o barramento SMBus, causando perda de controle ou congelamento do OpenRGB sem que o usuário entenda o motivo. | Criado `server/conflicts.js` que inspeciona de forma somente-leitura o Registro do Windows (`AmbientLightingEnabled`) e processos ativos via allowlist estrita (`tasklist.exe`), com cache de 15s. Exposto em `GET /api/conflicts` e exibido de forma traduzida no painel Configurações > Saúde/Consumo com orientações de mitigação. | `tests/conflicts.test.js` (4 testes unitários), `tests/api.test.js` (autorização administrativa e rejeição LAN) e `tests/ui/health.spec.js` (renderização e tradução dinâmica na interface). | Usuário é alertado preventivamente no painel caso a Iluminação Dinâmica do Windows ou outros softwares RGB estejam competindo pelos controladores, orientando como desativá-los. | A detecção é somente-leitura e informativa; não encerra processos de terceiros nem altera chaves de registro automaticamente. |
+
 ### Correção de taxa dupla e contenção estrita no Studio (alpha.32)
 
 | Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |

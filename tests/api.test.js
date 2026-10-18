@@ -27,6 +27,7 @@ test('API bloqueia ataques de origem/Host, limita payload e mantém controles ap
   const maliciousName = '<img src=x onerror=alert(1)>';
   assert.equal((await request('/api/profiles', { name: maliciousName }, {}, cookie)).status, 200);
   const home = await request('/'); assert.match(home.headers.get('content-security-policy'), /frame-ancestors 'none'/); assert.equal(home.headers.get('access-control-allow-origin'), null);
+  assert.equal((await request('/api/conflicts', undefined, {}, cookie)).status, 200);
   assert.equal((await request('/api/restart', {}, {}, cookie)).status, 405);
   assert.equal((await request('/api/shutdown', {}, {}, cookie)).status, 405);
   assert.equal((await request('/server/index.js')).status, 404);
@@ -41,6 +42,7 @@ test('API bloqueia ataques de origem/Host, limita payload e mantém controles ap
     assert.equal((await fetch(lan + '/api/backups')).status, 403);
     assert.equal((await fetch(lan + '/api/resources')).status, 403);
     assert.equal((await fetch(lan + '/api/diagnostics')).status, 403);
+    assert.equal((await fetch(lan + '/api/conflicts')).status, 403);
     for(const route of ['/api/backups/review','/api/backups/restore','/api/devices/'+'a'.repeat(24)+'/identify'])assert.equal((await fetch(lan+route,{method:'POST',headers:{Origin:lan,'X-Nexus-Client':'web','Content-Type':'application/json'},body:'{}'})).status,403);
     assert.equal((await fetch(lan + '/api/session/local', { method: 'POST', headers: { Origin: lan, 'X-Nexus-Client': 'web' } })).status, 403);
     const firstLink = await (await request('/api/link', {}, {}, cookie)).json(); const secondLink = await (await request('/api/link', {}, {}, cookie)).json();

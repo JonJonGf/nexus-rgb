@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 17/10/2026
 
+- **Entrega de código (Detecção de Conflitos de Iluminação e Softwares Concorrentes):** implementação de diagnóstico não intrusivo para detectar conflitos de controle RGB externos (`server/conflicts.js`), abrangendo:
+  1. *Iluminação Dinâmica do Windows 11 (Dynamic Lighting):* consulta somente-leitura ao Registro do Windows (`HKCU\Software\Microsoft\Lighting /v AmbientLightingEnabled`), alertando quando ativada para evitar disputas de controle HID/LampArray.
+  2. *Softwares Concorrentes em Execução:* varredura segura de processos via allowlist estrita (`tasklist.exe`), identificando softwares conhecidos por saturar o barramento SMBus ou travar o OpenRGB (Corsair iCUE, ASUS Armoury Crate / Aura, Lian Li L-Connect, Razer Synapse, Gigabyte RGB Fusion, MSI Mystic Light / Center, NZXT CAM e SignalRGB).
+  3. *Cache e Economia de Recursos:* cache de 15 segundos e desduplicação de chamadas em voo (`inflight`), garantindo baixo consumo.
+  4. *Integração no Painel e API:* rota protegida `GET /api/conflicts` para administradores e aviso visual em `#health-conflicts` na aba Configurações > Saúde/Consumo, com tradução completa PT-BR/EN reativa a `nexus:languagechange`.
+  5. *Testes Automatizados:* 4 novos testes unitários em `tests/conflicts.test.js`, testes de segurança em `tests/api.test.js` e teste de interface Playwright em `tests/ui/health.spec.js`. Suíte completa de 172 unitários e 40 testes de UI (212 testes no total) 100% aprovada.
 - **Entrega de código (versão alpha.32):** correção definitiva da limitação de taxa no modo Studio (`tick(true)`). Na alpha.31, a condição `!forceSend` na limitação de RAM era ignorada durante animações espaciais do Studio porque `this.studio.revision` alterava a assinatura a cada frame, marcando `forceSend = true` e transmitindo RAM a 60 FPS. Na alpha.32, a contenção a 20 FPS para RAM SMBus é incondicional a quadros de animação (`if (!isPowerOff && !this.identification && isSmbusRam(device))`), preservando apenas desligamento imediato e identificação manual. Exclusão explícita de dispositivos USB/HID em `isSmbusRam(device)`. Suíte completa de 168 testes aprovada (`server/hardware.js`, `tests/traffic-control.test.js`, `docs/releases/v0.1.0-alpha.32.md`, `README.md`, `docs/PLANO-MELHORIAS.md`).
 - **Identidade das tags `alpha.24` a `alpha.32`:**
   - `v0.1.0-alpha.24` (`f9df27ff1c3f48163466b2d09bc00d40fff61d27`): publicada com todos os 3 workflows verdes e assets oficiais disponíveis.
@@ -85,6 +91,26 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 17/10/2026 — Detecção de conflitos de iluminação e softwares concorrentes
+
+- **Objetivo autorizado:** criar diagnóstico automatizado para detectar causas frequentes de interferência e travamentos no OpenRGB (Windows 11 Dynamic Lighting e softwares RGB concorrentes de fabricantes), aproveitando os aprendizados e estudos do ecossistema de controladoras RGB e autorização do usuário ("faça tudo q achar necessário! lembre de salvar no contexto e nos outros bgl oq vc foi fazendo quando necessrio").
+- **Implementação em `server/conflicts.js`:**
+  - Consulta estritamente somente-leitura ao Registro do Windows via `reg.exe query HKCU\Software\Microsoft\Lighting /v AmbientLightingEnabled`, identificando se a Iluminação Dinâmica do Windows 11 está ativa (no PC do usuário foi verificado `0x1`).
+  - Varredura de processos ativos via `tasklist.exe /FO CSV /NH` comparados contra uma allowlist fechada de executáveis conhecidos por disputar barramentos e dispositivos USB/HID: `icue` (Corsair iCUE), `armoury-crate` (ASUS Armoury Crate / Aura LightingService), `l-connect` (Lian Li L-Connect), `razer-synapse` (Razer Synapse), `rgb-fusion` (Gigabyte RGB Fusion), `mystic-light` (MSI Mystic Light / Center), `nzxt-cam` (NZXT CAM) e `signal-rgb` (SignalRGB).
+  - Cache de 15 segundos (`sample()`) com deduplicação de chamadas simultâneas (`inflight`), garantindo ausência de sobrecarga ou processos zumbis.
+- **API e Segurança em `server/index.js`:**
+  - Rota `GET /api/conflicts` protegida por autenticação administrativa (`admin()`) e rate limiting para operações pesadas (`heavyRate`), recusando clientes LAN sem token.
+- **Interface e Tradução em `public/`:**
+  - Elemento `#health-conflicts` na seção Saúde / Consumo (`public/index.html`).
+  - Renderização dinâmica em `public/health.js` através de `renderConflicts(conflicts)` que exibe alertas direcionados e orientações claras de mitigação (ex.: como desativar a Iluminação Dinâmica nas Configurações do Windows).
+  - Ouvinte de `nexus:languagechange` re-renderizando a mensagem em tempo real na troca de idioma.
+  - Traduções completas em `public/en.js`.
+- **Validação com testes automatizados:**
+  - `tests/conflicts.test.js`: 4 testes unitários cobrindo ativação/desativação da Iluminação Dinâmica, identificação de processos na allowlist, cache de 15 segundos e execução real no Windows.
+  - `tests/api.test.js`: validação de resposta 200 com cookie de administrador e 403 bloqueando acessos remotos via LAN.
+  - `tests/ui/health.spec.js`: teste Playwright validando a exibição do banner de conflitos e a alternância imediata de idioma para o inglês.
+  - Suíte completa: 172 unitários e 40 de interface (212 testes no total) 100% aprovados.
 
 ### 17/10/2026 — Correção definitiva do ritmo duplo no Studio (alpha.32)
 
