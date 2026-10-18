@@ -16,8 +16,8 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   - **Testes Executados e Resultados Observados:**
     - `node --test tests/native-controllers.test.js`: 6/6 testes aprovados em ~100 ms.
     - `node --test --test-concurrency=2 tests/*.test.js`: todos os 182 testes unitários aprovados (176 de baseline + 6 novos) com 0 falhas, 0 cancelamentos e 0 pulados.
-  - **Estado do Git:** alterações locais prontas para commit em `server/hardware.js`, novos arquivos em `server/controllers/` e `tests/native-controllers.test.js`.
-  - **Próximo Passo:** registrar no plano de melhorias, commitar e enviar para a branch `main`.
+  - **Estado do Git:** commit de código `bd6c0f9` enviado com sucesso para `origin/main` (`main` sincronizada).
+  - **Próximo Passo:** suporte ativo e validado em simulação e testes unitários (182 testes verdes); pronto para testes com hardware físico ou novos modelos de controladoras conforme demanda.
 
 ## Situação atual — 17/10/2026
 
