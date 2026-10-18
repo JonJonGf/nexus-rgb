@@ -19,7 +19,8 @@ function components(device) {
     const id = index === 0 && !port ? device.id : crypto.createHash('sha256').update(`${device.id}|zone|${zone.id}|${zone.name}`).digest('hex').slice(0, 24);
     const item = { id, name: index === 0 && !port ? device.name : header ? `ARGB ${header[1]}` : zone.name,
       kind: /argb|addressable/i.test(zone.name) ? 'argb' : port ? 'port' : 'device', controllerName: device.name,
-      zoneId: zone.id, ledCount: zone.ledsCount, offset, zones: device.zones.filter(z => z.id === zone.id) };
+      zoneId: zone.id, ledCount: zone.ledsCount, offset, zones: device.zones.filter(z => z.id === zone.id),
+      type: device.type, busType: device.busType, vendor: device.vendor };
     offset += zone.ledsCount; return item;
   });
 }
@@ -50,6 +51,44 @@ function isSmbusRam(device) {
   if (device.type === 1 || device.raw?.type === 1) return true;
   const name = String(device.name || device.raw?.name || '');
   return /dram|\bram\b|mem[oó]ria|memory|ene\s*(?:smbus|dram)|trident|vengeance|ballistix|dominator/i.test(name);
+}
+function detectBusArchitecture(device) {
+  if (!device) return 'unknown';
+  const loc = String(device.location || device.raw?.location || '').toLowerCase();
+  const name = String(device.name || device.raw?.name || '').toLowerCase();
+  const desc = String(device.description || device.raw?.description || '').toLowerCase();
+  const combined = `${loc} ${name} ${desc}`;
+  if (loc.startsWith('usb') || loc.startsWith('hid') || combined.includes('hidapi') || combined.includes('usb')) {
+    return 'usb-hid';
+  }
+  if (combined.includes('i801') || combined.includes('intel')) {
+    return 'intel-smbus';
+  }
+  if (combined.includes('piix4') || combined.includes('amd')) {
+    return 'amd-smbus';
+  }
+  if (combined.includes('nct67') || combined.includes('nuvoton') || combined.includes('superio') || combined.includes('lpc')) {
+    return 'superio';
+  }
+  if (combined.includes('smbus') || combined.includes('i2c')) {
+    return 'generic-smbus';
+  }
+  return 'unknown';
+}
+function classifyDeviceType(device) {
+  if (!device) return 21;
+  const type = Number.isInteger(device.type) ? device.type : Number.isInteger(device.raw?.type) ? device.raw.type : null;
+  if (type !== null && type >= 0 && type <= 20) return type;
+  const name = String(device.name || device.raw?.name || '').toLowerCase();
+  if (/\b(?:teclado|keyboard)\b/i.test(name)) return 5;
+  if (/\b(?:mousepad|mousemat)\b/i.test(name)) return 7;
+  if (/\b(?:mouse)\b/i.test(name)) return 6;
+  if (/\b(?:gpu|placa de v[ií]deo|geforce|radeon|rtx|gtx)\b/i.test(name)) return 2;
+  if (/\b(?:cooler|fan|ventoinha|aio|kraken|hydro|prism)\b/i.test(name)) return 3;
+  if (/\b(?:strip|fita)\b/i.test(name)) return 4;
+  if (/\b(?:headset|fone)\b/i.test(name)) return 8;
+  if (isSmbusRam(device)) return 1;
+  return 0;
 }
 function frame(settings, count, seconds) {
   const factor = settings.power ? settings.brightness / 100 : 0;
@@ -346,7 +385,9 @@ class Hardware extends EventEmitter {
       const off = raw.modes.find(m => /^(off|disabled|blackout)$/i.test(m.name));
       const ledCount = raw.colors.length;
       leds += ledCount; if (ledCount > 4096 || leds > 32768) throw new Error('Quantidade de LEDs acima do limite seguro.');
-      const device = { id, sdkId: i, name: raw.name, vendor: raw.vendor || '', type: raw.type, ledCount, raw, direct, fixed, off, error: null,
+      const busType = detectBusArchitecture(raw);
+      const devType = classifyDeviceType(raw);
+      const device = { id, sdkId: i, name: raw.name, vendor: raw.vendor || '', type: devType, busType, ledCount, raw, direct, fixed, off, error: null,
         effects: direct ? effects : fixed ? ['static'] : [],
         modes: raw.modes.map(m => ({ id: m.id, name: m.name })),
         zones: raw.zones.map(z => ({ id: z.id, name: z.name, leds: z.ledsCount, min: z.ledsMin, max: Math.min(4096, z.ledsMax), resizable: z.resizable })) };
@@ -452,6 +493,7 @@ class Hardware extends EventEmitter {
       error: this.error,
       controllerCount: this.devices.length,
       controllerHung: Boolean(this.controllerHung),
+      busTypes: Array.from(new Set(this.devices.map(d => d.busType).filter(Boolean))),
       lastFailure,
       metrics: {
         framesCalculated: this.metrics.framesCalculated,
@@ -788,4 +830,4 @@ class Hardware extends EventEmitter {
     this.connected = false;
   }
 }
-module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual, isSmbusRam };
+module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual, isSmbusRam, detectBusArchitecture, classifyDeviceType };

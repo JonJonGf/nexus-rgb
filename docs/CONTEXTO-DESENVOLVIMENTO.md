@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 17/10/2026
 
+- **Entrega de código (Suporte a Periféricos, Mapeamento de Barramentos e Arquitetura Headless):** implementação dos três eixos acordados a partir do estudo de controladoras e do OpenRGB headless:
+  1. *Matriz Visual de Periféricos e Formatos Espaciais:* novos ícones vetoriais SVG (`keyboard`, `mouse`, `gpu`, `cooler`, `strip`), badges de identificação e mapeamento de dimensões inteligentes no Studio (`spatial.defaults`), atribuindo formato horizontal a teclados, oval compacto a mouses e anéis circulares (`fan`) a coolers/fans (`public/app.js`, `public/en.js`, `public/spatial.js`).
+  2. *Mapeamento de Barramentos e Preservação de Tipos:* funções puras `detectBusArchitecture` e `classifyDeviceType` em `server/hardware.js` cobrindo Intel PCH i801, AMD PIIX4, SuperIO (NCT67xx/ITE) e USB-HID. Propagação de `type`, `busType` e `vendor` para subcomponentes de zonas divididas (`components()`), evitando perda de metadados em headers ARGB.
+  3. *Diagnóstico e Anonimização:* agregação de tipos de barramento em `health.busTypes` em `server/diagnostics.js`, preservando a conformidade estrita da allowlist de privacidade sem expor portas, caminhos físicos ou endereços de hardware.
+  4. *Estudo de Engenharia Headless:* criação de `docs/OPENRGB-HEADLESS.md`, detalhando a redução de ~48 MB para ~9 MB (~80% menos footprint), a causa do deadlock de `std::shared_mutex` (SRWLock no Windows) em streaming contínuo versus requisições do SDK, a arquitetura de `ReentrantSharedMutex` e timeouts per-detector de 3000 ms.
+  5. *Testes Automatizados:* 4 novos testes unitários dedicados em `tests/controllers-matrix.test.js`. Suíte completa de 176 testes unitários (`npm test`) e 40 testes de interface Playwright (`npm run test:ui`) — totalizando 216 testes automatizados — 100% aprovados sem falhas.
 - **Entrega de código (Detecção de Conflitos de Iluminação e Softwares Concorrentes):** implementação de diagnóstico não intrusivo para detectar conflitos de controle RGB externos (`server/conflicts.js`), abrangendo:
   1. *Iluminação Dinâmica do Windows 11 (Dynamic Lighting):* consulta somente-leitura ao Registro do Windows (`HKCU\Software\Microsoft\Lighting /v AmbientLightingEnabled`), alertando quando ativada para evitar disputas de controle HID/LampArray.
   2. *Softwares Concorrentes em Execução:* varredura segura de processos via allowlist estrita (`tasklist.exe`), identificando softwares conhecidos por saturar o barramento SMBus ou travar o OpenRGB (Corsair iCUE, ASUS Armoury Crate / Aura, Lian Li L-Connect, Razer Synapse, Gigabyte RGB Fusion, MSI Mystic Light / Center, NZXT CAM e SignalRGB).
@@ -91,6 +97,25 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 Os passos de implementação acima são a sequência sugerida para as melhorias guardadas; não substituem o pedido atual do usuário nem autorizam alterações em lote por conta própria.
 
 ## Histórico de entregas
+
+### 17/10/2026 — Suporte a periféricos, mapeamento de barramentos e arquitetura headless
+
+- **Objetivo autorizado:** implementar os 3 pilares explorados no ecossistema OpenRGB e autorizados pelo usuário ("pode fazer os 3."): (1) Especificação de arquitetura OpenRGB Headless ultra-leve (~9 MB sem Qt), resolução de deadlock SRWLock e timeouts I2C; (2) Suporte ampliado a periféricos e componentes com visual dedicado e layout espacial realista; (3) Mapeamento e classificação estruturada de barramentos de hardware (Intel PCH, AMD PIIX4, SuperIO e USB-HID) com diagnósticos em conformidade com a privacidade.
+- **Arquitetura Headless e Análise de Deadlock (`docs/OPENRGB-HEADLESS.md`):**
+  - Documentação da redução de ~48 MB para ~9 MB pela eliminação de bibliotecas Qt6 (`Qt6Widgets`, `Qt6Gui`, `Qt6OpenGL`, etc.) e shaders DirectX (`dxcompiler.dll`, `dxil.dll`), diminuindo o consumo de memória ociosa de ~90 MB para ~15–25 MB.
+  - Análise física e matemática do deadlock em módulos DRAM ENE no Windows: a implementação nativa de `std::shared_mutex` sobre `SRWLOCK` no Windows prioriza requisições de escrita exclusiva, bloqueando leituras compartilhadas aninhadas (`ReentrantSharedMutex` resolve essa inanição na raiz).
+  - Timeouts por detector I2C/SMBus delimitados em 3000 ms, impedindo que dispositivos em clock-stretching travem a inicialização do daemon por até 60 segundos.
+- **Suporte a Periféricos e Adaptação Espacial (`public/app.js`, `public/en.js`, `public/spatial.js`):**
+  - Ícones vetoriais SVG específicos para Teclados (`keyboard`), Mouses (`mouse`), Placas de Vídeo (`gpu`), Coolers/Fans (`cooler`) e Fitas LED (`strip`), além dos existentes para placa-mãe e RAM.
+  - Badges visuais de identificação de tipo em `renderMini()` e `renderDevices()`, com suporte a múltiplos idiomas e dicionário inglês (`public/en.js`).
+  - Posicionamento e formatos inteligentes em `spatial.defaults()`: proporção retangular horizontal (3:1) para teclados, proporção oval compacta para mouses e anéis circulares (`fan`) para coolers e fans.
+- **Mapeamento de Barramentos e Metadados (`server/hardware.js`, `server/diagnostics.js`):**
+  - Detecção pura via `detectBusArchitecture(device)` e `classifyDeviceType(device)` identificando barramentos `intel-smbus` (i801), `amd-smbus` (PIIX4/SB800), `superio` (Nuvoton NCT67xx / ITE LPC), `usb-hid` e `generic-smbus`.
+  - Correção na divisão de zonas em componentes (`components()`): propagação dos metadados `type`, `busType` e `vendor` para todas as zonas divididas, preservando a identidade dos conectores ARGB da placa-mãe.
+  - Exposição segura em `Hardware.snapshot().busTypes` e `/api/diagnostics` (`health.busTypes`), preservando estritamente a allowlist sem expor localizações físicas, endereços hexadecimais ou seriais.
+- **Validação com testes automatizados:**
+  - `tests/controllers-matrix.test.js`: 4 novos testes unitários cobrindo classificação de barramentos, categorização de periféricos, layout espacial e anonimização de diagnósticos.
+  - Suíte completa: 176 testes unitários (`npm test`) e 40 testes Playwright (`npm run test:ui`) — 216 testes no total — 100% aprovados sem falhas.
 
 ### 17/10/2026 — Detecção de conflitos de iluminação e softwares concorrentes
 

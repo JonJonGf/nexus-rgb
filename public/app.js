@@ -14,7 +14,41 @@
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 32 32'); svg.setAttribute('aria-hidden', 'true');
     const paths = { static: ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 10a6 6 0 1 0 0 12 6 6 0 1 0 0-12'], wave: ['M2 11c5-9 9-9 14 0s9 9 14 0', 'M2 21c5-9 9-9 14 0s9 9 14 0'], rainbow: ['M3 25a13 13 0 0 1 26 0', 'M8 25a8 8 0 0 1 16 0', 'M13 25a3 3 0 0 1 6 0'], breathe: ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 9a7 7 0 1 0 0 14 7 7 0 1 0 0-14', 'M16 14a2 2 0 1 0 0 4 2 2 0 1 0 0-4'], pulse: ['M2 16h6l4-11 7 22 5-11h6'], native: ['M4 5h24v18H4Z', 'M11 28h10m-5-5v5'], ram: ['M2 8h28v15H2Z', 'M6 12h4v6H6Zm8 0h4v6h-4Zm8 0h4v6h-4Z', 'M5 23v4m4-4v4m4-4v4m6-4v4m4-4v4m4-4v4'], board: ['M3 3h26v26H3Z', 'M8 7h10v10H8Z', 'M22 6v12m3-12v12M8 22h17M8 26h13'], rgb: ['M16 4a12 12 0 1 0 0 24 12 12 0 1 0 0-24', 'M16 11a5 5 0 1 0 0 10 5 5 0 1 0 0-10', 'M16 4v7m12 5h-7m-5 12v-7M4 16h7'] };
     paths.strobe = ['m18 2-13 17h10l-1 11 13-17H17Z'];
+    paths.keyboard = ['M2 8h28v16H2Z', 'M5 12h2v2H5Zm4 0h2v2H9Zm4 0h2v2h-2Zm4 0h2v2h-2Zm4 0h2v2h-2Zm4 0h2v2h-2ZM5 16h2v2H5Zm4 0h2v2H9Zm4 0h6v2h-6Zm8 0h2v2h-2Zm4 0h2v2h-2Z'];
+    paths.mouse = ['M11 3h10a5 5 0 0 1 5 5v16a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5V8a5 5 0 0 1 5-5Z', 'M16 3v9', 'M6 12h20'];
+    paths.gpu = ['M2 9h28v14H2Z', 'M5 13h5v6H5Zm8 0h5v6h-5Zm8 0h5v6h-5Z', 'M2 11H0v10h2'];
+    paths.cooler = ['M16 3a13 13 0 1 0 0 26 13 13 0 1 0 0-26', 'M16 11a5 5 0 1 0 0 10 5 5 0 1 0 0-10', 'M16 11V3m5 13h8M16 21v8M11 16H3'];
+    paths.strip = ['M2 13h28v6H2Z', 'M6 16a1 1 0 1 0 0 .1m6-.1a1 1 0 1 0 0 .1m6-.1a1 1 0 1 0 0 .1m6-.1a1 1 0 1 0 0 .1'];
     for (const d of paths[name] || paths.rgb) { const path = document.createElementNS(svg.namespaceURI, 'path'); path.setAttribute('d', d); svg.append(path); } return svg;
+  }
+  function deviceTypeLabel(d) {
+    if (d.kind === 'argb') return 'ARGB';
+    if (d.kind === 'port') return T('PORTA RGB');
+    switch (d.type) {
+      case 0: return T('PLACA-MÃE');
+      case 1: return 'RAM';
+      case 2: return T('PLACA DE VÍDEO');
+      case 3: return 'COOLER';
+      case 4: return T('FITA LED');
+      case 5: return T('TECLADO');
+      case 6: return 'MOUSE';
+      case 7: return 'MOUSEPAD';
+      case 8: return 'HEADSET';
+      default: return 'RGB';
+    }
+  }
+  function deviceIconName(d) {
+    if (d.kind === 'argb' || d.kind === 'port') return 'rgb';
+    switch (d.type) {
+      case 0: return 'board';
+      case 1: return 'ram';
+      case 2: return 'gpu';
+      case 3: return 'cooler';
+      case 4: return 'strip';
+      case 5: return 'keyboard';
+      case 6: case 7: return 'mouse';
+      default: return 'rgb';
+    }
   }
   function channels(hex) { return [1, 3, 5].map(offset => parseInt(hex.slice(offset, offset + 2), 16)); }
   function theme(hex) {
@@ -149,7 +183,7 @@
     const container = $('hardware-mini'); container.replaceChildren();
     container.style.setProperty('--component-count', Math.min(devices.length || 1, 6));
     if (!devices.length) return empty(container, T(state.hardware.connected && state.hardware.detecting ? 'Detectando componentes RGB. Suas peças aparecerão aqui em instantes.' : 'Aguardando o controlador. Seus componentes aparecerão aqui.'));
-    for (const d of devices.slice(0, 6)) { const card = el('button', 'mini'); card.title = d.controllerName && d.controllerName !== d.name ? `${d.name} · ${d.controllerName}` : d.name; card.addEventListener('click', () => page('devices')); const text = el('div'); text.append(el('h3', '', d.name), el('p', '', `${d.ledCount} LEDs / ${d.kind === 'argb' ? 'ARGB' : d.kind === 'port' ? T('PORTA RGB') : d.type === 1 ? 'RAM' : d.type === 0 ? T('PLACA-MÃE') : 'RGB'}`), el('span', `device-status ${d.status === 'online' && !d.error ? 'online' : ''}`, d.error ? T('VERIFICAR AJUSTE') : d.status === 'online' ? T('● CONECTADO') : T('● DESCONECTADO'))); const artwork = el('span', 'device-icon'); artwork.append(icon(d.kind === 'argb' || d.kind === 'port' ? 'rgb' : d.type === 1 ? 'ram' : d.type === 0 ? 'board' : 'rgb')); card.append(artwork, text); container.append(card); }
+    for (const d of devices.slice(0, 6)) { const card = el('button', 'mini'); card.title = d.controllerName && d.controllerName !== d.name ? `${d.name} · ${d.controllerName}` : d.name; card.addEventListener('click', () => page('devices')); const text = el('div'); text.append(el('h3', '', d.name), el('p', '', `${d.ledCount} LEDs / ${deviceTypeLabel(d)}`), el('span', `device-status ${d.status === 'online' && !d.error ? 'online' : ''}`, d.error ? T('VERIFICAR AJUSTE') : d.status === 'online' ? T('● CONECTADO') : T('● DESCONECTADO'))); const artwork = el('span', 'device-icon'); artwork.append(icon(deviceIconName(d))); card.append(artwork, text); container.append(card); }
   }
   function renderDevices(devices) {
     if ($('devices').contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
@@ -160,7 +194,7 @@
       const syncRow = el('div', 'device-sync-row');
       syncRow.append(el('span', `sync-label ${d.customized || d.mapExcluded ? 'customized' : ''}`, d.mapExcluded ? T('Ajuste individual · fora do mapa') : d.customized ? T('Ajuste individual') : T('Segue o controle geral')));
       if (d.mapExcluded) { const follow = el('button', 'button subtle follow-map-button', T('Voltar a seguir o mapa')); follow.type = 'button'; follow.addEventListener('click', () => action(`/api/devices/${d.id}`, { followMap: true })); syncRow.append(follow); }
-      title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
+      title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, deviceTypeLabel(d), `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
       const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', T`Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);
       if (d.error) card.append(el('p', 'error', T(d.error)));
       if (d.powerTransitionFallback) card.append(el('p', 'muted small device-fallback-note', T('Modo nativo usa transição instantânea ao ligar ou desligar.')));

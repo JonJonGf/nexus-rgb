@@ -28,7 +28,18 @@
   }
   function defaults(devices) {
     const columns = devices.length <= 6 ? Math.max(1, devices.length) : Math.min(16, Math.ceil(Math.sqrt(devices.length * 1.6))), rows = Math.max(1, Math.ceil(devices.length / columns));
-    return devices.map((d, i) => ({ key: d.id, deviceId: d.id, name: d.name, start: 0, count: d.ledCount, x: (i % columns + 0.5) / columns, y: (Math.floor(i / columns) + 0.5) / rows, width: Math.min(d.type === 1 ? 0.045 : 0.13, 0.75 / columns), height: Math.min(d.type === 1 ? 0.45 : 0.21, 0.75 / rows), rotation: 0, shape: d.kind === 'argb' ? 'fan' : 'strip', columns: 8, reverse: false }));
+    return devices.map((d, i) => {
+      const isRam = d.type === 1;
+      const isKeyboard = d.type === 5;
+      const isMouse = d.type === 6 || d.type === 7;
+      const isFan = d.kind === 'argb' || d.type === 3;
+      const defaultW = isRam ? 0.045 : isKeyboard ? 0.32 : isMouse ? 0.08 : 0.13;
+      const defaultH = isRam ? 0.45 : isKeyboard ? 0.12 : isMouse ? 0.12 : 0.21;
+      const width = Math.min(defaultW, 0.75 / columns);
+      const height = Math.min(defaultH, 0.75 / rows);
+      const shape = isFan ? 'fan' : 'strip';
+      return { key: d.id, deviceId: d.id, name: d.name, start: 0, count: d.ledCount, x: (i % columns + 0.5) / columns, y: (Math.floor(i / columns) + 0.5) / rows, width, height, rotation: 0, shape, columns: 8, reverse: false };
+    });
   }
   const api = { points, defaults, leds };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NexusSpatial = api;
