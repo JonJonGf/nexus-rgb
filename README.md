@@ -26,7 +26,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.35 · Gratuito e de código aberto.** Esta versão traz suporte nativo out-of-the-box com arquitetura clean-room para controladoras USB-HID populares (Lian Li Uni Hub SL120/AL120/SL-INF/SL-V2, cabos Strimer Plus/V2 e water coolers NZXT Kraken AIO), controle direto independente e 100% sob licença MIT sem código copyleft. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **v0.1.0-alpha.35 · Gratuito e de código aberto.** Esta versão traz suporte nativo direto a controladoras USB-HID populares (Lian Li Uni Hub SL120/AL120/SL-INF/SL-V2, cabos Strimer Plus/V2 e water coolers NZXT Kraken AIO), controle individual de ventoinhas e integração completa ao Studio Canvas. Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
 
 ---
 

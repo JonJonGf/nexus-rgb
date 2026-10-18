@@ -14,3 +14,4 @@ native/*.pdb
 *.pem
 .env*
 server/build-info.json
+*brainstorm*
