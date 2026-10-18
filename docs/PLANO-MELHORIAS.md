@@ -8,7 +8,7 @@ O usuário autorizou tratar a [auditoria funcional e de desempenho](validation/2
 
 Prioridade executada: descoberta/ACK/filas/identidade USB; diagnóstico e ciclo de vida; recuperação/quarentena/backup; brilho/modos; deduplicação, rotas assíncronas e geometria explícita. RAM permanece limitada a 20 FPS. Protocolos físicos de outras controladoras não foram presumidos: seguem pelo OpenRGB enquanto os encoders próprios permanecem experimentais.
 
-Publicação, atualização do PC e testes físicos exigem etapas separadas da alteração de código. Posteriormente, o usuário autorizou instalar o candidato `52b9ac9` e confirmou reconhecimento, controle e digitação normal do RK61. Permanecem pendentes a publicação e a validação de atualização em VM; modelos adicionais dependem de protocolos e ensaios específicos. Não houve medição de latência de digitação.
+Publicação, atualização do PC e testes físicos exigem etapas separadas da alteração de código. Posteriormente, o usuário autorizou instalar o candidato `52b9ac9` e confirmou reconhecimento, controle e digitação normal do RK61. A validação de atualização em VM foi concluída no fechamento abaixo. O usuário autorizou publicar a alpha.37 com instalador; essa preparação está registrada no contexto. Modelos adicionais dependem de protocolos e ensaios específicos. Não houve medição de latência de digitação.
 
 ### Refinamentos seguintes — mapa e destino do instalador
 

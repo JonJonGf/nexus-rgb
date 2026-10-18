@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.36/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.36">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.37/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.37">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **Gratuito, aberto e experimental.** A versão pública indicada abaixo é a **v0.1.0-alpha.36**. Foi identificada uma regressão na descoberta USB dessa versão; a correção está em desenvolvimento e ainda não está no instalador público. Consulte a [revisão funcional](docs/validation/2026-10-18-auditoria-funcional-desempenho.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo e do suporte do OpenRGB.
+> **Gratuito, aberto e experimental.** A versão pública indicada abaixo é a **v0.1.0-alpha.37**. Esta entrega corrige a descoberta USB da alpha.36 e melhora a atualização e o mapa. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.37.md) e o [relatório de validação](docs/validation/2026-10-18-fechamento.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo e do suporte do OpenRGB.
 
 O controle de componentes e controladoras de outras marcas utiliza o OpenRGB incluído. A integração USB própria está limitada ao descritor do Royal Kludge RK61 já exercitado, usando os efeitos internos do teclado e comandos quando o estado muda. Os encoders de outras controladoras são experimentais e não equivalem a suporte físico validado. Não há medição que comprove latência zero ou uma taxa universal de animação dos teclados.
 
@@ -80,7 +80,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.36/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.36) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.37/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.37) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -272,7 +272,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.36/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.37/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -284,7 +284,7 @@ A remoção desativa e remove os serviços e as regras próprias de firewall. Se
 
 ## 📊 Quanto o Nexus consome?
 
-**Revisão de 18/10/2026 — candidata após alpha.36, ainda não publicada:** servidor e motor, com SDK simulado, usaram **137,4 MiB / 0,65% CPU** com Aurora a 20 FPS e **171,6 MiB / 1,24% a 60 FPS**, sem prévia. Em repouso estático, foram **50,3 MiB / 0,03%**. O navegador com o mapa, medido separadamente, usou cerca de **508 MiB / 0,90%**. CPU considera a máquina de 12 threads; esses escopos excluem OpenRGB, driver, supervisores e bandeja e não devem ser somados como um total exato. A candidata consumiu mais CPU em alguns cenários do motor; não há promessa de ganho ou prova de estabilidade prolongada. Veja o [comparativo e os limites](docs/DESEMPENHO.md#revisão-da-candidata-após-alpha36--18102026).
+**Revisão de 18/10/2026 — código da alpha.37:** servidor e motor, com SDK simulado, usaram **137,4 MiB / 0,65% CPU** com Aurora a 20 FPS e **171,6 MiB / 1,24% a 60 FPS**, sem prévia. Em repouso estático, foram **50,3 MiB / 0,03%**. O navegador com o mapa, medido separadamente, usou cerca de **508 MiB / 0,90%**. CPU considera a máquina de 12 threads; esses escopos excluem OpenRGB, driver, supervisores e bandeja e não devem ser somados como um total exato. A candidata consumiu mais CPU em alguns cenários do motor; não há promessa de ganho ou prova de estabilidade prolongada. Veja o [comparativo e os limites](docs/DESEMPENHO.md#revisão-da-candidata-após-alpha36--18102026).
 
 **Candidata alpha.15, incorporada na alpha.16 — medição de 16/10/2026:** o navegador com o mapa usou **0,62% de CPU / 489,39 MiB**, contra **0,54% / 486,05 MiB** na interface alpha.14. Em outro ensaio, **somente servidor + motor** com Aurora somaram **0,41% / 132,71 MiB a 20 FPS** e **0,83% / 157,11 MiB a 60 FPS**. CPU considera as 12 threads; RAM soma conjuntos residentes. São janelas curtas com SDK simulado, sem medir LEDs físicos. **OpenRGB, serviços, bandeja e driver ficam fora dessas somas.** Os escopos são separados; veja [método, sete cenários e dados](docs/DESEMPENHO.md#alpha15).
 

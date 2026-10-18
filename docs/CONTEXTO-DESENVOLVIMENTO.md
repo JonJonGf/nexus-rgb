@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 18/10/2026
 
+### Publicação da alpha.37 autorizada
+
+- O usuário esclareceu que esperava a Release com instalador ao concluir as melhorias. A interpretação anterior de encerrar somente na branch foi restritiva; esta autorização substitui a pendência de decidir publicação descrita abaixo. Atualizar o PC permanece uma etapa separada, sem novo UAC nesta publicação.
+- Preparação da `v0.1.0-alpha.37`: notas próprias, links de download do README e identificação da entrega. Código de produto e testes já concluídos permanecem os mesmos do fechamento abaixo; não alterar tags ou pacotes antigos. O fluxo oficial deve recompilar a tag, executar as duas VMs e CodeQL, conferir hashes e publicar os quatro arquivos.
+- Estado confirmado antes de publicar: `origin/main` em `8a11684`, ancestral da branch `codex/reliability-alpha37`; branch limpa em `f9c6e88`, sem tag alpha.37 existente. Próximo passo: validar os metadados, integrar por fast-forward, criar a nova tag e acompanhar o resultado até a Release pública. Registrar o resultado real após concluir.
+
 ### Fechamento concluído
 
 - **Pedido concluído:** verificações antes do envio, pacote completo, consumo documentado e branch enviada. [Relatório final](validation/2026-10-18-fechamento.md). Código de produto `0aa9a8f` (inclui `a300821` e `06063ee`); harness final `ef66e93`; pacote local `13339a5`. Alterações posteriores são registros de conclusão, não nova versão binária.
