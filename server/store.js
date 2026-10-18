@@ -17,6 +17,22 @@ function writeJson(file, value) {
     if (created) try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
 }
+// Preserve an original configuration without following/replacing an existing
+// directory entry. The data root is selected at startup, never by an HTTP name.
+function preserveJson(directory, name, value) {
+  if (typeof name !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}\.json$/.test(name)) throw Error('Nome de backup inválido.');
+  const root = path.resolve(directory), file = path.resolve(root, name);
+  const temporary = path.resolve(root, '.preserve-' + crypto.randomBytes(12).toString('hex') + '.json');
+  if (!file.startsWith(root + path.sep) || !temporary.startsWith(root + path.sep)) throw Error('Backup fora da pasta de dados.');
+  writeJson(temporary, value);
+  try {
+    fs.linkSync(temporary, file);
+    return true;
+  } catch (error) {
+    if (error.code === 'EEXIST') return false;
+    throw error;
+  } finally { fs.unlinkSync(temporary); }
+}
 // Check and read the same handle. Windows data-directory ACLs remain the trust boundary.
 function readEffectJson(file) {
   const descriptor = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
@@ -157,4 +173,4 @@ class Store {
     this.save();
   }
 }
-module.exports = { Store, defaults, effects, validatePatch, validateLibrary, readJson, writeJson, readEffectJson };
+module.exports = { Store, defaults, effects, validatePatch, validateLibrary, readJson, writeJson, readEffectJson, preserveJson };

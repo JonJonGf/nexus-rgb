@@ -15,6 +15,11 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 - **Desempenho:** comparação isolada em preparação/execução entre a fonte `8a11684` extraída em `data/final-review-baseline-8a11684/` e a fonte atual, usando o mesmo harness privado `data/final-review-engine.cjs`, `NODE_ENV=test`, SDK simulado e descritores de RAM SMBus. Não usar os resultados antigos como medição desta entrega. Relatórios previstos: `data/final-review-engine-baseline.json` e `data/final-review-engine-current.json`; aguardar término antes de interpretar.
 - **Próximo passo:** conferir a rodada ampliada, baixar evidências dos dois jobs, resolver falhas se houver, concluir comparação de consumo e atualizar o relatório. Não confundir pacote completo de desenvolvimento com Release pública. Código e plano de testes devem ficar registrados mesmo se a execução for interrompida pelo limite.
 
+#### Revisão dos alertas novos durante o fechamento
+
+- A execução CodeQL bem-sucedida em `3db0aa9` não significa zero alertas: a consulta da branch encontrou `#91` (`js/path-injection`, backup da configuração inválida em `server/studio.js`) e `#92` (`js/code-injection`, harness do teste de rotas). SARIF lido em pasta privada. O primeiro fluxo parte de diretórios definidos na inicialização (`NEXUS_DATA_DIR` e variáveis das fixtures), não de um nome recebido por HTTP; o segundo executava o texto do próprio módulo num contexto VM para substituir APIs do SO.
+- Removida a avaliação de texto no teste, usando o módulo real com mocks das fronteiras `os`/`child_process`. Backup agora usa `preserveJson`: nome permitido, caminho normalizado contido no diretório e publicação exclusiva do JSON completo por hard link, sem sobrescrever/seguir uma entrada existente. Teste de regressão verifica travessia, preservação e hard link externo intacto. Não houve supressão/dismissal dos alertas nem redução das queries. 21 testes focados passaram; análise remota e pacote precisam ser repetidos após o commit dessas correções.
+
 ### Mapa por capacidade real e escolha da pasta de instalação
 
 - **Pedido atual:** o usuário questionou a presença do RK61 no mapa, pois seus efeitos internos não seguem o campo espacial, e pediu escolha de pasta no instalador. Autorização para alterar o projeto; não houve nova instalação, UAC, comando de RGB físico ou publicação.

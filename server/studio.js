@@ -1,6 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), { fork } = require('node:child_process');
-const { readJson, writeJson, readEffectJson } = require('./store');
+const { readJson, writeJson, readEffectJson, preserveJson } = require('./store');
 const schema = require('./studio-schema'), spatial = require('../public/spatial');
 const fingerprint = value => crypto.createHash('sha256').update(value).digest('hex');
 const savedFingerprint = value => /^[a-f0-9]{64}$/.test(value) ? value : fingerprint(value);
@@ -296,8 +296,7 @@ class Studio {
     if (this.recoveryConfig) {
       const original = this.store.data.studio;
       const name = 'invalid-studio-' + crypto.createHash('sha256').update(JSON.stringify(original)).digest('hex').slice(0, 24) + '.json';
-      const file = path.join(path.dirname(this.recoveryFile), name);
-      if (!fs.existsSync(file)) writeJson(file, original);
+      preserveJson(path.dirname(this.recoveryFile), name, original);
     }
     this.store.data.studio = next; this.store.save(); this.recoveryConfig = null;
     // Geometry only changes where the next frame is sampled. Keep the worker
