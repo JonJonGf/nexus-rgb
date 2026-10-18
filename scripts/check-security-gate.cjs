@@ -14,6 +14,6 @@ async function checkSecurity({repository,ref,commit,token,request=fetch}) {
   return {repository,ref,commit,languages:3,openAlerts:0};
 }
 if(require.main===module){
-  (async()=>{let result;for(let attempt=0;attempt<6;attempt++){try{result=await checkSecurity({repository:process.env.GITHUB_REPOSITORY,ref:process.env.GITHUB_REF,commit:process.env.GITHUB_SHA,token:process.env.GH_TOKEN});break;}catch(error){if(!error.message.startsWith('Análise de segurança ausente')||attempt===5)throw error;await new Promise(resolve=>setTimeout(resolve,5000));}}console.log(JSON.stringify(result));})().catch(error=>{console.error(error.message);process.exitCode=1});
+  (async()=>{let result;for(let attempt=0;attempt<24;attempt++){try{result=await checkSecurity({repository:process.env.GITHUB_REPOSITORY,ref:process.env.GITHUB_REF,commit:process.env.GITHUB_SHA,token:process.env.GH_TOKEN});break;}catch(error){if(!error.message.startsWith('Análise de segurança ausente')||attempt===23)throw error;await new Promise(resolve=>setTimeout(resolve,5000));}}console.log(JSON.stringify(result));})().catch(error=>{console.error(error.message);process.exitCode=1});
 }
 module.exports={checkSecurity};

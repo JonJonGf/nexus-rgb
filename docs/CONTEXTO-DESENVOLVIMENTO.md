@@ -255,6 +255,13 @@ Os passos de implementação acima são a sequência sugerida para as melhorias 
 
 ## Histórico de entregas
 
+### 18/10/2026 — Retomada pelo Codex e avaliação de skills de engenharia
+
+- Pedido atual do usuário: ler o handoff da alpha.36 e avaliar `https://github.com/mattpocock/skills`, explicar a utilidade e aproveitar boas práticas antes de iniciar a próxima tarefa. O erro reportado no GitHub fica para uma etapa posterior; não houve investigação ou correção de workflows nesta entrega.
+- Foram lidos AGENTS, contexto, plano, estado do Git e os documentos públicos das skills `diagnosing-bugs`, `tdd`, `codebase-design`, `improve-codebase-architecture` e `handoff`. Avaliação: ajudam a organizar diagnóstico, testes de comportamento, decisões e continuidade; não reduzem CPU/RAM do produto automaticamente. Aproveitar reprodução do sintoma antes da correção, mudanças pequenas e evidência do resultado; não instalar pacote inteiro ou aplicar entrevistas/refatorações amplas por padrão. Nenhuma skill/plugin foi instalada, nenhum script externo foi executado.
+- Usuário relata funcionamento estável com limitação de RAM a 20 FPS; contexto anterior registra a correção de cadência da alpha.32. Preservar essa decisão já adotada e não retomar testes físicos a 60 FPS na RAM automaticamente. Isso não comprova um limite universal de todo hardware nem as demais afirmações quantitativas do handoff (por exemplo, latência zero ou FPS nativo de teclado), ainda não auditadas nesta retomada.
+- Git conferido: branch `main`, base `ab26ddd`, árvore limpa antes deste registro. Alteração somente documental local; nenhum commit/tag/publicação, mudança no aplicativo, instalação, UAC, serviço ou comando de hardware. Testes do produto não foram executados para esta leitura. Próximo passo, quando solicitado: identificar o alerta/falha atual no GitHub, confirmar sua referência e reproduzir com o teste apropriado antes de corrigir.
+
 ### 17/10/2026 — Suporte a periféricos, mapeamento de barramentos e arquitetura headless
 
 - **Objetivo autorizado:** implementar os 3 pilares explorados no ecossistema OpenRGB e autorizados pelo usuário ("pode fazer os 3."): (1) Especificação de arquitetura OpenRGB Headless ultra-leve (~9 MB sem Qt), resolução de deadlock SRWLock e timeouts I2C; (2) Suporte ampliado a periféricos e componentes com visual dedicado e layout espacial realista; (3) Mapeamento e classificação estruturada de barramentos de hardware (Intel PCH, AMD PIIX4, SuperIO e USB-HID) com diagnósticos em conformidade com a privacidade.
