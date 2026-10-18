@@ -2,6 +2,14 @@
 
 Este registro mantém as melhorias aceitas para avaliação e implementação futura. Ele não anuncia recursos disponíveis nem uma data de entrega. A revisão do código identificou diferenças em relação às hipóteses do relatório externo; cada alteração precisa de reprodução e testes próprios.
 
+## Correções autorizadas em 18/10/2026 — candidata após alpha.36
+
+O usuário autorizou tratar a [auditoria funcional e de desempenho](validation/2026-10-18-auditoria-funcional-desempenho.md) e confirmou a perda de reconhecimento do teclado na alpha.36. O [relatório das correções](validation/2026-10-18-correcoes-estabilidade.md) registra implementação, regressões, limitações e estado do pacote.
+
+Prioridade executada: descoberta/ACK/filas/identidade USB; diagnóstico e ciclo de vida; recuperação/quarentena/backup; brilho/modos; deduplicação, rotas assíncronas e geometria explícita. RAM permanece limitada a 20 FPS. Protocolos físicos de outras controladoras não foram presumidos: seguem pelo OpenRGB enquanto os encoders próprios permanecem experimentais.
+
+Publicação, atualização do PC e testes físicos não fazem parte da autorização para alterar o código. A versão pública/instalada não muda por uma edição deste plano. Permanecem pendentes a instalação autorizada, confirmação física do RK61 e validação de atualização em VM; modelos adicionais dependem de protocolos e ensaios específicos.
+
 ## Implementado na alpha.20, com resultado físico registrado: comunicação da Alexa
 
 - Confirmar separadamente energia e brilho virtual no protocolo Hue, sem mudar o brilho RGB, cores, perfis ou parâmetros do mapa.

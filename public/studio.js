@@ -68,7 +68,7 @@
         const circle = geometry[n].circle, step = Math.PI * 2 / circle.size, start = circle.angle - step / 2, end = start + Math.min(group,circle.size) * step, thickness = Math.min(.07,.16 / circle.rings);
         ctx.save(); ctx.scale(width, height); ctx.beginPath(); ctx.arc(0, 0, circle.radius + thickness, start, end); ctx.arc(0, 0, Math.max(.01,circle.radius - thickness), end, start, true); ctx.closePath(); ctx.fill(); ctx.restore();
       } else if (entry.shape === 'matrix') {
-        if (entry.count === 61) {
+        if (entry.geometry === 'ansi-60' && entry.count === 61) {
           let row = 0, col = 0, countInRow = 14;
           if (i < 14) { row = 0; col = i; countInRow = 14; }
           else if (i < 28) { row = 1; col = i - 14; countInRow = 14; }
@@ -369,6 +369,7 @@
     else if (field === 'shape') value.shape = $('studio-shape').value;
     else if (field === 'reverse') value.reverse = $('studio-reverse').checked;
     else return;
+    if (['shape','columns','count'].includes(field)) delete value.geometry;
     const button = [...$('studio-items').children].find(e => e.dataset.key === value.key);
     if (button) { position(button, value); button.dataset.shape = value.shape; button.querySelector('span').textContent = value.name; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count); }
     const chip = [...$('studio-device-chips').children].find(e => e.dataset.key === value.key); if (chip) chip.textContent = value.name;

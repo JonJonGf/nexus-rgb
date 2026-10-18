@@ -1,10 +1,9 @@
 'use strict';
 
 /**
- * Native USB-HID Controller Registry for Nexus RGB Studio.
- * Clean-room architecture enabling out-of-the-box support for popular USB ARGB controllers,
- * enthusiast Nollie controllers, multi-brand motherboards, and universal RGB keyboards
- * with zero third-party copyleft/GPL code under the MIT License.
+ * Registry for the supported keyboard transport and experimental controller encoders.
+ * Physical auto-detection is restricted to descriptors exercised on available hardware.
+ * Other controllers continue to use OpenRGB until their native transports are validated.
  */
 
 const { buildLianLiDevice, encodeLianLiPacket, encodeLianLiPackets } = require('./protocol-lianli');
@@ -18,12 +17,13 @@ const { buildKeyboardDevice, encodeSinoWealthKeyboardPacket, KEYBOARD_LAYOUTS } 
 const { HidBridge } = require('./hid-bridge');
 
 class ControllerRegistry {
-  constructor({ store = null, hidBridge = null } = {}) {
+  constructor({ store = null, hidBridge = null, now = () => Date.now() } = {}) {
     this.store = store;
     this.hidBridge = hidBridge || new HidBridge();
     this.controllers = new Map();
     this.transports = new Map();
     this.lastPackets = new Map();
+    this.failures = new Map(); this.now = now;
 
     // Check store settings for configured native/virtual controllers
     this.initFromStore();
@@ -230,7 +230,7 @@ class ControllerRegistry {
     };
 
     const transport = options.transport || {
-      send: (colors, isPowerOff) => {
+      send: async (colors, isPowerOff) => {
         const devSettings = this.store?.data?.devices?.[dev.id] || {};
         const masterSettings = this.store?.data?.master || {};
         const isSynced = devSettings.syncWithPc !== false; // Default: true
@@ -297,18 +297,16 @@ class ControllerRegistry {
         }
 
         const signature = JSON.stringify({ power, brightness, speed, mode, colorMixing, red, green, blue });
-        if (signature === lastEffectSignature) {
+        if (signature === lastEffectSignature && (this.hidBridge.isTest || this.hidBridge.ready !== false)) {
           // 100% Event-driven: ZERO USB packets sent when state is unchanged!
           // Completely eliminates typing delay / input lag and flickering.
           return lastSent;
         }
 
-        lastEffectSignature = signature;
-
         const packet = encodeSinoWealthKeyboardPacket({
           mode: power ? mode : 0x11,
           speed,
-          brightness: power ? brightness : 0,
+          brightnessPercent: power ? brightness : 0,
           red,
           green,
           blue,
@@ -316,12 +314,12 @@ class ControllerRegistry {
           isPowerOff: !power
         });
 
+        if (dev.hidPath) {
+          if (!await this.hidBridge.sendFeatureReport(dev.hidPath, packet)) return false;
+        } else if (!this.hidBridge.isTest) return false;
+        lastEffectSignature = signature;
         this.lastPackets.set(dev.id, packet);
         lastSent = packet;
-
-        if (dev.hidPath) {
-          this.hidBridge.sendFeatureReport(dev.hidPath, packet);
-        }
         return packet;
       }
     };
@@ -330,106 +328,86 @@ class ControllerRegistry {
   }
 
   /**
-   * Auto-detects connected USB-HID hardware (Royal Kludge / SinoWealth keyboards, Lian Li, NZXT, Corsair, Razer, Cooler Master, Nollie).
+   * Detects supported USB lighting interfaces without claiming a whole vendor family.
    */
-  async autoDetectHardware() {
-    const devices = await this.hidBridge.enumerate();
-    if (!Array.isArray(devices) || devices.length === 0) return [];
-
-    const detected = [];
-
-    for (const dev of devices) {
-      const vid = (dev.vid || '').toUpperCase();
-      const pid = (dev.pid || '').toUpperCase();
-      const pathStr = dev.path || '';
-
-      // 1. Royal Kludge RK61 / SinoWealth Keyboards (VID: 0x258A, PID: 0x00EC or other SinoWealth MCUs)
-      if (vid === '0X258A' && (pid === '0X00EC' || pid === '0X0090' || pid === '0X0084') && dev.featLen === 65) {
-        const kbDev = this.addKeyboardController({
-          name: pid === '0X00EC' ? 'Royal Kludge RK61' : 'Teclado Mecânico SinoWealth',
-          vendor: 'Royal Kludge',
-          layout: '60%',
-          ledCount: 61,
-          hidPath: pathStr
-        });
-        detected.push(kbDev);
+  async autoDetectHardware({force=false}={}) {
+    if (this.scanning) return this.scanning;
+    if (!force && this.lastScan && Date.now()-this.lastScan < 30000) return this.getDevices();
+    this.scanning = (async () => {
+      const devices = await this.hidBridge.enumerate();
+      if (!Array.isArray(devices)) throw Error('Lista USB inválida.');
+      const present = new Set();
+      // Only the RK61 USB descriptor exercised on real hardware is enabled here.
+      // A vendor ID alone is not sufficient evidence of a compatible protocol.
+      for (const descriptor of devices) {
+        if (String(descriptor.vid).toLowerCase() !== '0x258a' || String(descriptor.pid).toLowerCase() !== '0x00ec' || descriptor.featLen !== 65 || descriptor.usagePage !== 0xff00 || typeof descriptor.path !== 'string' || !descriptor.path) continue;
+        const options = {name:'Royal Kludge RK61',vendor:'Royal Kludge',layout:'60%',ledCount:61,hidPath:descriptor.path};
+        const id = buildKeyboardDevice(options).id;
+        present.add(id);
+        if (!this.controllers.has(id)) { const dev=this.addKeyboardController(options); dev.autoDetected=true; }
+        this.controllers.get(id).nativeConnected=true;
       }
-
-      // 2. Lian Li Uni Hub (VID: 0x0CF2)
-      if (vid === '0X0CF2' && dev.outLen >= 64) {
-        const lianLiDev = this.addLianLiController({
-          name: 'Lian Li Uni Hub (Detectado)',
-          hidPath: pathStr
-        });
-        detected.push(lianLiDev);
-      }
-
-      // 3. NZXT Kraken (VID: 0x1E71)
-      if (vid === '0X1E71' && dev.outLen >= 64) {
-        const nzxtDev = this.addNzxtKrakenController({
-          name: 'NZXT Kraken (Detectado)',
-          hidPath: pathStr
-        });
-        detected.push(nzxtDev);
-      }
-
-      // 4. Corsair Commander / Lighting Node (VID: 0x1B1C)
-      if (vid === '0X1B1C' && dev.outLen >= 64) {
-        const corsairDev = this.addCorsairController({
-          name: 'Corsair Controller (Detectado)',
-          hidPath: pathStr
-        });
-        detected.push(corsairDev);
-      }
-
-      // 5. Razer Chroma ARGB (VID: 0x1532, PID: 0x0F1F)
-      if (vid === '0X1532' && pid === '0X0F1F') {
-        const razerDev = this.addRazerChromaController({
-          name: 'Razer Chroma ARGB (Detectado)',
-          hidPath: pathStr
-        });
-        detected.push(razerDev);
-      }
-
-      // 6. Cooler Master ARGB (VID: 0x2516)
-      if (vid === '0X2516' && dev.outLen >= 64) {
-        const cmDev = this.addCoolerMasterController({
-          name: 'Cooler Master ARGB (Detectado)',
-          hidPath: pathStr
-        });
-        detected.push(cmDev);
-      }
-    }
-
-    return detected;
+      for (const dev of this.getDevices()) if (dev.autoDetected && !present.has(dev.id)) this.removeController(dev.id);
+      this.lastScan=Date.now(); this.discoveryError=null;
+      return this.getDevices();
+    })();
+    try { return await this.scanning; }
+    catch(error) { this.discoveryError='Não foi possível detectar os dispositivos USB.'; throw error; }
+    finally { this.scanning=null; }
   }
-
   removeController(id) {
     this.controllers.delete(id);
     this.transports.delete(id);
     this.lastPackets.delete(id);
+    this.failures.delete(id);
   }
 
   clear() {
     this.controllers.clear();
     this.transports.clear();
     this.lastPackets.clear();
+    this.failures.clear();
+    this.lastScan = 0;
   }
 
   getDevices() {
     return Array.from(this.controllers.values());
   }
+  isConnected(id) {
+    const device=this.controllers.get(id);
+    if (!device || device.error) return false;
+    if (this.hidBridge.isTest) return true;
+    if (this.hidBridge instanceof HidBridge && !this.hidBridge.ready) return false;
+    return Boolean(device.nativeConnected);
+  }
 
-  sendLeds(deviceId, colors, isPowerOff = false) {
+  async sendLeds(deviceId, colors, isPowerOff = false) {
     const transport = this.transports.get(deviceId);
     if (!transport) return false;
+    const device = this.controllers.get(deviceId);
+    // The other encoders are reference models, not validated physical transports.
+    // Do not send truncated or guessed packets to arbitrary vendor hardware.
+    if (!this.hidBridge.isTest && device.controllerType !== 'keyboard') {
+      device.error = 'Este controlador deve ser usado pelo OpenRGB; o protocolo USB nativo ainda não foi validado.';
+      return false;
+    }
+    const state = JSON.stringify([isPowerOff,this.store?.data?.master,this.store?.data?.devices?.[deviceId]]);
+    const failed = this.failures.get(deviceId);
+    if (failed?.state === state && this.now() < failed.retryAt) return false;
     try {
-      const res = transport.send(colors, isPowerOff);
+      const res = await transport.send(colors, isPowerOff);
+      if (res === false) throw Error('USB acknowledgement missing');
       if (Buffer.isBuffer(res)) {
         this.lastPackets.set(deviceId, res);
       }
+      this.controllers.get(deviceId).error = null;
+      this.controllers.get(deviceId).nativeConnected = true;
+      this.failures.delete(deviceId);
       return true;
     } catch {
+      const attempts = failed?.state === state ? failed.attempts + 1 : 1;
+      this.failures.set(deviceId,{state,attempts,retryAt:this.now()+Math.min(15000,500*2**Math.min(attempts-1,5))});
+      if (this.controllers.has(deviceId)) this.controllers.get(deviceId).error = 'Não foi possível enviar o comando ao dispositivo USB.';
       return false;
     }
   }

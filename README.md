@@ -26,7 +26,9 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **v0.1.0-alpha.36 · Gratuito e de código aberto.** Esta versão inaugura o suporte nativo a teclados mecânicos RGB (SinoWealth / Royal Kludge RK61 e compatíveis) com efeitos proprietários de hardware (60 FPS fluidos), latência zero de digitação (event-driven sem interrupção de varredura), alternador "Sincronizar com o PC", visualização matricial 2D (60% ANSI) no Mapa do Setup, filtro de dispositivos e arquitetura multi-controladora (Nollie, Corsair, Razer Chroma, Cooler Master e placas-mãe). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do hardware, do efeito e do suporte do OpenRGB.
+> **Gratuito, aberto e experimental.** A versão pública indicada abaixo é a **v0.1.0-alpha.36**. Foi identificada uma regressão na descoberta USB dessa versão; a correção está em desenvolvimento e ainda não está no instalador público. Consulte a [revisão funcional](docs/validation/2026-10-18-auditoria-funcional-desempenho.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo e do suporte do OpenRGB.
+
+O controle de componentes e controladoras de outras marcas utiliza o OpenRGB incluído. A integração USB própria está limitada ao descritor do Royal Kludge RK61 já exercitado, usando os efeitos internos do teclado e comandos quando o estado muda. Os encoders de outras controladoras são experimentais e não equivalem a suporte físico validado. Não há medição que comprove latência zero ou uma taxa universal de animação dos teclados.
 
 ---
 
@@ -193,6 +195,8 @@ Na aba **Perfis**, clique em **+ Criar perfil**, dê um nome e escolha o movimen
 O criador oferece os dez movimentos da tabela. A tela principal mantém seis atalhos; os quatro movimentos adicionais ficam no criador e também nos componentes compatíveis em **Dispositivos**. Os modos próprios do hardware continuam nessa aba. Não é preciso instalar outro plugin de efeitos.
 
 Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos animados, as cores se alternam a cada ciclo. Estático mantém a primeira cor. Cometa e Vai e vem precisam de LEDs individualmente endereçáveis; esses movimentos comuns seguem a ordem de LEDs informada pelo OpenRGB. Editar um perfil que guardava ajustes individuais ou um efeito espacial substitui esses ajustes por uma sequência geral, como indicado no editor. Há um limite de 32 perfis salvos.
+
+<a id="studio"></a>
 
 ### Organizar os dispositivos no espaço
 

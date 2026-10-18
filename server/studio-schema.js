@@ -68,6 +68,10 @@ function layout(value) {
     for (let i = item.start; i < item.start + item.count; i++) { const key = item.deviceId + ':' + i; if (covered.has(key)) throw Error('Dois componentes estão usando os mesmos LEDs.'); covered.add(key); }
     if (!number(item.x, 0, 1) || !number(item.y, 0, 1) || !number(item.width, 0.01, 1) || !number(item.height, 0.01, 1) || !number(item.rotation, -360, 360) || !['strip', 'fan', 'matrix'].includes(item.shape) || typeof item.reverse !== 'boolean' || !Number.isInteger(item.columns) || item.columns < 1 || item.columns > 128) throw Error('Posição ou formato inválido.');
     const extra = {};
+    if (item.geometry !== undefined) {
+      if (item.geometry !== 'ansi-60' || item.shape !== 'matrix' || item.count !== 61) throw Error('Geometria de teclado inválida.');
+      extra.geometry = item.geometry;
+    }
     if (item.rings !== undefined) {
       if (!Array.isArray(item.rings) || !item.rings.length || item.rings.length > 8 || item.rings.some(r => !object(r) || !Number.isInteger(r.count) || r.count < 1 || r.count > item.count || !Number.isInteger(r.offset) || r.offset < 0 || r.offset >= r.count || typeof r.reverse !== 'boolean') || item.rings.reduce((n,r) => n+r.count,0) !== item.count) throw Error('Anéis: a soma deve corresponder à quantidade de LEDs da peça.');
       extra.rings = item.rings.map(r => ({count:r.count,offset:r.offset,reverse:r.reverse}));

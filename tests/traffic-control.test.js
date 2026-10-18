@@ -5,6 +5,15 @@ const { EventEmitter } = require('node:events');
 const { Hardware, colorsEqual, isSmbusRam } = require('../server/hardware');
 const { defaults } = require('../server/store');
 
+test('identical spatial frames are deduplicated even when Studio advances its revision',async t=>{
+  const store={data:{master:{...defaults,effect:'static'},devices:{}}};
+  const mock=new MockClient([controller('Board','synthetic')]);
+  const hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();
+  hardware.studio={config:{},hasDevice:()=>true,revision:1,colorsFor:()=>Array(8).fill({red:100,green:0,blue:0})};mock.calls=[];
+  for(let i=0;i<60;i++){hardware.studio.revision++;hardware.changed();await hardware.tick(true);}
+  assert.equal(mock.calls.filter(c=>c[0]==='leds').length,1);
+});
+
 function controller(name, location, direct = true) {
   return {
     name,

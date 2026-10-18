@@ -825,5 +825,11 @@ window.NexusEnglish = Object.freeze({
   "OpenRGB não respondeu ao consultar um componente. ": "OpenRGB did not respond while querying a component. ",
   "OpenRGB não respondeu ao consultar um componente. Reinicie o controlador no aplicativo do PC.": "OpenRGB did not respond while querying a component. Restart the controller using the PC application.",
   "Reiniciar controlador": "Restart controller",
-  "● OpenRGB sem resposta": "● OpenRGB not responding"
+  "● OpenRGB sem resposta": "● OpenRGB not responding",
+  "Ponte USB": "USB bridge",
+  "O dispositivo USB não confirmou o comando.": "The USB device did not acknowledge the command.",
+  "Não foi possível enviar o comando ao dispositivo USB.": "The command could not be sent to the USB device.",
+  "Não foi possível detectar os dispositivos USB.": "USB devices could not be detected.",
+  "Este controlador deve ser usado pelo OpenRGB; o protocolo USB nativo ainda não foi validado.": "Use this controller through OpenRGB; its native USB protocol has not been validated yet.",
+  "O mapa salvo está inválido. A configuração original foi preservada; revise o mapa antes de reativar.": "The saved map is invalid. The original settings were preserved; review the map before enabling it again."
 });

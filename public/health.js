@@ -1,7 +1,7 @@
 'use strict';
 window.NexusHealth={create(hooks){
   const T=window.NexusI18n,$=id=>document.getElementById(id);let timer,busy=false,admin=false,report;
-  const roles=T.map({'network-service':'Serviço de rede','hardware-service':'Serviço de hardware',server:'Servidor',openrgb:'OpenRGB','effect-worker':'Motor de efeitos',tray:'Ícone da bandeja'});
+  const roles=T.map({'network-service':'Serviço de rede','hardware-service':'Serviço de hardware',server:'Servidor',openrgb:'OpenRGB','effect-worker':'Motor de efeitos','hid-bridge':'Ponte USB',tray:'Ícone da bandeja'});
   const allowedKeys=['build','runtime','health','components','render','alexa','resources','errors'];
   function filteredReport() {
     if (!report) return null;
@@ -49,5 +49,5 @@ window.NexusHealth={create(hooks){
   $('diagnostic-export').addEventListener('click',()=>{if(!report)return;const text=$('diagnostic-content').textContent+'\n';const url=URL.createObjectURL(new Blob([text],{type:'application/json;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='NexusRGB-diagnostic.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden&&timer)sample();});
   window.addEventListener('nexus:languagechange',()=>{if(lastConflicts)renderConflicts(lastConflicts);});
-  return {open(page){clearInterval(timer);timer=null;if(page==='settings'&&admin){sample();timer=setInterval(sample,10000);}},update(value,state){admin=value;$('health-local').hidden=!value;const hw=state.hardware;$('health-state').textContent=T(hw.controllerHung?'OpenRGB não respondeu ao consultar um componente':!hw.connected?'Reconectando ao controlador':hw.detecting||!hw.devices.length?'Detectando componentes':hw.devices.some(d=>d.error)?'Alguns componentes precisam de atenção':'Pronto para controlar');}};
+  return {open(page){clearInterval(timer);timer=null;if(page==='settings'&&admin){sample();timer=setInterval(sample,10000);}},update(value,state){admin=value;$('health-local').hidden=!value;const hw=state.hardware;$('health-state').textContent=T(hw.controllerHung?'OpenRGB não respondeu ao consultar um componente':!hw.connected?'Reconectando ao controlador':hw.detecting||!hw.devices.length?'Detectando componentes':hw.nativeError||hw.devices.some(d=>d.error||d.status==='offline'||d.status==='error')?'Alguns componentes precisam de atenção':'Pronto para controlar');}};
 }};

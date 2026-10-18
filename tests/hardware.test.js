@@ -73,7 +73,7 @@ test('envio imediato do mapa não duplica a taxa de efeitos comuns de outros dis
   const mock = new Mock([controller('Mapa', 'USB:spatial'), controller('Onda individual', 'USB:wave')]);
   const hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
   hardware.stopped = false; await hardware.connect(); const target = hardware.devices[0].id;
-  hardware.studio = { revision: 1, hasDevice: id => id === target, colorsFor: () => null };
+  hardware.studio = { revision: 1, hasDevice: id => id === target, colorsFor: id => id === target ? Array(8).fill({red:hardware.studio.revision,green:0,blue:0}) : null };
   await hardware.tick(); mock.calls = []; hardware.studio.revision++; hardware.changed();
   await hardware.tick(true); assert.deepEqual(mock.calls.filter(c => c[0] === 'leds').map(c => c[1]), [0]);
   mock.calls = []; await hardware.tick(); assert.deepEqual(mock.calls.filter(c => c[0] === 'leds').map(c => c[1]), [1]);

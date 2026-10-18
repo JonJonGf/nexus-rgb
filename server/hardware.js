@@ -133,7 +133,7 @@ class Hardware extends EventEmitter {
     if (this.controllerRegistry.getDevices().length > 0) {
       this.devices = [...this.controllerRegistry.getDevices()];
     }
-    this.nativeHardwareDetected = false;
+    this.nativePending = new Map();
   }
   hasNativeControllers() {
     return Boolean(this.controllerRegistry && this.controllerRegistry.getDevices().length > 0);
@@ -286,12 +286,12 @@ class Hardware extends EventEmitter {
     this.tickPending = false;
     this.tickPendingSpatial = false;
     this.deferredFromSpatial.clear();
-    if (!this.nativeHardwareDetected && this.controllerRegistry) {
-      this.nativeHardwareDetected = true;
+    if (this.controllerRegistry) {
       try {
         if (typeof this.controllerRegistry.autoDetectHardware === 'function') {
           await this.controllerRegistry.autoDetectHardware();
         }
+        this.devices = this.devices.filter(d => !d.nativeController);
         for (const nativeDev of this.controllerRegistry.getDevices()) {
           if (!this.devices.some(d => d.id === nativeDev.id)) {
             this.devices.push(nativeDev);
@@ -299,6 +299,7 @@ class Hardware extends EventEmitter {
         }
       } catch {}
     }
+    if (this.stopped || this.generation !== gen) { this.busy = false; return; }
     const client = this.makeClient(); this.client = client;
     client.on('error', error => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(error, client, gen); });
     client.on('disconnect', () => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(new Error('Controlador desconectado.'), client, gen); });
@@ -416,8 +417,7 @@ class Hardware extends EventEmitter {
       device.components = components(device); devices.push(device);
     }
     if (this.controllerRegistry) {
-      if (!this.nativeHardwareDetected) {
-        this.nativeHardwareDetected = true;
+      {
         try {
           if (typeof this.controllerRegistry.autoDetectHardware === 'function') {
             await this.controllerRegistry.autoDetectHardware();
@@ -535,13 +535,14 @@ class Hardware extends EventEmitter {
       }
     }
     return {
-      connected: Boolean(this.connected || hasNative),
+      connected: Boolean(this.connected || (hasNative && this.controllerRegistry.getDevices().some(d => this.controllerRegistry.isConnected(d.id)))),
       detecting: this.detecting,
       error: this.error,
       controllerCount: effectiveDevices.length,
       controllerHung: Boolean(this.controllerHung),
       busTypes: Array.from(new Set(effectiveDevices.map(d => d.busType).filter(Boolean))),
       nativeControllers: this.controllerRegistry ? this.controllerRegistry.getSummary() : [],
+      nativeError: this.controllerRegistry?.discoveryError || null,
       lastFailure,
       metrics: {
         framesCalculated: this.metrics.framesCalculated,
@@ -559,8 +560,8 @@ class Hardware extends EventEmitter {
           ...device,
           ...component,
           ...(channels && !isSinglePiece ? { modes: [], splitZone: true } : {}),
-          status: (this.connected || device.nativeController) ? 'online' : 'offline',
-          stale: !(this.connected || device.nativeController),
+          status: device.error ? 'error' : (device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected) ? 'online' : 'offline',
+          stale: !(device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected),
           customized: Object.hasOwn(this.store.data.devices, component.id),
           mapExcluded: excluded.has(component.id),
           smoothPowerCapable,
@@ -574,7 +575,7 @@ class Hardware extends EventEmitter {
   settings(id, splitZone = false) {
     const settings = { ...this.store.data.master, ...(this.store.data.devices[id] || {}) };
     settings.power = this.store.data.master.power && settings.power;
-    if (splitZone) delete settings.nativeMode;
+    if (splitZone && !this.devices.some(d => d.id === id && d.type === 5 && d.components?.length === 1)) delete settings.nativeMode;
     return settings;
   }
   changed() { this.dirty = true; }
@@ -673,13 +674,24 @@ class Hardware extends EventEmitter {
 
     // Native USB-HID controllers (Lian Li Uni Hub, NZXT Kraken, etc.)
     if (device.nativeController) {
-      if (this.controllerRegistry) {
-        this.controllerRegistry.sendLeds(device.id, colors, isPowerOff);
-      }
-      this.metrics.framesSent++;
-      this.hasDroppedFrame = false;
-      this.lastSentColors.set(id, colors.map(c => ({ red: c.red, green: c.green, blue: c.blue })));
-      return true;
+      const pending = this.nativePending.get(id);
+      if (pending) { pending.refresh = true; return false; }
+      const generation = this.generation;
+      const oldError = device.error;
+      const delivery = { refresh: false }; this.nativePending.set(id, delivery);
+      this.controllerRegistry.sendLeds(device.id, colors, isPowerOff).then(sent => {
+        if (this.stopped || generation !== this.generation || this.nativePending.get(id) !== delivery) return;
+        this.nativePending.delete(id);
+        if (!sent) { this.applied.delete(id); this.lastSentColors.delete(id); }
+        else {
+          this.metrics.framesSent++;
+          this.hasDroppedFrame = false;
+          this.lastSentColors.set(id, colors.map(c => ({ red: c.red, green: c.green, blue: c.blue })));
+        }
+        if (!sent || delivery.refresh) { this.applied.delete(id); this.changed(); }
+        if (sent || oldError !== device.error) this.emit('change');
+      });
+      return false; // Completion is reported by the acknowledgement, never by queue acceptance.
     }
 
     // 2. Safe rate limit for SMBus / RAM controllers (fixed 20 FPS = minimum ~46 ms between physical writes)
@@ -745,6 +757,13 @@ class Hardware extends EventEmitter {
       this.dirty = false;
       const tickNow = this.now(), seconds = tickNow / 1000;
       for (const d of this.devices) {
+        if (d.nativeController && d.controllerType === 'keyboard') {
+          const settings = this.settings(d.id, true), signature = JSON.stringify(settings);
+          if (this.applied.get(d.id) === signature && !d.error && (this.nativePending.has(d.id) || this.controllerRegistry.isConnected(d.id))) continue;
+          this.sendLeds(d, [], !settings.power, true);
+          this.applied.set(d.id, signature);
+          continue;
+        }
         const channels = d.components || [d];
         for (const component of channels) {
           if (this.identification?.id === component.id) continue;
@@ -773,7 +792,7 @@ class Hardware extends EventEmitter {
           continue;
         }
         const deferred = !spatialFrame && this.deferredFromSpatial.delete(d.id);
-        const forceSend = changed || deferred;
+        const forceSend = (changed && !spatialFrame) || deferred;
         if (d.components) {
           const oldError = d.error;
           const colors = Array(d.ledCount);
@@ -787,13 +806,14 @@ class Hardware extends EventEmitter {
             return !s.power || s.brightness === 0;
           });
           if (allOff && d.off) {
-            this.sendLeds(d, colors, true, forceSend);
+            await this.sendLeds(d, colors, true, forceSend);
             await this.applyMode(d, d.off, { ...this.store.data.master, power: false }, false);
           } else {
             // One Direct mode; independent brightness stays in each zone's colors.
             await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
-            this.sendLeds(d, colors, allOff, forceSend);
+            await this.sendLeds(d, colors, allOff, forceSend);
           }
+          if (d.nativeController && d.error) { changedErrors = true; continue; }
           d.error = null; this.applied.set(d.id, signature);
           for (const component of d.components) this.rememberOutput(component.id, colors.slice(component.offset, component.offset + component.ledCount), this.settings(component.id, true));
           if (oldError !== d.error) changedErrors = true;
@@ -815,8 +835,9 @@ class Hardware extends EventEmitter {
           let colors = null;
           if ((!activePower || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) {
             colors = this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow);
-            this.sendLeds(d, colors, !activePower, forceSend);
+            await this.sendLeds(d, colors, !activePower, forceSend);
           }
+          if (d.nativeController && d.error) { changedErrors = true; continue; }
           if (!activePower && !colors) colors = Array.from({ length: d.ledCount }, () => ({ red: 0, green: 0, blue: 0 }));
           this.rememberOutput(d.id, colors, settings);
           d.error = null; this.applied.set(d.id, signature);
@@ -889,6 +910,8 @@ class Hardware extends EventEmitter {
     try { this.client?.disconnect(); } catch {}
     this.client = null;
     this.connected = false;
+    this.nativePending.clear();
+    this.controllerRegistry?.destroy();
   }
 }
 module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual, isSmbusRam, detectBusArchitecture, classifyDeviceType, ControllerRegistry };

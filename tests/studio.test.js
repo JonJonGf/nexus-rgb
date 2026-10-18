@@ -1,4 +1,5 @@
 'use strict';
+// A count alone must never identify the physical geometry of an RGB device.
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
 const schema = require('../server/studio-schema'), spatial = require('../public/spatial'), { StudioRenderer } = require('../server/studio-render');
@@ -117,7 +118,9 @@ test('falha do efeito pausa o processo e voltar a um efeito válido recupera o m
   assert.ok(id); // The first frame passes import validation; a later frame is hostile.
   const client = { res: { destroyed: false, writableLength: 0, write() {}, end() {} }, authorized: () => true };
   studio.clients.add(client); studio.configure({ activeId: id, enabled: true });
-  for (let i = 0; i < 100 && !studio.error; i++) await sleep(30);
+  // Three isolated process starts plus bounded retries may exceed three seconds on CI.
+  // Wait for the same failure condition; do not change the renderer's production budget.
+  for (let i = 0; i < 333 && !studio.error; i++) await sleep(30);
   assert.match(studio.error, /interrupted|orçamento|tempo/i); assert.equal(studio.worker, null);
   const fallback = [...studio.effects.values()].find(e => e.builtin).id; studio.configure({ activeId: fallback });
   for (let i = 0; i < 100 && !studio.rendered; i++) await sleep(30);

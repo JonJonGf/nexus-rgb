@@ -31,3 +31,22 @@ Mantenha um resumo atual curto e um histórico por data/entrega; preserve os reg
 - Preserve os checkpoints e backups de recuperação. Não mova/apague suas tags, não altere os arquivos de backup e não use `reset --hard`, limpeza destrutiva ou force push para contornar problemas sem autorização explícita. Recuperações devem primeiro usar uma pasta nova, sem sobrescrever o projeto atual.
 - Não reduza proteções, limites ou testes para declarar sucesso. Não declare correção no Echo ou no RGB físico com base apenas em simulação.
 - Registre contexto também quando não houver alteração de código: uma investigação, falha, instalação ou teste físico pode mudar o próximo passo.
+
+## Agent skills
+
+### Issue tracker
+
+Issues e especificações ficam no GitHub `JonJonGf/nexus-rgb`. Consulte [a configuração do tracker](docs/agents/issue-tracker.md).
+
+### Domain docs
+
+Contexto único: glossário em `GLOSSARY.md` e decisões em `docs/adr/`, quando existirem. Consulte [as orientações de domínio](docs/agents/domain.md).
+
+### Engineering workflow
+
+- Use `diagnosing-bugs` para construir uma reprodução do sintoma e separar fatos de hipóteses antes de corrigir.
+- Use `tdd` nas correções e funcionalidades que precisam de regressão automatizada: observar a falha, implementar o mínimo e verificar o comportamento na interface apropriada.
+- Use `codebase-design` quando a organização ou as interfaces do código forem parte do problema; não iniciar refatorações amplas automaticamente.
+- Testes de interface devem exercitar o navegador quando o problema for visual/interativo; testes do instalador devem cobrir seu ciclo real em VM quando necessário. Mocks não comprovam comportamento físico.
+- Compare desempenho em condições equivalentes e declare o escopo da medição. Quantidade de testes aprovados não substitui reprodução do defeito relatado.
+- As instruções atuais do usuário e os cuidados com hardware, dados e publicação acima continuam prevalecendo. O setup das skills não autoriza operações externas ou alterações na instalação real.

@@ -1,9 +1,8 @@
 'use strict';
 
 /**
- * Universal RGB Keyboard Protocol & Device Builder for Nexus RGB.
- * Provides clean-room support for USB RGB keyboards (including SinoWealth/Royal Kludge,
- * HID LampArray / Dynamic Lighting, and generic RGB keyboards) under the MIT License.
+ * Keyboard geometry models and the supported Royal Kludge/SinoWealth command encoder.
+ * A geometry model does not imply that a keyboard's physical USB protocol is supported.
  */
 
 const crypto = require('node:crypto');
@@ -33,6 +32,7 @@ function encodeSinoWealthKeyboardPacket({
   mode = 0x11,
   speed = 3,
   brightness = 5,
+  brightnessPercent = null,
   red = 0,
   green = 0,
   blue = 0,
@@ -59,7 +59,8 @@ function encodeSinoWealthKeyboardPacket({
     buf[13] = sleepTimeout;
   } else {
     // Convert 0..100 brightness to 0..5 scale if needed
-    const bScale = brightness > 5 ? Math.round(Math.max(0, Math.min(100, brightness)) / 20) : Math.max(0, Math.min(5, brightness));
+    const bScale = brightnessPercent !== null ? Math.round(Math.max(0, Math.min(100, brightnessPercent)) / 20)
+      : brightness > 5 ? Math.round(Math.max(0, Math.min(100, brightness)) / 20) : Math.max(0, Math.min(5, brightness));
     const sScale = Math.max(1, Math.min(5, Math.round(speed > 5 ? speed / 20 : speed) || 3));
 
     // Determine color mixing (0x01 = ARGB multicolor/rainbow per key, 0x00 = manual single color)
@@ -120,7 +121,7 @@ function buildKeyboardDevice({
 } = {}) {
   const layoutConfig = KEYBOARD_LAYOUTS[layout] || KEYBOARD_LAYOUTS['60%'];
   const count = Number(ledCount) || layoutConfig.leds;
-  const devId = id || crypto.createHash('sha256').update(`keyboard|${vendor}|${name}|${count}`).digest('hex').slice(0, 24);
+  const devId = id || crypto.createHash('sha256').update(`keyboard|${vendor}|${name}|${count}${hidPath ? '|'+hidPath.toLowerCase() : ''}`).digest('hex').slice(0, 24);
 
   const zones = [
     {
@@ -138,6 +139,7 @@ function buildKeyboardDevice({
       id: devId,
       name,
       kind: 'keyboard',
+      ...(layout === '60%' && count === 61 ? {geometry:'ansi-60'} : {}),
       controllerName: name,
       zoneId: 0,
       ledCount: count,
@@ -173,7 +175,7 @@ function buildKeyboardDevice({
     keyboardProtocol: protocol,
     hidPath,
     raw,
-    direct: raw.modes[0],
+    direct: null, // The keyboard accepts whole-device hardware modes, not per-key streaming.
     fixed: raw.modes[0],
     off: raw.modes[raw.modes.length - 1],
     error: null,

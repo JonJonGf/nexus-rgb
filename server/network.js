@@ -1,7 +1,7 @@
 'use strict';
 const os = require('node:os');
 const net = require('node:net');
-const { execFileSync } = require('node:child_process');
+const { execFile } = require('node:child_process');
 function normalize(ip = '') { return ip.startsWith('::ffff:') ? ip.slice(7) : ip; }
 function loopback(ip) { return ['127.0.0.1', '::1'].includes(normalize(ip)); }
 function ipv4(ip) {
@@ -31,15 +31,16 @@ function parseRoutes(input = '') {
   }
   return routes;
 }
-let cachedRoutes = null, cachedRoutesAt = 0;
+let cachedRoutes = [], cachedRoutesAt = 0, loadingRoutes = false;
 function systemRoutes() {
   if (process.platform !== 'win32') return [];
   const now = Date.now();
-  if (cachedRoutes && now - cachedRoutesAt < 15000) return cachedRoutes;
-  try {
-    cachedRoutes = parseRoutes(execFileSync('route.exe', ['print', '-4'], { encoding: 'utf8', timeout: 1500, windowsHide: true }));
-  } catch { cachedRoutes = []; }
-  cachedRoutesAt = now;
+  if (loadingRoutes || now - cachedRoutesAt < 15000) return cachedRoutes;
+  loadingRoutes = true;
+  execFile('route.exe', ['print', '-4'], { encoding: 'utf8', timeout: 1500, maxBuffer: 256*1024, windowsHide: true }, (error, output) => {
+    if (!error) cachedRoutes = parseRoutes(output);
+    cachedRoutesAt = Date.now(); loadingRoutes = false;
+  });
   return cachedRoutes;
 }
 const EXCLUDED_ADAPTER = /vpn|hamachi|radmin|tailscale|zerotier|wireguard|tunnel|wsl|tap|tun|wintun|nordlynx|openvpn|anyconnect|fortinet|pangp|warp|default switch|docker|vboxnet|vmnet|host-only|loopback|teredo|isatap|bluetooth|vethernet\s*\((?:default switch|wsl|nat|internal|host-only)/i;

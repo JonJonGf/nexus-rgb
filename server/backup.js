@@ -5,7 +5,7 @@ const MAX=16*1024*1024,id=/^[a-f0-9]{24}$/,object=v=>v&&typeof v==='object'&&!Ar
 function fields(v,allowed) {if(!object(v)||Object.keys(v).some(k=>!allowed.includes(k)))throw Error('Backup: campos inválidos.');}
 function devices(value) {if(!object(value)||Object.keys(value).length>256)throw Error('Backup: componentes inválidos.');const result={};for(const [key,v] of Object.entries(value)){if(!id.test(key))throw Error('Backup: identificador inválido.');result[key]=validatePatch(v,true);}return result;}
 function normalize(value,effects) {
-  fields(value,['version','master','devices','profiles','alexaEnabled','zones','studio','performance','library']);
+  fields(value,['version','master','devices','profiles','alexaEnabled','zones','studio','performance','library','nativeControllers']);
   if(value.version!==1||typeof value.alexaEnabled!=='boolean'||!Array.isArray(value.profiles)||value.profiles.length>32)throw Error('Backup: configuração incompatível.');
   const studio=(v,withLayout)=>{
     fields(v,withLayout?['enabled','activeId','values','excluded','layout']:['enabled','activeId','values','excluded']);
@@ -23,7 +23,7 @@ function normalize(value,effects) {
 class Backups {
   constructor(store,studio,directory){this.store=store;this.studio=studio;this.directory=directory;}
   files(){const values=[];for(const [key,effect]of this.studio.effects){if(effect.builtin)continue;const {original}=readEffectJson(path.join(this.studio.directory,key+'.json'));if(this.studio.parse(original).id!==key)throw Error('Backup: efeito divergente.');values.push({id:key,original});}return values.sort((a,b)=>a.id.localeCompare(b.id));}
-  export(){const result={format:'nexus-backup/1',version:require('../package.json').version,createdAt:new Date().toISOString(),settings:structuredClone(this.store.data),effects:this.files()};if(Buffer.byteLength(JSON.stringify(result))>MAX)throw Error('Backup: limite de 16 MiB.');return result;}
+  export(){const settings=structuredClone(this.store.data);delete settings.nativeControllers;const result={format:'nexus-backup/1',version:require('../package.json').version,createdAt:new Date().toISOString(),settings,effects:this.files()};if(Buffer.byteLength(JSON.stringify(result))>MAX)throw Error('Backup: limite de 16 MiB.');return result;}
   digest(){return crypto.createHash('sha256').update(JSON.stringify({settings:this.store.data,effects:this.files()})).digest('hex');}
   async review(input){
     if(this.busy||this.studio.importing)throw Error('Aguarde a operação da biblioteca em andamento.');this.busy=true;this.studio.importing=true;this.pending=null;
@@ -47,7 +47,8 @@ class Backups {
     const created=[];try{
       fs.mkdirSync(this.studio.directory,{recursive:true});if(fs.lstatSync(this.studio.directory).isSymbolicLink())throw Error('Pasta de efeitos inválida.');
       for(const item of pending.files){const file=path.join(this.studio.directory,item.id+'.json');if(fs.existsSync(file)){if(this.studio.parse(readEffectJson(file).original).id!==item.id)throw Error('Backup: arquivo de efeito inválido.');continue;}writeJson(file,{original:item.original});created.push(file);}
-      this.store.data=pending.settings;this.store.save();
+      const nativeControllers=this.store.data.nativeControllers;
+      this.store.data={...pending.settings,...(nativeControllers?{nativeControllers:structuredClone(nativeControllers)}:{})};this.store.save();
     }catch(error){for(const file of created)try{fs.unlinkSync(file);}catch{}throw error;}
     // Imported files are immutable content-addressed additions. Existing library
     // entries are retained, so a crash before the atomic settings commit cannot

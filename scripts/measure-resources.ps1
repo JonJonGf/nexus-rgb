@@ -4,6 +4,7 @@ $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $rootPath=[IO.Path]::GetFullPath($InstallRoot)
 $native=Join-Path $rootPath 'NexusRGB.exe'
 $paths=@{Panel=(Join-Path $rootPath 'runtime\node.exe');Controller=(Join-Path $rootPath 'openrgb\OpenRGB.exe')}
+$hidPath=Join-Path $rootPath 'nexus-hid.exe'
 $processes=@(Get-CimInstance Win32_Process)
 $services=@(Get-CimInstance Win32_Service -Filter "Name='NexusRGB' OR Name='NexusRGBHardware'")
 $owned=@{};$partial=$false
@@ -19,7 +20,7 @@ do {
   $added=$false
   foreach($item in $processes) {
     if(-not $owned.ContainsKey([int]$item.ParentProcessId) -or $owned.ContainsKey([int]$item.ProcessId)){continue}
-    $role=if([String]::Equals($item.ExecutablePath,$paths.Controller,[StringComparison]::OrdinalIgnoreCase)){'openrgb'}elseif([String]::Equals($item.ExecutablePath,$paths.Panel,[StringComparison]::OrdinalIgnoreCase)){if($owned[[int]$item.ParentProcessId] -eq 'network-service'){'server'}else{'effect-worker'}}else{$null}
+    $role=if([String]::Equals($item.ExecutablePath,$hidPath,[StringComparison]::OrdinalIgnoreCase)){'hid-bridge'}elseif([String]::Equals($item.ExecutablePath,$paths.Controller,[StringComparison]::OrdinalIgnoreCase)){'openrgb'}elseif([String]::Equals($item.ExecutablePath,$paths.Panel,[StringComparison]::OrdinalIgnoreCase)){if($owned[[int]$item.ParentProcessId] -eq 'network-service'){'server'}else{'effect-worker'}}else{$null}
     if($role){$owned[[int]$item.ProcessId]=$role;$added=$true}elseif(-not $item.ExecutablePath){$partial=$true}
   }
 }while($added)

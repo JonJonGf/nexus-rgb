@@ -15,7 +15,7 @@
         circle = {angle:a,radius,size:ring.count,rings:rings.length};
       }
       else if (item.shape === 'matrix') {
-        if (item.count === 61) {
+        if (item.geometry === 'ansi-60' && item.count === 61) {
           let row = 0, col = 0, countInRow = 14;
           if (i < 14) { row = 0; col = i; countInRow = 14; }
           else if (i < 28) { row = 1; col = i - 14; countInRow = 14; }
@@ -54,7 +54,7 @@
       const height = Math.min(defaultH, 0.75 / rows);
       const shape = isFan ? 'fan' : isKeyboard ? 'matrix' : 'strip';
       const cols = isKeyboard ? 14 : 8;
-      return { key: d.id, deviceId: d.id, name: d.name, start: 0, count: d.ledCount, x: (i % columns + 0.5) / columns, y: (Math.floor(i / columns) + 0.5) / rows, width, height, rotation: 0, shape, columns: cols, reverse: false };
+      return { key: d.id, deviceId: d.id, name: d.name, start: 0, count: d.ledCount, x: (i % columns + 0.5) / columns, y: (Math.floor(i / columns) + 0.5) / rows, width, height, rotation: 0, shape, columns: cols, reverse: false, ...(d.geometry === 'ansi-60' && d.ledCount === 61 ? {geometry:d.geometry} : {}) };
     });
   }
   const api = { points, defaults, leds };

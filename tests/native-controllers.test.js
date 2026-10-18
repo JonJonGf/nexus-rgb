@@ -143,7 +143,7 @@ test('NZXT Kraken protocol: packet encoding and AIO component decomposition', ()
   assert.equal(fans.offset, 17);
 });
 
-test('ControllerRegistry: store configuration, lifecycle, transport and privacy summary', () => {
+test('ControllerRegistry: store configuration, lifecycle, transport and privacy summary', async () => {
   const store = {
     data: {
       nativeControllers: {
@@ -181,7 +181,7 @@ test('ControllerRegistry: store configuration, lifecycle, transport and privacy 
   // Verify sendLeds and packet tracking
   const devId = devices[0].id;
   const testColors = [{ red: 255, green: 0, blue: 0 }];
-  const sent = registry.sendLeds(devId, testColors, false);
+  const sent = await registry.sendLeds(devId, testColors, false);
   assert.equal(sent, true);
 
   const lastPacket = registry.getLastPacket(devId);

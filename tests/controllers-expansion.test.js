@@ -259,7 +259,7 @@ test('Multi-brand Motherboards: ASUS, Gigabyte, MSI, ASRock header decomposition
   assert.equal(asrock.vendor, 'ASRock');
 });
 
-test('ControllerRegistry: store configuration and dispatch across all controller types', () => {
+test('ControllerRegistry: store configuration and dispatch across all controller types', async () => {
   const store = {
     data: {
       nativeControllers: {
@@ -306,7 +306,7 @@ test('ControllerRegistry: store configuration and dispatch across all controller
   // Test sendLeds to Keyboard
   const kbDev = devices.find(d => d.type === 5);
   assert(kbDev);
-  const kbSent = registry.sendLeds(kbDev.id, [{ red: 0, green: 255, blue: 100 }]);
+  const kbSent = await registry.sendLeds(kbDev.id, [{ red: 0, green: 255, blue: 100 }]);
   assert.equal(kbSent, true);
   const kbPkt = registry.getLastPacket(kbDev.id);
   assert.equal(kbPkt[0], 0x0A); // Report ID 0x0A for SinoWealth
@@ -314,7 +314,7 @@ test('ControllerRegistry: store configuration and dispatch across all controller
   // Test sendLeds to Nollie
   const nollieDev = devices.find(d => d.controllerType === 'nollie');
   assert(nollieDev);
-  const nollieSent = registry.sendLeds(nollieDev.id, [{ red: 255, green: 0, blue: 0 }]);
+  const nollieSent = await registry.sendLeds(nollieDev.id, [{ red: 255, green: 0, blue: 0 }]);
   assert.equal(nollieSent, true);
   const nolliePkt = registry.getLastPacket(nollieDev.id);
   assert.equal(nolliePkt[0], 0xB0);
@@ -366,6 +366,7 @@ test('Hardware integration with Keyboard and Nollie: snapshot, categories and ti
 
   // Test tick and frame delivery
   await hardware.tick();
+  await new Promise(setImmediate); // Native frame statistics are updated after the transport acknowledgement.
   assert(hardware.metrics.framesSent >= 2);
 
   const kbLast = hardware.controllerRegistry.getLastPacket(kb.id);
@@ -376,7 +377,7 @@ test('Hardware integration with Keyboard and Nollie: snapshot, categories and ti
   assert.equal(fanLast[0], 0xB0);
 });
 
-test('Keyboard syncWithPc and event-driven proprietary hardware effects', () => {
+test('Keyboard syncWithPc and event-driven proprietary hardware effects', async () => {
   const store = {
     data: {
       master: { power: true, color: '#ff0055', brightness: 90, speed: 60, effect: 'wave' },
@@ -392,7 +393,7 @@ test('Keyboard syncWithPc and event-driven proprietary hardware effects', () => 
   });
 
   // 1. Initial send with master effect = wave -> mode 0x01 (Wave/Rainbow) with colorMixing = 0x01
-  const sent1 = registry.sendLeds(kb.id, []);
+  const sent1 = await registry.sendLeds(kb.id, []);
   assert.equal(sent1, true);
   const pkt1 = registry.getLastPacket(kb.id);
   assert.equal(pkt1[5], 0x01); // Mode 0x01 Wave
@@ -400,12 +401,12 @@ test('Keyboard syncWithPc and event-driven proprietary hardware effects', () => 
 
   // 2. Second send with identical state -> 0 packets sent (event-driven deduplication)
   const transport = registry.transports.get(kb.id);
-  const sent2 = transport.send([], false);
+  const sent2 = await transport.send([], false);
   assert.equal(sent2, pkt1); // Returns cached packet without re-encoding or sending
 
   // 3. Switch master to breathe -> mode 0x12 (Breathing)
   store.data.master.effect = 'breathe';
-  const sent3 = transport.send([], false);
+  const sent3 = await transport.send([], false);
   assert.equal(sent3[5], 0x12);
   assert.equal(sent3[12], 0x00); // Single color mixing
   assert.equal(sent3[9], 255); // Red 255 from #ff0055
@@ -415,7 +416,7 @@ test('Keyboard syncWithPc and event-driven proprietary hardware effects', () => 
   // 4. Switch master to static -> mode 0x11
   store.data.master.effect = 'static';
   store.data.master.color = '#00ff88';
-  const sent4 = transport.send([], false);
+  const sent4 = await transport.send([], false);
   assert.equal(sent4[5], 0x11);
   assert.equal(sent4[9], 0);
   assert.equal(sent4[10], 255);
@@ -428,12 +429,12 @@ test('Keyboard syncWithPc and event-driven proprietary hardware effects', () => 
   // Master changes, but decoupled keyboard should ignore it completely
   store.data.master.effect = 'scanner';
   store.data.master.color = '#ffffff';
-  const sentDecoupled = transport.send([], false);
+  const sentDecoupled = await transport.send([], false);
   assert.equal(sentDecoupled, lastBeforeDecouple);
 
   // 6. Decoupled keyboard with individual setting (e.g. nativeMode 0x03)
   store.data.devices[kb.id] = { syncWithPc: false, nativeMode: 0x03, color: '#ffff00' };
-  const sentCustom = transport.send([], false);
+  const sentCustom = await transport.send([], false);
   assert.equal(sentCustom[5], 0x03); // Windmill
   assert.equal(sentCustom[9], 255);
   assert.equal(sentCustom[10], 255);

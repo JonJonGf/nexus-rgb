@@ -1,7 +1,9 @@
 'use strict';
-const fs = require('node:fs'), path = require('node:path'), { fork } = require('node:child_process');
+const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), { fork } = require('node:child_process');
 const { readJson, writeJson, readEffectJson } = require('./store');
 const schema = require('./studio-schema'), spatial = require('../public/spatial');
+const fingerprint = value => crypto.createHash('sha256').update(value).digest('hex');
+const savedFingerprint = value => /^[a-f0-9]{64}$/.test(value) ? value : fingerprint(value);
 const builtin = [
   schema.recipe({ format: 'nexus-effect/1', name: 'Aurora espacial', pattern: 'wave', palette: ['#00ff99', '#00c8ff', '#8156ff'], speed: 30, angle: 0, scale: 1 }),
   schema.recipe({ format: 'nexus-effect/1', name: 'Cometa no setup', pattern: 'comet', palette: ['#00f0ff', '#7954ff'], speed: 35, angle: 0, scale: 1 }),
@@ -23,6 +25,7 @@ class Studio {
       }
     }
     if (store.data.studio) {
+      try {
       if (typeof store.data.studio.enabled !== 'boolean') throw Error('Ativação do mapa inválida no arquivo de configuração.');
       schema.layout(store.data.studio.layout || []);
       if (!Array.isArray(store.data.studio.excluded || []) || (store.data.studio.excluded || []).some(id => !/^[a-f0-9]{24}$/.test(id))) throw Error('Configuração de componentes inválida.');
@@ -42,6 +45,10 @@ class Studio {
             : 'O efeito salvo não está na biblioteca. Importe o arquivo novamente ou escolha outro efeito.'
         };
       }
+      } catch {
+        this.recoveryConfig = { enabled: false, activeId: builtin[0].id, values: {}, layout: [], excluded: [] };
+        this.initialFailure = { kind: 'config', message: 'O mapa salvo está inválido. A configuração original foi preservada; revise o mapa antes de reativar.' };
+      }
     }
     this.loadRecovery();
     if (this.initialFailure) {
@@ -53,6 +60,7 @@ class Studio {
     this.timer = setInterval(() => this.pump(), 8); this.timer.unref();
   }
   get config() {
+    if (this.recoveryConfig) return this.recoveryConfig;
     if (this.store.data.studio) return this.store.data.studio;
     const excluded = Object.entries(this.store.data.devices || {}).filter(([, d]) => d && ('color' in d || 'effect' in d || 'nativeMode' in d)).map(([id]) => id);
     return { enabled: false, activeId: builtin[0].id, values: {}, layout: [], excluded };
@@ -61,7 +69,7 @@ class Studio {
   versionKey(activeId = this.config.activeId, values = this.config.values) {
     const effect = this.effects.get(activeId);
     const cleanValues = effect ? (() => { try { return schema.parameters(effect, values || {}); } catch { return values || {}; } })() : (values || {});
-    return JSON.stringify([activeId, cleanValues, effect?.source || effect?.pattern || null, effect?.palette || null, effect?.speed ?? null, effect?.angle ?? null, effect?.scale ?? null]);
+    return fingerprint(JSON.stringify([activeId, cleanValues, effect?.source || effect?.pattern || null, effect?.palette || null, effect?.speed ?? null, effect?.angle ?? null, effect?.scale ?? null]));
   }
   loadRecovery() {
     this.workingHistory = [];
@@ -78,12 +86,12 @@ class Studio {
         try {
           const values = schema.parameters(effect, item.values || {});
           const key = this.versionKey(effect.id, values);
-          if (key === item.versionKey) this.workingHistory.push({ activeId: effect.id, values, versionKey: key, promotedAt: Number(item.promotedAt) || Date.now() });
+          if (key === savedFingerprint(item.versionKey)) this.workingHistory.push({ activeId: effect.id, values, versionKey: key, promotedAt: Number(item.promotedAt) || Date.now() });
         } catch {}
       }
       if (saved?.quarantined && typeof saved.quarantined.versionKey === 'string' && typeof saved.quarantined.message === 'string') {
         this.quarantined = {
-          versionKey: String(saved.quarantined.versionKey).slice(0, 4096),
+          versionKey: savedFingerprint(saved.quarantined.versionKey),
           activeId: String(saved.quarantined.activeId || '').slice(0, 24),
           kind: ['effect', 'worker', 'config'].includes(saved.quarantined.kind) ? saved.quarantined.kind : 'effect',
           message: String(saved.quarantined.message).slice(0, 160),
@@ -282,7 +290,13 @@ class Studio {
       for (const item of next.layout) if (devices.has(item.deviceId) && item.start + item.count > devices.get(item.deviceId)) throw Error('A faixa ultrapassa a quantidade de LEDs do componente.');
       this.layoutRevision++;
     }
-    this.store.data.studio = next; this.store.save();
+    if (this.recoveryConfig) {
+      const original = this.store.data.studio;
+      const name = 'invalid-studio-' + crypto.createHash('sha256').update(JSON.stringify(original)).digest('hex').slice(0, 24) + '.json';
+      const file = path.join(path.dirname(this.recoveryFile), name);
+      if (!fs.existsSync(file)) writeJson(file, original);
+    }
+    this.store.data.studio = next; this.store.save(); this.recoveryConfig = null;
     // Geometry only changes where the next frame is sampled. Keep the worker
     // and animation clock alive while editing; failed effects can be retried.
     if (previous.activeId !== next.activeId || JSON.stringify(previous.values) !== JSON.stringify(next.values) || (this.error && ['enabled', 'values', 'activeId'].some(key => Object.hasOwn(body, key)))) {
