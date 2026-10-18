@@ -33,6 +33,8 @@ function Get-NexusPorts {if($env:NEXUS_PORT_TEST_CASE -eq 'invalid-saved'){throw
 function Set-NexusPorts([int]$PanelPort,[int]$SDKPort,[int]$AlexaPort){Record ('ports:'+$PanelPort+','+$SDKPort+','+$AlexaPort)}
 function Set-NexusPortFirewall([string]$NodePath,[int]$PanelPort,[int]$AlexaPort){Record ('firewall:'+$PanelPort+','+$AlexaPort)}
 function Assert-NexusPorts([int]$PanelPort,[int]$SDKPort,[int]$AlexaPort){}
+function Assert-NexusInstallPath([string]$Directory){if($Directory -ne $root){throw 'Unexpected installation'}}
+function Get-NexusRegisteredInstallRoot {return $root}
 function Assert-FreePort([int]$Port){Record ('probe:'+$Port)}
 function Wait-ConfiguredPanel([int]$Port){if($env:NEXUS_PORT_TEST_CASE -eq 'health-failure'){throw 'Simulated panel failure'}; Record ('ready:'+$Port)}
 function Get-Service([string]$Name){[pscustomobject]@{Status=$statuses[$Name]} | Add-Member -MemberType ScriptMethod -Name WaitForStatus -Value {} -PassThru}

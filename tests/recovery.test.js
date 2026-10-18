@@ -20,6 +20,8 @@ test('recuperacao reinicia apenas os servicos corretos, aguarda estabilizacao pa
 $ErrorActionPreference='Stop'
 $trace=[Collections.Generic.List[string]]::new(); $states=@{NexusRGB='Running';NexusRGBHardware='Running'}
 function Get-NexusPorts {return @{PanelPort=5151;SDKPort=6754;AlexaPort=8081}}
+function Assert-NexusInstallPath([string]$Directory){if($Directory -ne $env:NEXUS_TEST_ROOT){throw 'Unexpected installation'}}
+function Get-NexusRegisteredInstallRoot {return $env:NEXUS_TEST_ROOT}
 function Get-CimInstance([string]$ClassName,[string]$Filter) {
  $name=if($Filter -eq "Name='NexusRGB'"){'NexusRGB'}else{'NexusRGBHardware'}
  $argument=if($name -eq 'NexusRGB'){'--service'}else{'--hardware-service'}
@@ -42,9 +44,9 @@ function Invoke-RestMethod([string]$Uri) {
 `;
   const script = setup + source
     .replace(". (Join-Path $PSScriptRoot 'ports.ps1')", '')
+    .replace(". (Join-Path $PSScriptRoot 'install-path.ps1')", '')
     .replace("$root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\\')", '$root=$env:NEXUS_TEST_ROOT')
     .replace("if(-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))", 'if($false)')
-    .replace("if($root -ne (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'))", 'if($root -ne $env:NEXUS_TEST_ROOT)')
     .replace('Global\\NexusRGB.RestartServices', 'Local\\NexusRGB.RecoveryFixture.' + path.basename(directory))
     .replace('if($mutex){$mutex.Dispose()}', "if($mutex){$mutex.Dispose()}; [IO.File]::WriteAllLines((Join-Path $env:NEXUS_TEST_ROOT 'trace.txt'),$trace)");
   const sentinel = path.join(directory, 'settings.json'); fs.writeFileSync(sentinel, '{"profiles":["preserve"]}');

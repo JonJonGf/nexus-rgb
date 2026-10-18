@@ -8,7 +8,11 @@ O usuário autorizou tratar a [auditoria funcional e de desempenho](validation/2
 
 Prioridade executada: descoberta/ACK/filas/identidade USB; diagnóstico e ciclo de vida; recuperação/quarentena/backup; brilho/modos; deduplicação, rotas assíncronas e geometria explícita. RAM permanece limitada a 20 FPS. Protocolos físicos de outras controladoras não foram presumidos: seguem pelo OpenRGB enquanto os encoders próprios permanecem experimentais.
 
-Publicação, atualização do PC e testes físicos não fazem parte da autorização para alterar o código. A versão pública/instalada não muda por uma edição deste plano. Permanecem pendentes a instalação autorizada, confirmação física do RK61 e validação de atualização em VM; modelos adicionais dependem de protocolos e ensaios específicos.
+Publicação, atualização do PC e testes físicos exigem etapas separadas da alteração de código. Posteriormente, o usuário autorizou instalar o candidato `52b9ac9` e confirmou reconhecimento, controle e digitação normal do RK61. Permanecem pendentes a publicação e a validação de atualização em VM; modelos adicionais dependem de protocolos e ensaios específicos. Não houve medição de latência de digitação.
+
+### Refinamentos seguintes — mapa e destino do instalador
+
+Implementados no código, ainda fora do candidato instalado: mapa inclui apenas componentes com controle espacial por LED, com orientação para controlar modos internos em Dispositivos; instalador oferece escolha de pasta protegida e mantém a anterior durante atualizações. Serviços, recuperação, portas e remoção acompanham o caminho registrado. Trocar uma instalação existente de pasta requer desinstalar preservando dados e reinstalar; não foi criada migração automática. Validação completa de instalação em pasta personalizada na VM continua pendente. Consulte o [contexto](CONTEXTO-DESENVOLVIMENTO.md).
 
 ## Implementado na alpha.20, com resultado físico registrado: comunicação da Alexa
 

@@ -9,8 +9,8 @@ jobs:
     strategy:
       matrix:
         ports:
-          - { panel: 5050, sdk: 6743, alexa: 80 }
-          - { panel: 5151, sdk: 6754, alexa: 8081 }
+          - { panel: 5050, sdk: 6743, alexa: 80, customDirectory: false }
+          - { panel: 5151, sdk: 6754, alexa: 8081, customDirectory: true }
     runs-on: windows-2025
     timeout-minutes: 20
     steps:
@@ -34,7 +34,7 @@ jobs:
       - run: npm run test:installer
       - name: Instalar, atualizar, recuperar, remover e reinstalar
         shell: powershell
-        run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }}
+        run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }} -CustomDirectory:$${{ matrix.ports.customDirectory }}
       - name: Registrar origem do pacote
         if: github.ref_type == 'tag' && matrix.ports.panel == 5050
         shell: powershell

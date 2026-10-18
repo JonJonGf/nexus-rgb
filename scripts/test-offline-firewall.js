@@ -17,8 +17,8 @@ async function main() {
     console.log(JSON.stringify({ internet: await probe('1.1.1.1', 443), loopback: await probe('127.0.0.1', port) })); return;
   }
   if (process.platform !== 'win32') throw Error('Este teste exige Nexus instalado no Windows.');
-  const programs = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); [Environment]::GetFolderPath('ProgramFiles')"], { encoding: 'utf8' }).trim();
-  const installed = path.join(programs, 'Nexus RGB', 'runtime', 'node.exe');
+  const programs = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); (Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{BEFFBF04-40A0-4E59-87C0-223B51E92B84}_is1' -ErrorAction Stop).InstallLocation"], { encoding: 'utf8' }).trim();
+  const installed = path.join(programs, 'runtime', 'node.exe');
   if (!fs.existsSync(installed)) throw Error('Runtime dedicado não encontrado.');
   const configuredPort = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$value=Get-ItemProperty -LiteralPath 'HKLM:\\SOFTWARE\\NexusRGB' -ErrorAction SilentlyContinue; if($null -ne $value.PanelPort){$value.PanelPort}else{5050}"], { encoding: 'utf8', windowsHide: true }).trim();
   const port = require('../server/ports').port(configuredPort, 'do painel');

@@ -20,7 +20,7 @@ internal static class Program {
         if (Array.IndexOf(args, "--restart-rgb") >= 0) {
             Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
             if (args[0] != "--restart-rgb" || !(args.Length == 1 || (args.Length == 2 && RecoveryLink(args[1])))) { MessageBox.Show(L.T("Comando de recuperação inválido."), "Nexus RGB"); return; }
-            if (!RecoveryInstalled()) { MessageBox.Show(L.T("Use o Nexus instalado em Program Files\\Nexus RGB para recuperar os serviços."), "Nexus RGB"); return; }
+            if (!RecoveryInstalled()) { MessageBox.Show(L.T("Instale ou atualize o Nexus para recuperar os serviços."), "Nexus RGB"); return; }
             if (!new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator)) { RestartServices(); return; }
             Application.Run(new RecoveryDialog()); return;
         }
@@ -55,7 +55,11 @@ internal static class Program {
     internal static bool RecoveryLink(string value) { return string.Equals(value, "nexusrgb://restart", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "nexusrgb://restart/", StringComparison.OrdinalIgnoreCase); }
     internal static bool RecoveryInstalled() {
         string root = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar);
-        return string.Equals(root, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Nexus RGB"), StringComparison.OrdinalIgnoreCase) && (File.GetAttributes(root) & FileAttributes.ReparsePoint) == 0 && File.Exists(Path.Combine(root, @"scripts\restart-services.ps1"));
+        using (var registry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+        using (var key = registry.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{BEFFBF04-40A0-4E59-87C0-223B51E92B84}_is1")) {
+            string installed = key == null ? null : key.GetValue("InstallLocation") as string;
+            return !string.IsNullOrEmpty(installed) && string.Equals(root, Path.GetFullPath(installed).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) && (File.GetAttributes(root) & FileAttributes.ReparsePoint) == 0 && File.Exists(Path.Combine(root, @"scripts\restart-services.ps1"));
+        }
     }
     internal static void RestartServices() {
         if (!RecoveryInstalled()) { MessageBox.Show(L.T("Instale ou atualize o Nexus para recuperar os serviços."), "Nexus RGB"); return; }

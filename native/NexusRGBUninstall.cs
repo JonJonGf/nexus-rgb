@@ -13,14 +13,15 @@ internal static class NexusRGBUninstall {
         bool check = args.Length == 1 && args[0] == "--check";
         if (args.Length > 0 && !check) return 2;
         try {
-            string root = Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Nexus RGB")).TrimEnd(Path.DirectorySeparatorChar);
+            string root;
             string executable;
             using (var registry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
             using (var product = registry.OpenSubKey(RegistryPath, false)) {
                 if (product == null) throw new InvalidOperationException(L.T("O Nexus RGB não foi encontrado entre os aplicativos instalados."));
                 string location = product.GetValue("InstallLocation") as string;
-                if (String.IsNullOrEmpty(location) || !String.Equals(Path.GetFullPath(location).TrimEnd(Path.DirectorySeparatorChar), root, StringComparison.OrdinalIgnoreCase))
+                if (String.IsNullOrEmpty(location) || !Regex.IsMatch(location, @"^[A-Za-z]:\\") || location.Length <= 3)
                     throw new InvalidOperationException(L.T("A instalação encontrada está fora da pasta oficial do Nexus RGB."));
+                root = Path.GetFullPath(location).TrimEnd(Path.DirectorySeparatorChar);
                 string command = product.GetValue("UninstallString") as string;
                 if (String.IsNullOrEmpty(command)) throw new InvalidOperationException(L.T("O registro de desinstalação está incompleto."));
                 executable = command.Trim();

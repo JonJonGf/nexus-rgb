@@ -411,7 +411,7 @@ test('descoberta de novos dispositivos sincroniza o mapa automaticamente sem nec
   const initial = (await f.request('/api/studio', { cookie: f.cookie })).json();
   const initialCount = initial.layout.length;
 
-  const newDev = { id: 'b'.repeat(24), name: 'Nova RAM ARGB', ledCount: 8, type: 2, effects: ['wave', 'static'] };
+  const newDev = { id: 'b'.repeat(24), name: 'Nova RAM ARGB', ledCount: 8, type: 2, direct: { id: 0, name: 'Direct', flagList: ['perLedColor'] }, effects: ['wave', 'static'] };
   hardware.devices.push(newDev);
 
   const updated = (await f.request('/api/studio', { cookie: f.cookie })).json();

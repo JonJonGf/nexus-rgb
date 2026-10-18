@@ -108,6 +108,7 @@ test('preparação identifica somente filhos dos serviços Nexus e preserva serv
     $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
     if($errors.Count){throw 'Falha ao analisar script.'}
     foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    function Assert-NexusInstallPath { param([string]$Directory,[switch]$Prepare) } # OS path policy tested separately
     $definitions=@(@{Name='NexusRGBHardware';Argument='--hardware-service';Bit=2},@{Name='NexusRGB';Argument='--service';Bit=1})
     $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
     $native=Join-Path $Root 'NexusRGB.exe'; $node=Join-Path $Root 'runtime\node.exe'; $rgb=Join-Path $Root 'openrgb\OpenRGB.exe'
@@ -187,6 +188,7 @@ test('preparação encerra o aplicativo de bandeja e registra retorno pós-atual
     $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
     if($errors.Count){throw 'Falha ao analisar script.'}
     foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    function Assert-NexusInstallPath { param([string]$Directory,[switch]$Prepare) } # OS path policy tested separately
     $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
     $native=Join-Path $Root 'NexusRGB.exe'
     $mockServices=@()
@@ -226,6 +228,7 @@ test('preparação rejeita atualização com código 47 quando outra sessão de 
     $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
     if($errors.Count){throw 'Falha ao analisar script.'}
     foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    function Assert-NexusInstallPath { param([string]$Directory,[switch]$Prepare) } # OS path policy tested separately
     $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
     $native=Join-Path $Root 'NexusRGB.exe'
     $mockServices=@()
@@ -264,6 +267,7 @@ test('preparação rejeita com código 48 quando janelas interativas de configur
     $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
     if($errors.Count){throw 'Falha ao analisar script.'}
     foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    function Assert-NexusInstallPath { param([string]$Directory,[switch]$Prepare) } # OS path policy tested separately
     $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
     $native=Join-Path $Root 'NexusRGB.exe'
     $mockServices=@()
@@ -301,6 +305,7 @@ test('preparação em sessão 0 não cria marcador de bandeja e revalida process
     $ast=[Management.Automation.Language.Parser]::ParseFile($env:NEXUS_TEST_PREFLIGHT_SCRIPT,[ref]$tokens,[ref]$errors)
     if($errors.Count){throw 'Falha ao analisar script.'}
     foreach($function in $ast.FindAll({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst]},$true)) { . ([scriptblock]::Create($function.Extent.Text)) }
+    function Assert-NexusInstallPath { param([string]$Directory,[switch]$Prepare) } # OS path policy tested separately
     $Root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
     $native=Join-Path $Root 'NexusRGB.exe'
     $mockServices=@()

@@ -1,12 +1,14 @@
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 . (Join-Path $PSScriptRoot 'ports.ps1')
+. (Join-Path $PSScriptRoot 'install-path.ps1')
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $mutex=$null; $locked=$false; $started=$false
 try {
   $identity=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
   if(-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'Autorize o pedido de administrador para reiniciar os servicos.'}
-  if($root -ne (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB')){throw 'Use a copia instalada em Program Files\Nexus RGB.'}
+  Assert-NexusInstallPath $root
+  if($root -ne (Get-NexusRegisteredInstallRoot)){throw 'Use a copia registrada pelo instalador do Nexus RGB.'}
   $mutex=[Threading.Mutex]::new($false,'Global\NexusRGB.RestartServices')
   try {$locked=$mutex.WaitOne(0)} catch [Threading.AbandonedMutexException] {$locked=$true}
   if(-not $locked){throw 'Ja existe uma recuperacao em andamento. Aguarde a janela anterior.'}

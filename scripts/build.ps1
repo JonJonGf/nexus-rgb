@@ -24,7 +24,7 @@ foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-P
 if($LASTEXITCODE -ne 0){throw 'Falha ao identificar a versão do pacote.'}
 New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $buildRoot 'runtime'),(Join-Path $buildRoot 'licenses'),(Join-Path $buildRoot 'sources') -Force | Out-Null
 Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
-Copy-Item -LiteralPath 'scripts\ports.ps1','scripts\configure-ports.ps1','scripts\restart-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
+Copy-Item -LiteralPath 'scripts\ports.ps1','scripts\configure-ports.ps1','scripts\restart-services.ps1','scripts\install-path.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\measure-resources.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','LEIA-ME.txt','LICENSE.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
 Copy-Item -LiteralPath 'native\app.ico' -Destination (Join-Path $buildRoot 'app.ico') -Force

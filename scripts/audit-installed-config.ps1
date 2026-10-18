@@ -2,9 +2,11 @@
 param([string]$ReportPath=(Join-Path $PSScriptRoot '..\data\validation\installed-config.json'))
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'ports.ps1')
+. (Join-Path $PSScriptRoot 'install-path.ps1')
 $ports=Get-NexusPorts
 $origin='http://127.0.0.1:'+$ports.PanelPort
-$root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+$root=Get-NexusRegisteredInstallRoot
+if(-not $root){throw 'Instalacao Nexus RGB nao encontrada.'}
 $services=@(Get-CimInstance Win32_Service | Where-Object Name -in 'NexusRGB','NexusRGBHardware' | Select-Object Name,State,StartMode,StartName)
 $defender=Get-MpComputerStatus | Select-Object AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,RebootRequired
 $threats=@(Get-MpThreat)

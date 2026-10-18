@@ -15,6 +15,7 @@
   $('studio-tab-device').addEventListener('click', () => inspectorTab('device'));
   $('studio-tab-effect').addEventListener('click', () => inspectorTab('effect'));
   $('studio-edit-effect').addEventListener('click', () => inspectorTab('effect'));
+  $('studio-open-devices').addEventListener('click', () => document.querySelector('.nav[data-page=devices]').click());
   document.querySelector('.studio-inspector-tabs').addEventListener('keydown', e => { if (!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return; e.preventDefault(); inspectorTab(e.key === 'Home' ? 'device' : e.key === 'End' ? 'effect' : inspector === 'device' ? 'effect' : 'device'); $('studio-tab-' + inspector).focus(); });
   inspectorTab('device');
   let editVersion = 0, savedVersion = 0, saving = false, saveTimer, lastSave = 0;
@@ -144,6 +145,7 @@
   function map() {
     if (!data) return;
     const container = $('studio-items'); container.replaceChildren(); $('studio-empty').hidden = Boolean(data.layout.length);
+    $('studio-hardware-only').hidden = !state?.hardware?.devices?.some(d => d.spatialCapable === false);
     for (const value of data.layout) {
       const excluded = isExcluded(value.deviceId);
       const button = make('button', undefined, 'studio-item' + (value.key === selected ? ' selected' : '') + (excluded ? ' excluded' : '')); button.type = 'button'; button.dataset.key = value.key; button.dataset.shape = value.shape; button.setAttribute('aria-label', T`Posicionar ${value.name}`); button.title = value.name + ' · LEDs ' + (value.start + 1) + '–' + (value.start + value.count) + (excluded ? ' · ' + T('Fora do mapa') : ''); position(button, value);
@@ -347,7 +349,7 @@
   $('studio-parameters').addEventListener('submit', parameters);
   $('studio-parameters').addEventListener('change', parameters);
   $('studio-retry').addEventListener('click', scheduleSave);
-  $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
+  $('studio-reset').addEventListener('click', () => { data.layout = NexusSpatial.defaults(state.hardware.devices.filter(d => d.spatialCapable !== false && d.ledCount > 0 && d.effects.includes('wave'))); selected = null; mark(); map(); selection(); });
   $('studio-follow-map').addEventListener('click', async () => {
     const value = item(); if (!value) return;
     if (await sharedPlay('/api/devices/' + value.deviceId, { followMap: true })) {
@@ -681,6 +683,7 @@
         d.ledCount,
         d.status,
         d.mapExcluded,
+        d.spatialCapable,
         (d.zones || []).map(z => [z.name, z.ledCount]),
         d.smoothPowerCapable
       ])
@@ -693,7 +696,7 @@
       const first = !api; state = next; stateRevision++; isAdmin = admin; api = requestApi; toast = showToast;
       const nextSig = hardwareSignature(next?.hardware);
       const devicesChanged = !first && (prevSig !== nextSig);
-      const layoutMissing = Boolean(data && (!data.layout || data.layout.length === 0) && (next?.hardware?.devices?.length || 0) > 0);
+      const layoutMissing = Boolean(data && (!data.layout || data.layout.length === 0) && next?.hardware?.devices?.some(d => d.spatialCapable !== false && d.ledCount > 0 && d.effects.includes('wave')));
       workspace.update(admin);
       calibration.update(admin);
       backups.update(admin);

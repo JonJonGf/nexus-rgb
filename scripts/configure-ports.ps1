@@ -2,6 +2,7 @@
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 . (Join-Path $PSScriptRoot 'ports.ps1')
+. (Join-Path $PSScriptRoot 'install-path.ps1')
 $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $dataRoot=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'NexusRGB'
 $old=$null; $stopped=$false; $original=@{}
@@ -20,7 +21,8 @@ function Assert-FreePort([int]$Port) {
   }
 }
 try {
-  if($root -ne (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB')){throw 'Execute somente a cópia instalada em Program Files\Nexus RGB.'}
+  Assert-NexusInstallPath $root
+  if($root -ne (Get-NexusRegisteredInstallRoot)){throw 'Execute somente a copia registrada pelo instalador do Nexus RGB.'}
   Assert-NexusPorts $PanelPort $SDKPort $AlexaPort
   try {$old=Get-NexusPorts} catch {$old=@{PanelPort=5050;SDKPort=6743;AlexaPort=80}}
   $services=@(Get-CimInstance Win32_Service | Where-Object Name -in 'NexusRGB','NexusRGBHardware')

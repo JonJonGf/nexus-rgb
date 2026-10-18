@@ -8,6 +8,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
+. (Join-Path $PSScriptRoot 'install-path.ps1')
 $definitions=@(
   @{Name='NexusRGBHardware';Argument='--hardware-service';Bit=2},
   @{Name='NexusRGB';Argument='--service';Bit=1}
@@ -50,15 +51,10 @@ function Invoke-NexusPreparation {
   $panel=if($PanelPort -gt 0){$PanelPort}elseif($saved.PanelPort){$saved.PanelPort}else{5050}
   $sdk=if($SDKPort -gt 0){$SDKPort}elseif($saved.SDKPort){$saved.SDKPort}else{6743}
   if($panel -lt 1024 -or $panel -gt 65535 -or $sdk -lt 1024 -or $sdk -gt 65535 -or $panel -eq $sdk){return 46}
-  $expectedRoot=[IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'))
-  if(-not [String]::Equals([IO.Path]::GetFullPath($Root),$expectedRoot,[StringComparison]::OrdinalIgnoreCase)){return 43}
-  if(Test-Path -LiteralPath $Root) {
-    $rootItem=Get-Item -LiteralPath $Root -Force
-    if(-not $rootItem.PSIsContainer -or ($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint)){return 43}
-  }
   $services=@(Get-CimInstance Win32_Service | Where-Object Name -in 'NexusRGB','NexusRGBHardware')
   $processes=@(Get-CimInstance Win32_Process)
   try {$owned=Get-NexusOwnedProcessIds $services $processes $Root} catch {return 42}
+  try {Assert-NexusInstallPath $Root -Prepare:($Mode -eq 'Prepare')} catch {return 43}
   if($Mode -eq 'Restore') {Restore-NexusServices $RestoreMask; return 0}
   # Reject unrelated listeners/controllers before stopping any installed service.
   $listeners=@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object LocalPort -in $panel,$sdk)

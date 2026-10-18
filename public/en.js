@@ -826,6 +826,8 @@ window.NexusEnglish = Object.freeze({
   "OpenRGB não respondeu ao consultar um componente. Reinicie o controlador no aplicativo do PC.": "OpenRGB did not respond while querying a component. Restart the controller using the PC application.",
   "Reiniciar controlador": "Restart controller",
   "● OpenRGB sem resposta": "● OpenRGB not responding",
+  "Componentes com efeitos internos ficam fora do mapa. Controle-os em Dispositivos.": "Components with hardware effects stay outside the map. Control them in Devices.",
+  "Abrir Dispositivos": "Open Devices",
   "Ponte USB": "USB bridge",
   "O dispositivo USB não confirmou o comando.": "The USB device did not acknowledge the command.",
   "Não foi possível enviar o comando ao dispositivo USB.": "The command could not be sent to the USB device.",

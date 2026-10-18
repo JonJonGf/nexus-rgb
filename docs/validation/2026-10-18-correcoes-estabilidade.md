@@ -46,9 +46,9 @@ A compilação final de desenvolvimento concluiu a partir de `52b9ac9067ae557231
 
 O pacote não foi publicado. Após resposta explícita do usuário, foi instalado com progresso visível, sem reiniciar Windows e com PawnIO desmarcado. Serviços de rede e hardware confirmados ativos, bandeja na sessão do usuário e ponte na sessão de serviço. Conferidos 58 arquivos instalados contra a fonte e a identificação `52b9ac9/development`. Configuração byte a byte preservada, 11 perfis e hashes de 36 efeitos importados mantidos. A API detectou os seis componentes online, incluindo o Royal Kludge RK61; foi solicitado teste humano de iluminação e digitação, ainda sem confirmação. Evidências privadas em `data/candidate-52b9ac9-install/`.
 
-## Limites e testes necessários antes de chamar de validado fisicamente
+## Confirmação física e limites restantes
 
-- O reconhecimento e o comportamento do RK61 devem ser conferidos após instalar a correção com autorização. Um teste simulado não prova a resposta do dispositivo real.
+- Após a instalação autorizada, o usuário respondeu “Aparece e funciona normalmente” à pergunta sobre presença, resposta ao controle e digitação normal do RK61. Isso substitui a pendência de confirmação humana registrada no parágrafo anterior; não constitui medição de latência, teste prolongado ou validação de outros modelos.
 - O ID físico novo diferencia unidades. Configurações e posições antigas continuam armazenadas; caso uma peça tenha sido cadastrada com a identidade antiga ou mude de porta, pode exigir revisão de vínculo. Não foi feita migração automática por nome ou modelo presumido.
 - Compatibilidade USB própria de outras controladoras continua pendente de protocolo/modelo confirmado e ensaio físico. Elas devem usar o caminho OpenRGB existente.
 - Não foi feita verificação física de toda combinação de hub/LED/placa, pentest completo, teste prolongado de vazamento nem medição de latência de digitação.

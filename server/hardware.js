@@ -564,6 +564,7 @@ class Hardware extends EventEmitter {
           stale: !(device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected),
           customized: Object.hasOwn(this.store.data.devices, component.id),
           mapExcluded: excluded.has(component.id),
+          spatialCapable: Boolean(direct),
           smoothPowerCapable,
           rateLimited: isSmbusRam(device),
           powerTransitionFallback: Boolean(transitionMs >= 200 && !smoothPowerCapable),

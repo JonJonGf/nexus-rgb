@@ -2,6 +2,7 @@
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 . (Join-Path $PSScriptRoot 'ports.ps1')
+. (Join-Path $PSScriptRoot 'install-path.ps1')
 $dataRoot=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'NexusRGB'
 $stage='Verificar instalação'
 function Invoke-NexusSc([string[]]$Arguments) {
@@ -84,8 +85,8 @@ function Wait-NexusPanel([string]$Url='http://127.0.0.1:5050/api/health',[int]$T
 }
 try {
 $installRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$expectedRoot=[IO.Path]::GetFullPath((Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'))
-if($installRoot -ne $expectedRoot){throw 'Os serviços só podem ser registrados na pasta protegida Program Files\Nexus RGB.'}
+Assert-NexusInstallPath $installRoot
+if($installRoot -ne (Get-NexusRegisteredInstallRoot)){throw 'Use a pasta registrada pelo instalador do Nexus RGB.'}
 if($Mode -eq 'Install') {
   $ports=if($PanelPort -eq 0 -or $SDKPort -eq 0 -or $AlexaPort -eq 0){Get-NexusPorts}else{@{PanelPort=$PanelPort;SDKPort=$SDKPort;AlexaPort=$AlexaPort}}
   if($PanelPort -eq 0){$PanelPort=$ports.PanelPort}; if($SDKPort -eq 0){$SDKPort=$ports.SDKPort}; if($AlexaPort -eq 0){$AlexaPort=$ports.AlexaPort}

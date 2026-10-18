@@ -204,9 +204,12 @@ class Studio {
       actions: []
     };
   }
-  devices() { return this.hardware.snapshot().devices.filter(d => d.ledCount > 0 && d.effects.includes('wave')); }
+  devices() { return this.hardware.snapshot().devices.filter(d => d.spatialCapable !== false && d.ledCount > 0 && d.effects.includes('wave')); }
   layout() {
-    const saved = this.config.layout || [], devices = this.devices(), covered = new Set(saved.map(item => item.deviceId));
+    // Keep old positions on disk, but do not sample/display hardware-mode-only devices.
+    // Unknown/offline devices retain their positions for later reconnection.
+    const unsupported = new Set(this.hardware.snapshot().devices.filter(d => d.spatialCapable === false).map(d => d.id));
+    const saved = (this.config.layout || []).filter(i => !unsupported.has(i.deviceId)), devices = this.devices(), covered = new Set(saved.map(item => item.deviceId));
     const deviceMap = new Map(devices.map(d => [d.id, d]));
     for (const item of saved) {
       const dev = deviceMap.get(item.deviceId);

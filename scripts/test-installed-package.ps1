@@ -1,11 +1,12 @@
 ﻿# Destructive lifecycle checks: execute only in a fresh GitHub-hosted VM.
-param([Parameter(Mandatory=$true)][string]$Installer,[ValidateRange(1024,65535)][int]$PanelPort=5050,[ValidateRange(1024,65535)][int]$SDKPort=6743,[ValidateRange(1,65535)][int]$AlexaPort=80)
+param([Parameter(Mandatory=$true)][string]$Installer,[ValidateRange(1024,65535)][int]$PanelPort=5050,[ValidateRange(1024,65535)][int]$SDKPort=6743,[ValidateRange(1,65535)][int]$AlexaPort=80,[switch]$CustomDirectory)
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted'){throw 'Este teste só pode rodar em uma VM descartável hospedada pelo GitHub.'}
 $identity=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 if(-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'O runner precisa estar elevado.'}
 $root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB'
+if($CustomDirectory){$root=Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'Nexus RGB Custom'}
 $data=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'NexusRGB'
 if((Test-Path -LiteralPath $root) -or (Test-Path -LiteralPath $data) -or (Get-Service NexusRGB,NexusRGBHardware -ErrorAction SilentlyContinue)){throw 'A VM não está limpa: já existe uma instalação ou dados Nexus.'}
 $Installer=(Resolve-Path -LiteralPath $Installer).Path
@@ -32,7 +33,7 @@ function Session {
 function State {Invoke-RestMethod ($origin+'/api/state') -WebSession $script:session}
 function Setup([string]$Phase) {
   $log=Join-Path $reports ($Phase+'.log')
-  $process=Start-Process -FilePath $Installer -ArgumentList ('/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /PANELPORT='+$PanelPort+' /SDKPORT='+$SDKPort+' /ALEXAPORT='+$AlexaPort+' /LOG="'+$log+'"') -WindowStyle Hidden -Wait -PassThru
+  $process=Start-Process -FilePath $Installer -ArgumentList ('/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS="" /DIR="'+$root+'" /PANELPORT='+$PanelPort+' /SDKPORT='+$SDKPort+' /ALEXAPORT='+$AlexaPort+' /LOG="'+$log+'"') -WindowStyle Hidden -Wait -PassThru
   Check ($process.ExitCode -in 0,3010) ('Installer '+$Phase+' exited successfully')
   Wait-Panel; Session
 }

@@ -14,7 +14,8 @@ VersionInfoProductName=Nexus RGB
 VersionInfoProductVersion=0.1.0.0
 DefaultDirName={autopf}\Nexus RGB
 DefaultGroupName=Nexus RGB
-DisableDirPage=yes
+DisableDirPage=no
+UsePreviousAppDir=yes
 DisableProgramGroupPage=yes
 OutputDir=..\dist
 OutputBaseFilename=NexusRGB-Setup-{#AppVersion}
@@ -58,6 +59,7 @@ Source: "..\vendor\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinsta
 Source: "..\vendor\PawnIO_setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "service-preflight.ps1"; Flags: dontcopy
 Source: "backup-before-upgrade.ps1"; Flags: dontcopy
+Source: "..\scripts\install-path.ps1"; Flags: dontcopy
 [Icons]
 Name: "{group}\Nexus RGB"; Filename: "{app}\NexusRGB.exe"
 Name: "{group}\{cm:UninstallNexus}"; Filename: "{uninstallexe}"
@@ -85,6 +87,7 @@ var
   SetupFailed: Boolean;
   PortsPage: TInputQueryWizardPage;
   PanelPortValue, SDKPortValue, AlexaPortValue: Integer;
+  PreparedRoot: String;
 
 function GetInstallerSessionId: DWORD;
 var
@@ -118,6 +121,14 @@ var
   Command: String;
 begin
   Result := '';
+  if PreflightReady then begin
+    if (CompareText(PreparedRoot, WizardDirValue) <> 0) or
+       (StrToIntDef(PortsPage.Values[0], 0) <> PanelPortValue) or
+       (StrToIntDef(PortsPage.Values[1], 0) <> SDKPortValue) or
+       (StrToIntDef(PortsPage.Values[2], 0) <> AlexaPortValue) then
+      Result := LocalText('A preparação já foi concluída. Cancele e reabra o instalador para mudar a pasta ou as portas; os serviços serão restaurados.', 'Preparation has already finished. Cancel and reopen setup to change the folder or ports; services will be restored.');
+    Exit;
+  end;
   PanelPortValue := StrToIntDef(PortsPage.Values[0], 0);
   SDKPortValue := StrToIntDef(PortsPage.Values[1], 0);
   AlexaPortValue := StrToIntDef(PortsPage.Values[2], 0);
@@ -125,24 +136,21 @@ begin
     Result := LocalText('Escolha três portas TCP diferentes. Painel e SDK: 1024 a 65535. Alexa: 1 a 65535.', 'Choose three different TCP ports. Dashboard and SDK: 1024 to 65535. Alexa: 1 to 65535.');
     Exit;
   end;
-  if PreflightReady then Exit;
-  if CompareText(RemoveBackslashUnlessRoot(WizardDirValue), RemoveBackslashUnlessRoot(ExpandConstant('{autopf}\Nexus RGB'))) <> 0 then begin
-    Result := LocalText('Os serviços precisam ser instalados em Program Files\Nexus RGB para proteger o executável e o controlador de hardware.', 'Services must be installed in Program Files\Nexus RGB to protect the executable and hardware controller.');
-    Exit;
-  end;
+  ExtractTemporaryFile('install-path.ps1');
   ExtractTemporaryFile('service-preflight.ps1');
   ExtractTemporaryFile('backup-before-upgrade.ps1');
   Command := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Prepare -Root "' + ExpandConstant('{app}') + '" -PanelPort ' + IntToStr(PanelPortValue) + ' -SDKPort ' + IntToStr(SDKPortValue) + ' -SessionId ' + IntToStr(GetInstallerSessionId) + ' -TempDir "' + ExpandConstant('{tmp}') + '"';
   if not Exec(PowerShellPath, Command, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then Result := LocalText('Não foi possível verificar os serviços.', 'Could not check services.')
   else if (ExitCode >= 0) and (ExitCode <= 3) then begin
     ServiceResumeMask := ExitCode;
+    PreparedRoot := WizardDirValue;
     PreflightReady := True;
   end
   else if ExitCode = 40 then Result := LocalText('Uma das portas escolhidas para o painel (', 'A selected dashboard (') + IntToStr(PanelPortValue) + LocalText(') ou SDK (', ') or SDK (') + IntToStr(SDKPortValue) + LocalText(') está ocupada. Volte à página Portas da rede e escolha outra. Os serviços instalados foram mantidos.', ') port is busy. Return to Network ports and choose another one. Installed services were preserved.')
   else if ExitCode = 46 then Result := LocalText('As portas escolhidas são inválidas. Volte à página Portas da rede.', 'Selected ports are invalid. Return to Network ports.')
   else if ExitCode = 41 then Result := LocalText('Outro OpenRGB está em execução. Feche-o antes de instalar para evitar dois programas controlando o mesmo hardware. Os serviços instalados foram mantidos.', 'Another OpenRGB is running. Close it before installation to avoid two programs controlling the same hardware. Installed services were preserved.')
-  else if ExitCode = 42 then Result := LocalText('Existe um serviço com o nome Nexus RGB que não pertence a esta instalação. A preparação não alterou esse serviço.', 'A service named Nexus RGB does not belong to this installation. Preparation did not change that service.')
-  else if ExitCode = 43 then Result := LocalText('A pasta de instalação é inválida ou contém um link de sistema de arquivos.', 'The installation folder is invalid or contains a filesystem link.')
+  else if ExitCode = 42 then Result := LocalText('Existe um serviço Nexus de outra pasta. Mantenha a pasta instalada para atualizar; para mudar, desinstale preservando dados e instale novamente.', 'A Nexus service belongs to another folder. Keep the installed folder to upgrade; to relocate, uninstall preserving data and install again.')
+  else if ExitCode = 43 then Result := LocalText('Escolha uma pasta exclusiva em disco local NTFS, dentro de uma pasta existente protegida por administradores, sem links. Evite pastas pessoais ou compartilhadas. Em atualizações, mantenha a pasta instalada.', 'Choose a dedicated folder on a local NTFS disk, inside an existing administrator-protected folder without links. Avoid personal or shared folders. Keep the installed folder during upgrades.')
   else if ExitCode = 44 then Result := LocalText('Não foi possível preparar a atualização. Os serviços que estavam ativos foram restaurados.', 'Could not prepare the update. Previously running services were restored.')
   else if ExitCode = 47 then Result := LocalText('Outra sessão de usuário do Windows está executando o Nexus RGB. Feche o aplicativo nas outras sessões antes de continuar.', 'Another Windows user session is running Nexus RGB. Please close the application in other sessions before continuing.')
   else if ExitCode = 48 then Result := LocalText('Uma janela de configuração ou recuperação do Nexus RGB está aberta. Feche-a antes de continuar.', 'A Nexus RGB configuration or recovery window is open. Close it before continuing.')
@@ -182,7 +190,7 @@ procedure DeinitializeSetup;
 var ExitCode: Integer;
 begin
   if PreflightReady and not InstallationStarted and (ServiceResumeMask <> 0) then begin
-    if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Restore -Root "' + ExpandConstant('{app}') + '" -RestoreMask ' + IntToStr(ServiceResumeMask), '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then ExitCode := -1;
+    if not Exec(PowerShellPath, '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ExpandConstant('{tmp}\service-preflight.ps1') + '" -Mode Restore -Root "' + PreparedRoot + '" -RestoreMask ' + IntToStr(ServiceResumeMask), '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then ExitCode := -1;
     if ExitCode <> 0 then MsgBox(LocalText('A instalação foi cancelada, mas não foi possível restaurar os serviços. Abra novamente o instalador para reparar o Nexus RGB. Código: ', 'Setup was canceled but services could not be restored. Reopen the installer to repair Nexus RGB. Code: ') + IntToStr(ExitCode), mbError, MB_OK);
   end;
 end;
