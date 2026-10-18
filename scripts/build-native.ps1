@@ -11,3 +11,5 @@ $common=@('/nologo','/codepage:65001','/target:winexe','/platform:x64','/optimiz
 if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o executável nativo.'}
 & $compiler @common ('/out:'+(Join-Path $output 'NexusRGB-Uninstall.exe')) /reference:System.Windows.Forms.dll (Join-Path $native 'NexusRGBUninstall.cs') (Join-Path $native 'AppInfo.cs') (Join-Path $native 'Locale.cs')
 if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o assistente de desinstalação.'}
+& $compiler /nologo /codepage:65001 /target:exe /platform:x64 /optimize+ ('/out:'+(Join-Path $output 'nexus-hid.exe')) (Join-Path $native 'NexusHidBridge.cs')
+if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o executável de ponte HID.'}

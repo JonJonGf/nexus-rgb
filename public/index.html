@@ -30,7 +30,18 @@
       </div>
       <div class="scene-bar"><span class="eyebrow" data-i18n="CENAS PRONTAS">CENAS PRONTAS</span><div id="quick-presets"></div><button class="text-button" data-page="profiles" aria-label="Ver todos os perfis" data-i18n-aria-label="Ver todos os perfis">↗</button></div>
     </section>
-    <section class="page" data-view="devices"><div class="panel intro"><h2 data-i18n="Cada componente, do seu jeito.">Cada componente, do seu jeito.</h2><p class="muted" data-i18n="Personalize cada dispositivo ou use o controle geral para sincronizar tudo. Em conectores ARGB, confira a quantidade de LEDs na seção de zonas.">Personalize cada dispositivo ou use o controle geral para sincronizar tudo. Em conectores ARGB, confira a quantidade de LEDs na seção de zonas.</p></div><div class="device-list" id="devices"></div></section>
+    <section class="page" data-view="devices">
+      <div class="panel intro">
+        <h2 data-i18n="Cada componente, do seu jeito.">Cada componente, do seu jeito.</h2>
+        <p class="muted" data-i18n="Personalize cada dispositivo ou use o controle geral para sincronizar tudo. Em conectores ARGB, confira a quantidade de LEDs na seção de zonas.">Personalize cada dispositivo ou use o controle geral para sincronizar tudo. Em conectores ARGB, confira a quantidade de LEDs na seção de zonas.</p>
+        <div class="device-filter-bar" role="tablist" aria-label="Filtro de dispositivos" data-i18n-aria-label="Filtro de dispositivos">
+          <button type="button" class="device-filter-btn active" data-device-filter="all"><span data-i18n="Todos">Todos</span> <b id="filter-all-count">0</b></button>
+          <button type="button" class="device-filter-btn" data-device-filter="internal"><span data-i18n="Gabinete & Refrigeração">Gabinete & Refrigeração</span> <b id="filter-internal-count">0</b></button>
+          <button type="button" class="device-filter-btn" data-device-filter="peripherals"><span data-i18n="Periféricos">Periféricos</span> <b id="filter-peripherals-count">0</b></button>
+        </div>
+      </div>
+      <div class="device-list" id="devices"></div>
+    </section>
     <section class="page studio-page" data-view="studio">
       <div class="studio-toolbar"><div class="studio-playing"><span class="playing-dot" aria-hidden="true"></span><div><span class="eyebrow" data-i18n="EM REPRODUÇÃO">EM REPRODUÇÃO</span><strong id="studio-current-effect" role="status">Aguardando saída</strong></div><span class="studio-state" id="studio-state">Prévia</span></div><div class="studio-toolbar-actions"><button class="button subtle" id="studio-edit-effect" data-i18n="Ajustar efeito">Ajustar efeito</button><button class="button primary" id="studio-choose"><span data-i18n="Trocar efeito">Trocar efeito</span><span aria-hidden="true">↗</span></button></div></div>
       <div class="panel studio-recovery" id="studio-recovery" role="status" hidden=""><div class="studio-recovery-info"><span class="eyebrow" id="studio-recovery-kind"></span><strong id="studio-recovery-message"></strong><p class="muted small" id="studio-recovery-detail"></p></div><div class="studio-actions" id="studio-recovery-actions"><button type="button" class="button primary" id="studio-recover-retry" data-i18n="Tentar novamente">Tentar novamente</button><button type="button" class="button subtle" id="studio-recover-last" hidden="" data-i18n="Usar último efeito funcional">Usar último efeito funcional</button><button type="button" class="button subtle" id="studio-recover-off" data-i18n="Manter luzes apagadas">Manter luzes apagadas</button></div></div>

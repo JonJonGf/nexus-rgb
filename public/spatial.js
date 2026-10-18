@@ -14,7 +14,22 @@
         x = Math.cos(a) * item.width * radius; y = Math.sin(a) * item.height * radius;
         circle = {angle:a,radius,size:ring.count,rings:rings.length};
       }
-      else if (item.shape === 'matrix') { const cols = item.columns, rows = Math.ceil(item.count / cols); x = ((i % cols + 0.5) / cols - 0.5) * item.width; y = ((Math.floor(i / cols) + 0.5) / rows - 0.5) * item.height; }
+      else if (item.shape === 'matrix') {
+        if (item.count === 61) {
+          let row = 0, col = 0, countInRow = 14;
+          if (i < 14) { row = 0; col = i; countInRow = 14; }
+          else if (i < 28) { row = 1; col = i - 14; countInRow = 14; }
+          else if (i < 41) { row = 2; col = i - 28; countInRow = 13; }
+          else if (i < 53) { row = 3; col = i - 41; countInRow = 12; }
+          else { row = 4; col = i - 53; countInRow = 8; }
+          x = ((col + 0.5) / countInRow - 0.5) * item.width;
+          y = ((row + 0.5) / 5 - 0.5) * item.height;
+        } else {
+          const cols = item.columns, rows = Math.ceil(item.count / cols);
+          x = ((i % cols + 0.5) / cols - 0.5) * item.width;
+          y = ((Math.floor(i / cols) + 0.5) / rows - 0.5) * item.height;
+        }
+      }
       else if (item.height > item.width) y = (t - 0.5) * item.height * 0.9;
       else x = (t - 0.5) * item.width * 0.9;
       result.push({index:item.start + (item.ledOrder?.[n] ?? n),x:x * 320,y:y * 200,circle});
@@ -37,8 +52,9 @@
       const defaultH = isRam ? 0.45 : isKeyboard ? 0.12 : isMouse ? 0.12 : 0.21;
       const width = Math.min(defaultW, 0.75 / columns);
       const height = Math.min(defaultH, 0.75 / rows);
-      const shape = isFan ? 'fan' : 'strip';
-      return { key: d.id, deviceId: d.id, name: d.name, start: 0, count: d.ledCount, x: (i % columns + 0.5) / columns, y: (Math.floor(i / columns) + 0.5) / rows, width, height, rotation: 0, shape, columns: 8, reverse: false };
+      const shape = isFan ? 'fan' : isKeyboard ? 'matrix' : 'strip';
+      const cols = isKeyboard ? 14 : 8;
+      return { key: d.id, deviceId: d.id, name: d.name, start: 0, count: d.ledCount, x: (i % columns + 0.5) / columns, y: (Math.floor(i / columns) + 0.5) / rows, width, height, rotation: 0, shape, columns: cols, reverse: false };
     });
   }
   const api = { points, defaults, leds };

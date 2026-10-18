@@ -68,8 +68,19 @@
         const circle = geometry[n].circle, step = Math.PI * 2 / circle.size, start = circle.angle - step / 2, end = start + Math.min(group,circle.size) * step, thickness = Math.min(.07,.16 / circle.rings);
         ctx.save(); ctx.scale(width, height); ctx.beginPath(); ctx.arc(0, 0, circle.radius + thickness, start, end); ctx.arc(0, 0, Math.max(.01,circle.radius - thickness), end, start, true); ctx.closePath(); ctx.fill(); ctx.restore();
       } else if (entry.shape === 'matrix') {
-        const rows = Math.ceil(entry.count / entry.columns);
-        ctx.fillRect(((i % entry.columns) / entry.columns - 0.5) * width, (Math.floor(i / entry.columns) / rows - 0.5) * height, width / entry.columns, height / rows);
+        if (entry.count === 61) {
+          let row = 0, col = 0, countInRow = 14;
+          if (i < 14) { row = 0; col = i; countInRow = 14; }
+          else if (i < 28) { row = 1; col = i - 14; countInRow = 14; }
+          else if (i < 41) { row = 2; col = i - 28; countInRow = 13; }
+          else if (i < 53) { row = 3; col = i - 41; countInRow = 12; }
+          else { row = 4; col = i - 53; countInRow = 8; }
+          const kw = width / countInRow, kh = height / 5;
+          ctx.fillRect((col / countInRow - 0.5) * width + 1, (row / 5 - 0.5) * height + 1, kw - 2, kh - 2);
+        } else {
+          const rows = Math.ceil(entry.count / entry.columns);
+          ctx.fillRect(((i % entry.columns) / entry.columns - 0.5) * width, (Math.floor(i / entry.columns) / rows - 0.5) * height, width / entry.columns, height / rows);
+        }
       } else {
         const start = (entry.reverse ? i - group + 1 : i) / entry.count - 0.5, size = group / entry.count;
         if (height > width) ctx.fillRect(-width * 0.4, start * height * 0.9, width * 0.8, size * height * 0.9 + 0.5);

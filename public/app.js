@@ -185,15 +185,60 @@
     if (!devices.length) return empty(container, T(state.hardware.connected && state.hardware.detecting ? 'Detectando componentes RGB. Suas peças aparecerão aqui em instantes.' : 'Aguardando o controlador. Seus componentes aparecerão aqui.'));
     for (const d of devices.slice(0, 6)) { const card = el('button', 'mini'); card.title = d.controllerName && d.controllerName !== d.name ? `${d.name} · ${d.controllerName}` : d.name; card.addEventListener('click', () => page('devices')); const text = el('div'); text.append(el('h3', '', d.name), el('p', '', `${d.ledCount} LEDs / ${deviceTypeLabel(d)}`), el('span', `device-status ${d.status === 'online' && !d.error ? 'online' : ''}`, d.error ? T('VERIFICAR AJUSTE') : d.status === 'online' ? T('● CONECTADO') : T('● DESCONECTADO'))); const artwork = el('span', 'device-icon'); artwork.append(icon(deviceIconName(d))); card.append(artwork, text); container.append(card); }
   }
+  let activeDeviceFilter = 'all';
+  document.querySelectorAll('[data-device-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeDeviceFilter = btn.dataset.deviceFilter || 'all';
+      document.querySelectorAll('[data-device-filter]').forEach(b => b.classList.toggle('active', b === btn));
+      if (state.hardware?.devices) renderDevices(state.hardware.devices);
+    });
+  });
+
   function renderDevices(devices) {
     if ($('devices').contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
     const container = $('devices'); container.replaceChildren();
-    if (!devices.length) return empty(container, T(state.hardware.connected && state.hardware.detecting ? 'Detectando componentes RGB no controlador…' : 'Nenhum dispositivo detectado. Não mostramos componentes simulados.'));
-    for (const d of devices) {
+
+    const isPeripheral = d => d.type === 5 || d.type === 6 || d.type === 7 || d.type === 8;
+    const internalCount = devices.filter(d => !isPeripheral(d)).length;
+    const peripheralsCount = devices.filter(isPeripheral).length;
+    const filterAllCount = $('filter-all-count'); if (filterAllCount) filterAllCount.textContent = devices.length;
+    const filterIntCount = $('filter-internal-count'); if (filterIntCount) filterIntCount.textContent = internalCount;
+    const filterPeriCount = $('filter-peripherals-count'); if (filterPeriCount) filterPeriCount.textContent = peripheralsCount;
+
+    let filtered = devices;
+    if (activeDeviceFilter === 'internal') {
+      filtered = devices.filter(d => !isPeripheral(d));
+    } else if (activeDeviceFilter === 'peripherals') {
+      filtered = devices.filter(isPeripheral);
+    }
+
+    if (!filtered.length) {
+      const msg = activeDeviceFilter === 'peripherals'
+        ? 'Nenhum periférico detectado nesta seção.'
+        : activeDeviceFilter === 'internal'
+        ? 'Nenhum componente interno detectado nesta seção.'
+        : state.hardware.connected && state.hardware.detecting
+        ? 'Detectando componentes RGB no controlador…'
+        : 'Nenhum dispositivo detectado. Não mostramos componentes simulados.';
+      return empty(container, T(msg));
+    }
+    for (const d of filtered) {
       const card = el('article', 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div');
       const syncRow = el('div', 'device-sync-row');
-      syncRow.append(el('span', `sync-label ${d.customized || d.mapExcluded ? 'customized' : ''}`, d.mapExcluded ? T('Ajuste individual · fora do mapa') : d.customized ? T('Ajuste individual') : T('Segue o controle geral')));
+      const isUnsyncedKb = d.type === 5 && d.settings.syncWithPc === false;
+      const syncLabelText = d.mapExcluded ? T('Ajuste individual · fora do mapa') : isUnsyncedKb ? T('Desvinculado do PC') : d.customized ? T('Ajuste individual') : T('Segue o controle geral');
+      syncRow.append(el('span', `sync-label ${d.customized || d.mapExcluded || isUnsyncedKb ? 'customized' : ''}`, syncLabelText));
       if (d.mapExcluded) { const follow = el('button', 'button subtle follow-map-button', T('Voltar a seguir o mapa')); follow.type = 'button'; follow.addEventListener('click', () => action(`/api/devices/${d.id}`, { followMap: true })); syncRow.append(follow); }
+      if (d.type === 5) {
+        const syncLabel = el('label', 'sync-pc-toggle');
+        const syncCheck = el('input');
+        syncCheck.type = 'checkbox';
+        syncCheck.checked = d.settings.syncWithPc !== false;
+        syncCheck.setAttribute('aria-label', T('Sincronizar com o PC'));
+        syncCheck.addEventListener('change', () => action(`/api/devices/${d.id}`, { syncWithPc: syncCheck.checked }));
+        syncLabel.append(syncCheck, el('span', '', T('Sincronizar com o PC')));
+        syncRow.append(syncLabel);
+      }
       title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, deviceTypeLabel(d), `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
       const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', T`Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);
       if (d.error) card.append(el('p', 'error', T(d.error)));

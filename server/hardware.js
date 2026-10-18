@@ -133,6 +133,7 @@ class Hardware extends EventEmitter {
     if (this.controllerRegistry.getDevices().length > 0) {
       this.devices = [...this.controllerRegistry.getDevices()];
     }
+    this.nativeHardwareDetected = false;
   }
   hasNativeControllers() {
     return Boolean(this.controllerRegistry && this.controllerRegistry.getDevices().length > 0);
@@ -285,6 +286,19 @@ class Hardware extends EventEmitter {
     this.tickPending = false;
     this.tickPendingSpatial = false;
     this.deferredFromSpatial.clear();
+    if (!this.nativeHardwareDetected && this.controllerRegistry) {
+      this.nativeHardwareDetected = true;
+      try {
+        if (typeof this.controllerRegistry.autoDetectHardware === 'function') {
+          await this.controllerRegistry.autoDetectHardware();
+        }
+        for (const nativeDev of this.controllerRegistry.getDevices()) {
+          if (!this.devices.some(d => d.id === nativeDev.id)) {
+            this.devices.push(nativeDev);
+          }
+        }
+      } catch {}
+    }
     const client = this.makeClient(); this.client = client;
     client.on('error', error => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(error, client, gen); });
     client.on('disconnect', () => { if (this.client === client && this.generation === gen && !this.stopped) this.lost(new Error('Controlador desconectado.'), client, gen); });
@@ -402,6 +416,16 @@ class Hardware extends EventEmitter {
       device.components = components(device); devices.push(device);
     }
     if (this.controllerRegistry) {
+      if (!this.nativeHardwareDetected) {
+        this.nativeHardwareDetected = true;
+        try {
+          if (typeof this.controllerRegistry.autoDetectHardware === 'function') {
+            await this.controllerRegistry.autoDetectHardware();
+          }
+        } catch {
+          // Non-blocking auto-detect
+        }
+      }
       for (const nativeDev of this.controllerRegistry.getDevices()) {
         devices.push(nativeDev);
         leds += nativeDev.ledCount;
@@ -502,13 +526,21 @@ class Hardware extends EventEmitter {
       count: this.lastFailure.count
     } : null;
     const hasNative = this.hasNativeControllers();
+    const effectiveDevices = [...this.devices];
+    if (this.controllerRegistry) {
+      for (const d of this.controllerRegistry.getDevices()) {
+        if (!effectiveDevices.some(existing => existing.id === d.id)) {
+          effectiveDevices.push(d);
+        }
+      }
+    }
     return {
       connected: Boolean(this.connected || hasNative),
       detecting: this.detecting,
       error: this.error,
-      controllerCount: this.devices.length,
+      controllerCount: effectiveDevices.length,
       controllerHung: Boolean(this.controllerHung),
-      busTypes: Array.from(new Set(this.devices.map(d => d.busType).filter(Boolean))),
+      busTypes: Array.from(new Set(effectiveDevices.map(d => d.busType).filter(Boolean))),
       nativeControllers: this.controllerRegistry ? this.controllerRegistry.getSummary() : [],
       lastFailure,
       metrics: {
@@ -518,14 +550,15 @@ class Hardware extends EventEmitter {
         framesDroppedTransport: this.metrics.framesDroppedTransport,
         framesThrottledRam: this.metrics.framesThrottledRam || 0
       },
-      devices: this.devices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
+      devices: effectiveDevices.flatMap(({ raw, direct, fixed, off, sdkId, components: channels, ...device }) => (channels || [device]).map(channel => {
         const { offset, ...component } = channel;
         const settings = this.settings(component.id, !!channels);
         const smoothPowerCapable = Boolean(direct && (settings.nativeMode === undefined || (studioActive && !excluded.has(component.id))));
+        const isSinglePiece = !channels || (channels.length === 1 && (channel.type === 5 || channel.type === 6));
         return {
           ...device,
           ...component,
-          ...(channels ? { modes: [], splitZone: true } : {}),
+          ...(channels && !isSinglePiece ? { modes: [], splitZone: true } : {}),
           status: (this.connected || device.nativeController) ? 'online' : 'offline',
           stale: !(this.connected || device.nativeController),
           customized: Object.hasOwn(this.store.data.devices, component.id),

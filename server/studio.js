@@ -199,6 +199,16 @@ class Studio {
   devices() { return this.hardware.snapshot().devices.filter(d => d.ledCount > 0 && d.effects.includes('wave')); }
   layout() {
     const saved = this.config.layout || [], devices = this.devices(), covered = new Set(saved.map(item => item.deviceId));
+    const deviceMap = new Map(devices.map(d => [d.id, d]));
+    for (const item of saved) {
+      const dev = deviceMap.get(item.deviceId);
+      if (dev && (dev.type === 5 || dev.kind === 'keyboard') && item.shape === 'strip') {
+        item.shape = 'matrix';
+        item.columns = 14;
+        if (!item.width || item.width < 0.2) item.width = 0.32;
+        if (!item.height || item.height < 0.1) item.height = 0.12;
+      }
+    }
     let total = saved.reduce((n, item) => n + item.count, 0);
     const added = [];
     for (const item of spatial.defaults(devices.filter(d => !covered.has(d.id)))) {

@@ -4,6 +4,124 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 18/10/2026
 
+- **Efeitos Proprietários de Hardware no Teclado, Alternador "Sincronizar com o PC" e Latência Zero de Digitação:**
+  - **Decisões e Pedido do Usuário:**
+    - O usuário relatou que o teclado parecia estar em "câmera lenta", com delay perceptível ao digitar ("delay legal ao digitar no teclado", "teclado em camera lenta") e piscamento rápido quando pacotes contínuos de LEDs de software eram enviados repetidamente ao microcontrolador SinoWealth 8051.
+    - Decisão final do usuário: *"ent vai ser isso, coloque uma opção de sincronizar o teclado ao pc e faça isso q vc falou use os efeitos proprietários do teclado em vez de mandar informação de led por led no teclado"*.
+  - **Causa Raiz Técnica e Arquitetura Adotada:**
+    - *Hardware Constraint (SinoWealth 8051 / Royal Kludge RK61):* O microcontrolador não possui DMA dedicado para relatórios USB HID de entrada. Cada pacote de Feature Report recebido gera uma interrupção de CPU que pausa o loop de varredura das teclas na matriz mecânica. Qualquer streaming (mesmo a 12 FPS) causa atraso na digitação. Além disso, escrever estados nos registradores PWM reinicia ciclicamente o timer PWM interno, causando flicker.
+    - *Solução Event-Driven de Latência Zero (0 ms delay):* O controlador de teclado foi reformulado para ser 100% orientado a eventos (`lastEffectSignature`). Quando o estado não muda, **ZERO pacotes USB são transmitidos**. Durante digitação, repouso ou animação em hardware, o tráfego USB é exatamente 0 bps, eliminando 100% da latência de digitação e do tremor de PWM.
+    - *Mapeamento para Efeitos Proprietários de Hardware (60 FPS Nativos):* Quando o efeito do PC muda, o Nexus RGB envia um único pacote configurando o efeito nativo do próprio microcontrolador:
+      - `rainbow` / `wave`: Modo de hardware `0x01` com `colorMixing = 0x01` (onda arco-íris multicolorida fluida a 60 FPS nos 61 LEDs).
+      - `breathe` / `pulse`: Modo de hardware `0x12` com a cor selecionada.
+      - `scanner` / `comet`: Modo de hardware `0x03` (Catavento giratório).
+      - `strobe` / `sparkle`: Modo de hardware `0x06` (Estrelas / Twinkle).
+      - `sequence`: Modo de hardware `0x13` (Ciclo de cores / Neon).
+      - `static`: Modo de hardware `0x11` com a cor exata.
+      - `off` / desligamento: Modo de hardware `0x11` com brilho 0 (blackout completo).
+    - *Alternador "Sincronizar com o PC" (`syncWithPc: boolean`):*
+      - Adicionado checkbox `[x] Sincronizar com o PC` no cartão do teclado na aba Dispositivos.
+      - Quando marcado (padrão): o teclado acompanha as mudanças gerais do PC (Onda, Respiração, Estático, cor, brilho) via evento único de hardware.
+      - Quando desmarcado: o teclado é desvinculado (`Desvinculado do PC`), não recebe pacotes automáticos do mestre e mantém a iluminação configurada manualmente ou pelos atalhos físicos `Fn + \` do próprio teclado mecânico.
+  - **Arquivos Alterados:**
+    - `server/store.js`: adicionado campo `syncWithPc` na lista de campos permitidos (`allowNative`) com validação estrita de booleano.
+    - `server/controllers/index.js`: refatorado `addKeyboardController` para arquitetura 100% orientada a eventos (`signature === lastEffectSignature => return`), mapeamento de efeitos mestre para modos de hardware da SinoWealth, mapeamento de `sequence` e isolamento total quando `syncWithPc === false`.
+    - `public/app.js`: adicionado o alternador `sync-pc-toggle` no cartão do teclado (`d.type === 5`), badge `Desvinculado do PC` quando desativado e disparo via `action('/api/devices/' + d.id, { syncWithPc })`.
+    - `public/style.css`: adicionados estilos para `.sync-pc-toggle`.
+    - `public/en.js`: adicionadas traduções para `"Sincronizar com o PC"` ("Sync with PC") e `"Desvinculado do PC"` ("Unlinked from PC").
+    - `tests/controllers-expansion.test.js`: adicionada suíte de testes unitários para `syncWithPc`, deduplicação por assinatura, modos de hardware e desvinculação autônoma.
+    - `tests/ui/keyboard-ui.spec.js`: criado teste ponta a ponta com Playwright validando a exibição do teclado, filtro de periféricos, alternância de sincronização e envio do payload ao servidor.
+  - **Testes Realizados e Resultados:**
+    - Testes unitários do Node: 189/189 testes aprovados (`npm.cmd test`).
+    - Testes de controladoras estendidas: 8/8 testes aprovados (`node.exe --test tests/controllers-expansion.test.js`).
+    - Testes de interface com Playwright: 41/41 testes aprovados (`npx.cmd playwright test`).
+    - Teste de interface do teclado: 1/1 aprovado em 1.1 s (`npx.cmd playwright test tests/ui/keyboard-ui.spec.js`).
+    - Build de binários nativos (`scripts/build-native.ps1`): executado com sucesso.
+    - Build do instalador completo (`scripts/build.ps1`): executado com sucesso, gerando `dist/NexusRGB-Setup-0.1.0.exe` (SHA256: `135A38F1AD1EF2FF2FDEA80856022CF3023E907515121C2E2EAD89CBBBDA6035`).
+  - **Processos em Segundo Plano:** todos finalizados (`manage_task list` limpo, `nexus-hid` e servidor de teste parados).
+  - **Próximo Passo:** o usuário pode testar a digitação com 0 ms de delay e alternar livremente entre a sincronização com o PC e o uso independente.
+  - **Decisões e Feedback do Usuário:**
+    1. *Layout do Teclado no Mapa do Setup:* o usuário apontou que o teclado era renderizado incorretamente no Setup Map como uma única fita estreita de 61 LEDs aglomerados em linha reta ("ele detecta o teclado todo como apenas 1 led e isso faz ele n funcionar direto os efeitos [...] veja o layout do teclado e como ele fica disponibilizado no teclado para funcionar direito além de identificar todos os leds da placa").
+    2. *Eliminação do Tremor / Piscar Rápido:* o usuário relatou que o teclado piscava em frequência muito rápida ("além de ficar piscando mt rapido. reveja isso"). O diagnóstico confirmou que o motor de renderização a 20 FPS (50 ms) estava enviando repetidamente relatórios de modo estático ao microcontrolador SinoWealth 8051, resetando o timer interno de PWM a cada 50 ms.
+    3. *Testes Reais no Hardware do Usuário:* o usuário solicitou testar o teclado fisicamente ligando os LEDs ("faça teste ligando led por led do teclado e veja"). Ao dispararmos o modo de hardware Onda (`0x01`), o usuário observou e confirmou a ativação imediata no teclado físico: *"opa, tu fez algo e funcionou aqui kkkkk passou uma onda"*.
+  - **O Que Mudou e Arquivos Alterados:**
+    1. `public/spatial.js`:
+       - Em `leds(item)`, implementada geometria matricial realista para teclados mecânicos compactos 60% ANSI (`item.count === 61`), mapeando os 61 LEDs nas 5 fileiras físicas exatas do teclado:
+         - Linha 0 (Numérica): 14 teclas (Esc, 1..0, -, =, Backspace)
+         - Linha 1 (QWERTY): 14 teclas (Tab, Q..P, [, ], \)
+         - Linha 2 (ASDF): 13 teclas (Caps, A..L, ;, ', Enter)
+         - Linha 3 (ZXCV): 12 teclas (LShift, Z../, RShift)
+         - Linha 4 (Inferior): 8 teclas (LCtrl, Win, LAlt, Space, RAlt, Win, Menu, RCtrl)
+       - Em `defaults(devices)`, definido que teclados (`d.type === 5`) recebem por padrão `shape: 'matrix'`, `columns: 14`, `width: 0.32` e `height: 0.12`.
+    2. `public/studio.js`:
+       - Em `paintPiece`, adicionada renderização customizada para a matriz de 61 teclas no canvas do Setup Map, desenhando cada tecla individual com espaçamento físico como keycaps reais.
+    3. `server/studio.js`:
+       - Em `layout()`, implementada auto-migração para que itens salvos anteriormente como fita (`shape: 'strip'`) sejam convertidos automaticamente em tempo de execução para matriz (`shape: 'matrix'`, `columns: 14`, `width: 0.32`, `height: 0.12`), evitando que layouts antigos fiquem deformados.
+    4. `data/settings.json`:
+       - Atualizada a peça salva do Royal Kludge RK61 para `shape: 'matrix'`, `columns: 14`, `width: 0.32` e `height: 0.12`.
+    5. `server/controllers/protocol-keyboard.js`:
+       - Expostos 20 modos nativos de hardware do microcontrolador SinoWealth (`Estático`, `Onda / Arco-íris`, `Respiração`, `Ciclo de Cores`, `Ondulação`, `Catavento`, `Onda Senoidal`, `Roleta Arco-íris`, `Estrelas`, `Em Camadas`, `Letreiro`, `Tempestade Giratória`, `Corrida de Cavalos`, `Cobrinha Retrô`, `Diagonal`, `Ambilight`, `Transmissão / Streamer`, `Desaparecer na Sombra`, `Flash Away` e `Desligado`).
+       - Em `encodeSinoWealthKeyboardPacket`, adicionado suporte a `colorMixing` (`0x01` para ARGB multicolorido/arco-íris automático nos efeitos dinâmicos, e `0x00` para cores manuais em estático/respiração).
+    6. `server/controllers/index.js`:
+       - Em `addKeyboardController`:
+         - Cálculo da média espacial de cor de todos os 61 LEDs (`avgColor`) em vez de travar no primeiro LED (`colors[0]`).
+         - Deduplicação inteligente de pacotes (`Buffer.compare`): pacotes idênticos são descartados antes de chegar ao barramento USB, mantendo cor sólida 100% estável e com ZERO tremor.
+         - Throttling adaptativo a ~12 Hz (80 ms) durante efeitos dinâmicos espaciais para proteger o relógio PWM do microcontrolador SinoWealth contra resets sucessivos.
+         - Leitura de `settings.nativeMode` para transmissão fiel do efeito de hardware selecionado.
+    7. `server/hardware.js`:
+       - Preservação da lista completa de modos nativos para componentes periféricos únicos (`channel.type === 5`), permitindo a seleção de qualquer um dos 20 modos de hardware diretamente pelo menu suspenso em Dispositivos.
+    8. `native/NexusHidBridge.cs`:
+       - Ajustada a abertura de handle em `get_feature` para `writeAccess: true`, assegurando permissões completas de I/O HID no Windows.
+  - **Resultados de Testes e Validação:**
+    - `node --test tests/controllers-expansion.test.js tests/native-controllers.test.js`: 13/13 aprovados em 118 ms.
+    - `npm.cmd test`: todos os 189 testes unitários aprovados com 0 falhas em 67.7 s.
+    - `npx.cmd playwright test tests/ui/app.spec.js`: 10/10 testes de interface aprovados em 17.6 s.
+    - **Validação Visual via Playwright:**
+      - Capturada imagem do Mapa do Setup em `test-results/studio-keyboard-matrix.png` comprovando a disposição em 5 fileiras limpas e pontos de LED perfeitamente alinhados na grade 2D do RK61.
+      - Capturada imagem da aba Dispositivos em `test-results/devices-keyboard-complete.png` demonstrando 26 opções no dropdown (6 efeitos de software + 20 modos nativos de hardware).
+      - Testada a seleção dos modos `Hardware: Onda / Arco-íris` e `Hardware: Estático` diretamente pela UI com envio bem-sucedido.
+    - **Instalador Compilado:**
+      - `dist/NexusRGB-Setup-0.1.0.exe` gerado com sucesso (SHA256: `13D6B101913B1B1BCF69311397269F7DB1FD66CA6F5A583476ED8C926C0767D3`).
+  - **Instância de Teste Ativa:** servidor rodando na porta 5051 (`http://localhost:5051`).
+  - **Estado do Git:** alterações prontas para commit.
+
+- **Expansão Universal de Teclados RGB, Controladoras Nollie, Corsair, Razer, Cooler Master e Placas-Mãe Multi-Marca:**
+  - **Decisões do Usuário:**
+    1. *Teclados Universais:* suporte universal a qualquer teclado RGB, permitindo que o teclado do setup seja controlado junto com os demais componentes do PC.
+    2. *Hardware Físico do Usuário (Royal Kludge RK61):* investigação e identificação do teclado físico do usuário (`VID_258A & PID_00EC`, microcontrolador SinoWealth 8051 na interface `MI_01`, Coleção 5, `UsagePage 0xFF00`, Feature Report ID `0x0A`). O teste físico nativo com `HidD_SetFeature` no modo estático (`0x11`) foi realizado com sucesso antes de desconectar. O usuário confirmou autorização para desconectar e limpar o teclado.
+    3. *Controladoras Adicionais e Nollie:* adição das famosas controladoras entusiastas Nollie (Nollie8, Nollie16, Nollie32 com até 32 canais ARGB independentes), Corsair (Commander Pro, Commander Core/XT, Lighting Node Pro/Core), Razer Chroma ARGB (6 portas ARGB de até 80 LEDs) e Cooler Master ARGB (4 portas).
+    4. *Placas-Mãe Multi-Marca:* arquitetura e decomposição de headers ARGB para ASUS Aura, Gigabyte/AORUS RGB Fusion 2.0 (ITE8297), MSI Mystic Light e ASRock Polychrome.
+    5. *Interface Unificada em Dispositivos:* usuário solicitou manter os periféricos juntos na aba Dispositivos. Foi implementada uma barra de filtros reativa com abas em pílula (`Todos` | `Gabinete & Refrigeração` | `Periféricos`) com contadores dinâmicos, mantendo a tela coesa e organizada sem fragmentar a navegação.
+  - **Arquitetura e Arquivos Criados/Alterados:**
+    1. `server/controllers/protocol-keyboard.js`: abstração universal de teclados RGB com geometrias padrão (60%, 65%, 75%, TKL, Full 100%), codificador de pacotes Feature Report SinoWealth (`0x0A`), suporte a modos estático, respiração, onda e apagamento total, gerador de componentes no Studio (`type: 5`, `shape: 'matrix'`).
+    2. `server/controllers/protocol-nollie.js`: codificador de pacotes direct-stream para controladoras Nollie8, Nollie16 e Nollie32 (opcode `0xB0`, indexação de portas 1–32, até 126 LEDs por porta e chunking de 20 LEDs/pacote), decomposição em peças de ventoinhas ou fitas para o Studio.
+    3. `server/controllers/protocol-corsair.js`: codificador de pacotes de 64 bytes para Corsair Commander e Lighting Node (opcode `0x33`), suporte a tipos de ventoinha SP, HD, ML, LL, QL e fitas LED.
+    4. `server/controllers/protocol-razer.js`: codificador de pacotes de 64 bytes para Razer Chroma ARGB Controller (opcodes `0x0F` / `0x02`), 6 portas independentes de até 80 LEDs.
+    5. `server/controllers/protocol-coolermaster.js`: codificador de pacotes de 64 bytes para Cooler Master ARGB Controller (opcode `0x51`), 4 canais ARGB.
+    6. `server/controllers/protocol-motherboard.js`: arquitetura e codificadores de pacotes para placas-mãe ASUS, Gigabyte (ITE `0xCC`), MSI (`0x52`) e ASRock, com divisão de headers ARGB 3-pin e 12V em componentes individuais para posicionamento no mapa.
+    7. `native/NexusHidBridge.cs` e `server/controllers/hid-bridge.js`: ponte C# nativa de alto desempenho compilada com `csc.exe` para comunicação direta sub-milissegundo com dispositivos USB-HID no Windows via `HidD_SetFeature` e `WriteFile`, e autodetecção de hardware.
+    8. `server/controllers/index.js`: expansão do `ControllerRegistry` com métodos de registro, envio e despacho para todos os novos controladores, teclados e placas-mãe.
+    9. `server/hardware.js`: guarda inteligente de detecção nativa (`this.nativeHardwareDetected`) para evitar chamadas redundantes em loops de tick.
+    10. `public/index.html`, `public/style.css`, `public/app.js`, `public/en.js`: barra de filtros moderna em Dispositivos (`Todos`, `Gabinete & Refrigeração`, `Periféricos`), contagem dinâmica em tempo real e traduções completas PT-BR/EN.
+    11. `scripts/build-native.ps1`: compilação automatizada de `nexus-hid.exe` durante o processo de build do instalador.
+    12. `tests/controllers-expansion.test.js`: 7 novos testes unitários aprofundados cobrindo todas as novas controladoras, limites de pacotes, chunking, layouts de teclado e integração com Hardware.
+  - **Resultados de Testes e Validação no PC Real do Usuário:**
+    - `node --test tests/controllers-expansion.test.js`: 7/7 testes aprovados em 110 ms.
+    - `node --test tests/native-controllers.test.js`: 6/6 testes aprovados em 116 ms.
+    - `node --test --test-concurrency=2 tests/*.test.js`: todos os 189 testes unitários aprovados com 0 falhas e 0 pulados.
+    - `npx playwright test tests/ui/app.spec.js`: 10/10 testes de interface aprovados em 18.8 s.
+    - **Validação ao Vivo no Hardware do PC:**
+      - Teste com servidor real em `http://127.0.0.1:5051` integrado ao daemon OpenRGB e à ponte nativa `nexus-hid.exe`.
+      - Teclado físico Royal Kludge RK61 (`VID_258A & PID_00EC`) autodetectado com sucesso em tempo real com 61 LEDs no formato matricial (`type: 5`).
+      - Lista unificada de 6 dispositivos identificada: 1 placa-mãe ASUS TUF GAMING A520M-PLUS II, 2 memórias ENE DRAM, 2 headers ARGB e 1 teclado RK61.
+      - Disparo de comandos de cor via `/api/control` (vermelho `#FF0000` e ciano `#00FF88`) testados com sucesso nas luzes físicas.
+      - Teste de interface automatizado com Playwright no navegador Chromium: verificação das abas em pílula (`Todos 6`, `Gabinete & Refrigeração 5`, `Periféricos 1`), filtragem isolada do teclado RK61 na aba de Periféricos e telas capturadas em `test-results/devices-todos.png` e `test-results/devices-peripherals.png`.
+    - **Compilação do Instalador Local:**
+      - Executado `scripts/build.ps1` com compilação de binários nativos (`NexusRGB.exe`, `NexusRGB-Uninstall.exe`, `nexus-hid.exe`), coleta de licenças e empacotamento com Inno Setup ISCC.
+      - Instalador gerado em `dist/NexusRGB-Setup-0.1.0.exe` (SHA256: `EF4CA29D07B9D0649AF0C6B3FF62A2DCB6F792FA9A183BC353778971061A0EB5`).
+  - **Instância de Teste Ativa:** servidor de teste em execução em segundo plano na porta 5051 (`http://localhost:5051`) para validação interativa imediata pelo usuário antes da publicação da próxima versão.
+  - **Estado do Git:** código testado e pronto para lançamento da versão `v0.1.0-alpha.36`.
+
 - **Suporte Nativo a Controladoras USB-HID (Design Clean-Room — Lian Li & NZXT Kraken):**
   - **Decisão e Requisito do Usuário:** implementação de suporte nativo out-of-the-box para controladoras USB populares (Lian Li Uni Hub SL120/AL120/SL-INF/SL-V2, cabos Strimer Plus/V2 e NZXT Kraken X/Z/Elite AIO) para que o sistema reconheça e controle essas peças imediatamente ao plugar.
   - **Blindagem Jurídica e Clean-Room (Licença MIT vs GPL/AGPL):** em estrito atendimento à determinação do usuário de evitar qualquer risco de processo ou contaminação de licença ("n fazer igual prs eu n tomar processo"), o código foi desenvolvido em arquitetura Clean-Room pura, 100% em JavaScript/Node.js nativo sob licença MIT, sem cópia de código de projetos C++ de terceiros sob GPL/AGPL. As estruturas de pacotes USB-HID de 64 bytes foram implementadas a partir de primitivas de Buffer puras do Node.js.

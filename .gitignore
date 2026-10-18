@@ -15,3 +15,4 @@ native/*.pdb
 .env*
 server/build-info.json
 *brainstorm*
+scratch/

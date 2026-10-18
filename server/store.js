@@ -43,9 +43,10 @@ function validateLibrary(value) {
 }
 function validatePatch(body, allowNative = false) {
   if (!body || Array.isArray(body) || typeof body !== 'object') throw new Error('Configuração inválida.');
-  const valid = new Set(['power', 'color', 'brightness', 'effect', 'speed', 'palette', ...(allowNative ? ['nativeMode'] : [])]);
+  const valid = new Set(['power', 'color', 'brightness', 'effect', 'speed', 'palette', ...(allowNative ? ['nativeMode', 'syncWithPc'] : [])]);
   for (const key of Object.keys(body)) if (!valid.has(key)) throw new Error(`Campo desconhecido: ${key}`);
   if ('power' in body && typeof body.power !== 'boolean') throw new Error('Ligar/desligar deve ser booleano.');
+  if ('syncWithPc' in body && typeof body.syncWithPc !== 'boolean') throw new Error('Sincronizar deve ser booleano.');
   if ('color' in body && (typeof body.color !== 'string' || !/^#[\da-f]{6}$/i.test(body.color))) throw new Error('Cor inválida.');
   for (const field of ['brightness', 'speed']) if (field in body && (!Number.isInteger(body[field]) || body[field] < 0 || body[field] > 100)) throw new Error(`${field}: use 0 a 100.`);
   if ('effect' in body && !effects.includes(body.effect)) throw new Error('Efeito inválido.');
