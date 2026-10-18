@@ -54,3 +54,18 @@ Compilação integral de desenvolvimento a partir de `13339a5f23260319fc8531e66a
 | `NexusRGB-Uninstall-0.1.0.exe` | `826d64dccbd36ae11baea7017fca0a87a779ecddc921a9e4002b1be0d50ccf8c` |
 
 `BUILD-INFO.json` local identifica o commit e informa `development: true`, sem tag e sem assinatura pública. Nenhum merge, tag ou Release nova foi criado nesta etapa. Novos modelos de hardware, clique manual em cada diálogo de cancelamento, medição de latência de digitação e estabilidade por horas/dias continuam fora da evidência disponível.
+
+## Publicação posterior — alpha.37
+
+Com autorização esclarecida pelo usuário, a branch foi integrada por fast-forward e a tag nova `v0.1.0-alpha.37` criada em `0a78ede08d3c3d9062657a0e764c46e11abf134a`, sem mover tags anteriores. O [workflow oficial](https://github.com/JonJonGf/nexus-rgb/actions/runs/39170857660) concluiu na tentativa 2: três categorias CodeQL aprovadas e duas VMs com **87 verificações cada**, incluindo a correspondência entre instalação, tag e commit. Os relatórios dos artefatos `12152504945` e `12152553539` foram baixados e confirmaram `Passed: true`, sem erro. A [validação geral da tag](https://github.com/JonJonGf/nexus-rgb/actions/runs/39170857629) também passou.
+
+A primeira tentativa parou na conferência do download de `runtime/node.exe` em uma VM: hash divergente, sem publicar ou executar o arquivo. O checksum esperado foi confirmado no arquivo oficial do Node; outro download local coincidiu com ele e tinha assinatura OpenJS válida. A segunda VM passou e o job falho foi repetido com o mesmo manifesto/tag/commit, passando em seguida. A causa exata do download divergente não foi comprovada; não chamar isso de defeito do aplicativo corrigido nem de indício confirmado de malware. Logs privados preservados.
+
+A [Release pública](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.37) contém os quatro arquivos esperados. Todos foram baixados e conferidos contra tamanho/digest do GitHub, `BUILD-INFO.json` e `SHA256SUMS.txt`:
+
+| Arquivo | SHA-256 |
+| --- | --- |
+| `NexusRGB-Setup-0.1.0.exe` | `03fb72d8e2766c74e7bb5fd121af2e5b9cb5354ee46042ed29b33bdf85a7afa2` |
+| `NexusRGB-Uninstall-0.1.0.exe` | `17ba22a2f8df2cfdc5f9c8a6ecef916c17f907ec0e8bd0a2a5719dae584b4c87` |
+
+Esses hashes são da Release recompilada em VM, não do pacote local de desenvolvimento descrito acima. Executáveis Nexus continuam sem assinatura digital própria. Não houve atualização do PC real. Os links do texto público da Release foram ajustados para documentos na tag; tag e executáveis não foram substituídos.
