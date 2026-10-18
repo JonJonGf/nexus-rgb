@@ -37,9 +37,11 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
     - Testes de interface com Playwright: 41/41 testes aprovados (`npx.cmd playwright test`).
     - Teste de interface do teclado: 1/1 aprovado em 1.1 s (`npx.cmd playwright test tests/ui/keyboard-ui.spec.js`).
     - Build de binários nativos (`scripts/build-native.ps1`): executado com sucesso.
+    - Validação de release (`scripts/check-release.cjs v0.1.0-alpha.36`): aprovada com sucesso.
+  - **Preparação da versão `v0.1.0-alpha.36`:** criação das notas de versão em `docs/releases/v0.1.0-alpha.36.md`, atualização dos links de download e documentação em `README.md`, e validação estrita com `scripts/check-release.cjs v0.1.0-alpha.36` aprovada.
   - **Processos em Segundo Plano:** todos finalizados (`manage_task list` limpo, `nexus-hid` e servidor de teste parados).
-  - **Estado do Git:** commit de código `66f1a39` na branch `main`.
-  - **Próximo Passo:** o usuário pode testar a digitação com 0 ms de delay e alternar livremente entre a sincronização com o PC e o uso independente.
+  - **Estado do Git:** commit de código e tag `v0.1.0-alpha.36` na branch `main`.
+  - **Próximo Passo:** enviar a tag e a branch para o repositório remoto (`origin/main` e `origin/v0.1.0-alpha.36`), acionando os workflows automatizados de publicação.
   - **Decisões e Feedback do Usuário:**
     1. *Layout do Teclado no Mapa do Setup:* o usuário apontou que o teclado era renderizado incorretamente no Setup Map como uma única fita estreita de 61 LEDs aglomerados em linha reta ("ele detecta o teclado todo como apenas 1 led e isso faz ele n funcionar direto os efeitos [...] veja o layout do teclado e como ele fica disponibilizado no teclado para funcionar direito além de identificar todos os leds da placa").
     2. *Eliminação do Tremor / Piscar Rápido:* o usuário relatou que o teclado piscava em frequência muito rápida ("além de ficar piscando mt rapido. reveja isso"). O diagnóstico confirmou que o motor de renderização a 20 FPS (50 ms) estava enviando repetidamente relatórios de modo estático ao microcontrolador SinoWealth 8051, resetando o timer interno de PWM a cada 50 ms.
