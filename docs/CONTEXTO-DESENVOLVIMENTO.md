@@ -21,6 +21,9 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
     - [Publicar versão Windows #39123441268](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441268)
     - [Validar Nexus RGB #39123441267](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441267)
     - [Analisar segurança (CodeQL) #39123433145](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123433145)
+  - **Refinamento de Apresentação e Proteção de Rascunhos:**
+    - Ajustado o `README.md` e as notas de versão para remover quaisquer termos defensivos ("copyleft", "clean-room", etc.), apresentando o suporte nativo a Lian Li e NZXT Kraken com foco em recursos técnicos, desempenho e estabilidade.
+    - Adicionado o padrão `*brainstorm*` ao `.gitignore` para blindar qualquer anotação ou rascunho de planejamento contra inclusão acidental no Git. Commit `cabb170` enviado para `origin/main`.
   - **Próximo Passo:** acompanhar a conclusão dos workflows no GitHub Actions e verificar os assets compilados do instalador (`NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`).
 
 ## Situação atual — 17/10/2026
