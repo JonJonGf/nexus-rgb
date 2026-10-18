@@ -38,7 +38,13 @@ Validação final: **209/209 testes gerais e 42/42 de interface aprovados**. Sup
 
 O cenário de teclado com animação interna foi exercitado por 60 ticks: um único comando e um único envio contado, sem renderização contínua de quadros por tecla. O teste de RAM/placa mantém 20/60 FPS simulados. A medição local da consulta de adaptadores após a mudança retornou 22,19 ms na primeira chamada e 4,26–4,91 ms nas quatro seguintes; são poucas amostras em condições diferentes das anteriores, não uma comparação controlada de CPU.
 
-A primeira compilação de desenvolvimento concluiu com auditoria de dependências de produção sem vulnerabilidades reportadas, mas antecedeu ajustes finais. O pacote será recompilado a partir do commit final; não utilizar essa compilação inicial como se fosse a entrega definitiva. Hashes e identificação final ficam no registro de continuidade e nos arquivos privados de validação do pacote.
+A compilação final de desenvolvimento concluiu a partir de `52b9ac9067ae55723116c6c38a054ea5c7917ddd`, sem tag de release (`development: true`). Auditoria das dependências de produção sem vulnerabilidades reportadas. Conferidos 58 arquivos de servidor, interface e coletor do pacote contra a fonte, sem divergência. Um teste adicional com um processo Node isolado verificou o protocolo real de stdin/stdout, BOM inicial, enumeração e ACK/erro, sem carregar HID ou SDK.
+
+- Instalador local: `dist/NexusRGB-Setup-0.1.0.exe`, SHA-256 `577aa4467cfc4a469f6b3c76c85dcc455f7c2241c25839bad137f7b54c5cebfb`.
+- Desinstalador local: `dist/NexusRGB-Uninstall-0.1.0.exe`, SHA-256 `873d7faca5fc4e05a05d70202b4d856300687441c9e6ee94985f1f3bbfbcf638`.
+- A compilação preliminar anterior foi substituída pelo pacote final. A nova evidência de processo e a documentação posteriores ao commit de código não alteram os binários.
+
+O pacote não foi publicado nem instalado. Foi solicitada autorização específica para abrir o instalador candidato com progresso visível, sem reiniciar Windows ou instalar PawnIO. Sem essa resposta, não executar UAC, serviços ou testes físicos.
 
 ## Limites e testes necessários antes de chamar de validado fisicamente
 

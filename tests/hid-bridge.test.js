@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
 const {HidBridge}=require('../server/controllers/hid-bridge');
+const {spawn}=require('node:child_process'),path=require('node:path');
 // OS-process adapter: exercises the production protocol without opening a HID handle.
 function processAdapter(){
   const child=new EventEmitter();child.stdout=new EventEmitter();child.stdin=new EventEmitter();child.stdin.write=line=>{
@@ -27,4 +28,10 @@ test('HID rejects a native error, bounds a stopped consumer and terminates timed
   const replies=await timedOut;
   assert.equal(replies[0].status,'rejected');assert.match(replies[0].reason.message,/set_feature_failed/);
   assert.equal(replies[1].status,'rejected');assert.match(replies[1].reason.message,/prazo/);
+});
+test('bridge exchanges enumeration and acknowledgements with an actual isolated process',async t=>{
+  const bridge=new HidBridge({isTest:false,binaryPath:process.execPath,spawnProcess:(file,_args,options)=>spawn(file,[path.join(__dirname,'fixtures/hid-protocol-worker.cjs')],options)});t.after(()=>bridge.stop());
+  const devices=await bridge.enumerate();assert.equal(devices[0].path,'synthetic-device');
+  assert.equal(await bridge.sendFeatureReport(devices[0].path,Buffer.alloc(65)),true);
+  await assert.rejects(bridge.sendFeatureReport('unavailable',Buffer.alloc(65)),/open_failed/);
 });
