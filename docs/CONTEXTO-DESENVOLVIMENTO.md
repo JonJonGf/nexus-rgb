@@ -23,8 +23,17 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
     - [Analisar segurança (CodeQL) #39123433145](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123433145)
   - **Refinamento de Apresentação e Proteção de Rascunhos:**
     - Ajustado o `README.md` e as notas de versão para remover quaisquer termos defensivos ("copyleft", "clean-room", etc.), apresentando o suporte nativo a Lian Li e NZXT Kraken com foco em recursos técnicos, desempenho e estabilidade.
-    - Adicionado o padrão `*brainstorm*` ao `.gitignore` para blindar qualquer anotação ou rascunho de planejamento contra inclusão acidental no Git. Commit `cabb170` enviado para `origin/main`.
-  - **Próximo Passo:** acompanhar a conclusão dos workflows no GitHub Actions e verificar os assets compilados do instalador (`NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`).
+    - Adicionado o padrão `*brainstorm*` ao `.gitignore` para blindar qualquer anotação ou rascunho de planejamento contra inclusão acidental no Git. Commits `cabb170` e `065225b` enviados para `origin/main`.
+  - **Publicação da versão `v0.1.0-alpha.35` Concluída:**
+    - Versão oficial compilada, testada na VM Windows e publicada com sucesso em [releases/tag/v0.1.0-alpha.35](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.35).
+    - Workflows aprovados no GitHub Actions:
+      - [Publicar versão Windows #39123441268](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441268) (`success`)
+      - [Validar Nexus RGB #39123441267](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441267) (`success`)
+      - [Analisar segurança (CodeQL) #39123433145](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123433145) (`success`)
+    - Hashes SHA-256 conferidos:
+      - `NexusRGB-Setup-0.1.0.exe` = `0951caba18c54e38583965a27c8c73e3727781cb8e1904e5d7dee4eeece2ed18`
+      - `NexusRGB-Uninstall-0.1.0.exe` = `1fa11373c19f98cb5e64e330d1573ef55d2b67cf078b964347dff8452e3036dc`
+  - **Próximo Passo:** versão estável e publicada; pronto para testes físicos ou novos modelos de controladoras conforme demanda.
 
 ## Situação atual — 17/10/2026
 
@@ -42,7 +51,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   4. *Integração no Painel e API:* rota protegida `GET /api/conflicts` para administradores e aviso visual em `#health-conflicts` na aba Configurações > Saúde/Consumo, com tradução completa PT-BR/EN reativa a `nexus:languagechange`.
   5. *Testes Automatizados:* 4 novos testes unitários em `tests/conflicts.test.js`, testes de segurança em `tests/api.test.js` e teste de interface Playwright em `tests/ui/health.spec.js`. Suíte completa de 172 unitários e 40 testes de UI (212 testes no total) 100% aprovada.
 - **Entrega de código (versão alpha.32):** correção definitiva da limitação de taxa no modo Studio (`tick(true)`). Na alpha.31, a condição `!forceSend` na limitação de RAM era ignorada durante animações espaciais do Studio porque `this.studio.revision` alterava a assinatura a cada frame, marcando `forceSend = true` e transmitindo RAM a 60 FPS. Na alpha.32, a contenção a 20 FPS para RAM SMBus é incondicional a quadros de animação (`if (!isPowerOff && !this.identification && isSmbusRam(device))`), preservando apenas desligamento imediato e identificação manual. Exclusão explícita de dispositivos USB/HID em `isSmbusRam(device)`. Suíte completa de 168 testes aprovada (`server/hardware.js`, `tests/traffic-control.test.js`, `docs/releases/v0.1.0-alpha.32.md`, `README.md`, `docs/PLANO-MELHORIAS.md`).
-- **Identidade das tags `alpha.24` a `alpha.34`:**
+- **Identidade das tags `alpha.24` a `alpha.35`:**
   - `v0.1.0-alpha.24` (`f9df27ff1c3f48163466b2d09bc00d40fff61d27`): publicada com todos os 3 workflows verdes e assets oficiais disponíveis.
   - `v0.1.0-alpha.25` (`4b2eaa2f4a53d96c4530efee8e32a17f5f0bd650`): passou nos workflows da tag `Validar Nexus RGB` e `CodeQL`, mantida conforme regra de imutabilidade.
   - `v0.1.0-alpha.26` (`4924d76e894ac590fdee6bba8ed5053dab3d1be6`): publicada em `releases/tag/v0.1.0-alpha.26` após aprovação nos workflows com assets oficiais e SHA-256 conferidos.
@@ -54,6 +63,7 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
   - `v0.1.0-alpha.32` (`f31b694037add490816f653d8d910772d95f34a7`): publicada em [releases/tag/v0.1.0-alpha.32](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.32) com aprovação no workflow [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39069499685) (`success`) e [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39069499721) (`success`). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `27f3cb74d7ebe8e39230d8339cb7655280bccf7c4204d75f48a297485d49a32a`; `NexusRGB-Uninstall-0.1.0.exe` = `b98b32f9ad36c98629a8254d74ca31e85bf181ec7e498742b44b551cd228cc56`.
   - `v0.1.0-alpha.33` (`ce46f92`): passou nos workflows Validar Nexus RGB e CodeQL; bloqueada no security gate por alertas prévios de injeção em `conflicts.js`; mantida conforme regra de imutabilidade de tags.
   - `v0.1.0-alpha.34` (`055668a`): publicada em [releases/tag/v0.1.0-alpha.34](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.34) com aprovação no workflow [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39091258250) (`success`) e [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39091258231) (`success`). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `e9e7a9ebf4a0e092b38b583b3272e474b29badeb5a9b411ca49fc3405bfb3a0c`; `NexusRGB-Uninstall-0.1.0.exe` = `26388e9715b53b1e1b97f620ad83e9f780b3c5afbf4cbd412108f78a749af588`.
+  - `v0.1.0-alpha.35` (`6393a3d`): publicada em [releases/tag/v0.1.0-alpha.35](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.35) com aprovação no workflow [Publicar versão Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441268) (`success`) e [Validar Nexus RGB](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441267) (`success`). Hashes SHA-256 conferidos: `NexusRGB-Setup-0.1.0.exe` = `0951caba18c54e38583965a27c8c73e3727781cb8e1904e5d7dee4eeece2ed18`; `NexusRGB-Uninstall-0.1.0.exe` = `1fa11373c19f98cb5e64e330d1573ef55d2b67cf078b964347dff8452e3036dc`.
 - **Versão instalada no PC físico do usuário:** o usuário testou a `alpha.32` a 60 FPS prolongadamente em hardware físico e confirmou estabilidade total sem qualquer travamento do controlador ("em relação ao teste de 60 fps até agora n deu problema acho q funcionou kkkkkk deu bom"), comprovando o sucesso da contenção física estrita a 20 FPS para a RAM no Studio. Nenhuma alteração não autorizada foi feita na instalação real, serviços, portas ou arquivos de dados do usuário pelo agente.
 - **Identidade de produto (Nexus RGB Studio):** definida a consolidação da marca `Nexus RGB` com reforço no estúdio espacial: *"Nexus RGB Studio — O estúdio espacial de iluminação e controle RGB local para Windows"*. `README.md` reformulado e `playwright.config.js` fortalecido com retentativas para evitar flakes de runners no CI.
 - **Evidência empírica coletada pelo usuário em hardware real (teste a 60 FPS com alpha.31 no Studio):**
