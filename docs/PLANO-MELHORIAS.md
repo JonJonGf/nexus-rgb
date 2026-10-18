@@ -32,6 +32,12 @@ O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usu�
 
 - Recuperação de OpenRGB parcialmente indisponível: primeira etapa implementada na `v0.1.0-alpha.27` (isolamento de geração, falha estruturada, componentes offline, sincronia de RAM ao ligar/desligar e recuperação manual supervisionada via `nexusrgb://restart`) e refinada na preparação da alpha.28 (cancelamento explícito com `ECANCELLED`, descarte de contaminação de diagnósticos entre gerações, atualização automática do mapa do Studio sem precisar trocar de efeito, compatibilidade com Windows Restart Manager e encerramento limpo/retorno automático da bandeja pelo instalador com isolamento de sessão). Opção automática futura permanece em planejamento supervisionado. Consulte a [proposta detalhada](RECUPERACAO-CONTROLADOR.md).
 
+### Suporte nativo a controladoras USB-HID (Clean-Room: Lian Li & NZXT Kraken)
+
+| Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |
+| :--- | :--- | :--- | :--- | :--- |
+| **Falta de controle direto para controladoras USB populares e risco de cópia/infração de direitos autorais:** controladoras USB-HID comuns (Lian Li Uni Hub, Strimer, NZXT Kraken AIO) dependiam exclusivamente de daemons externos com drivers complexos de Ring-0 ou projetos sob GPL/AGPL cujo código violaria a licença MIT do Nexus RGB caso fosse incorporado diretamente. | Arquitetura Clean-Room original em Node.js/JavaScript sob MIT: encoders de pacotes de 64 bytes (`encodeLianLiPacket` `0xE0` e `encodeNzxtPacket` `0x22`), suporte a streaming multi-pacote, geradores de descritores com decomposição de ventoinhas individuais em ARGB circulares no Studio (`shape: 'fan'`), cabos Strimer (`shape: 'strip'`) e subsistema `ControllerRegistry` totalmente desacoplado do OpenRGB integrado em `Hardware`. | `tests/native-controllers.test.js` (6 testes unitários aprofundados), suíte completa de 182 testes unitários (`npm test`). | Suporte out-of-the-box para Lian Li e NZXT Kraken; funcionamento independente com ou sem daemon OpenRGB; proteção jurídica integral contra contaminação por código copyleft/GPL. | Testes executados em ambiente simulado e integração com buffers virtuais; validação com dispositivos físicos plugados depende de hardware específico do usuário. |
+
 ### Suporte a periféricos, mapeamento de barramentos e arquitetura headless
 
 | Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |

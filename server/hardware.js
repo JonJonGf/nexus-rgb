@@ -3,6 +3,7 @@ const { EventEmitter } = require('node:events');
 const crypto = require('node:crypto');
 const { Client } = require('openrgb-sdk');
 const { effects } = require('./store');
+const { ControllerRegistry } = require('./controllers');
 function identity(device, duplicate = 0) {
   const physical = [device.vendor, device.name, device.serial, device.location, duplicate].join('|');
   return crypto.createHash('sha256').update(physical).digest('hex').slice(0, 24);
@@ -128,6 +129,13 @@ class Hardware extends EventEmitter {
     this.consecutiveDescriptionHangs = 0; this.controllerHung = false; this.sharedAnimations = new Map();
     this.lastSentColors = new Map(); this.ramLastSentTime = new Map(); this.hasDroppedFrame = false; this.tickPending = false; this.tickPendingSpatial = false; this.deferredFromSpatial = new Set();
     this.metrics = { framesCalculated: 0, framesSent: 0, framesDeduplicated: 0, framesDroppedTransport: 0, framesThrottledRam: 0 };
+    this.controllerRegistry = options.controllerRegistry || new ControllerRegistry({ store: this.store });
+    if (this.controllerRegistry.getDevices().length > 0) {
+      this.devices = [...this.controllerRegistry.getDevices()];
+    }
+  }
+  hasNativeControllers() {
+    return Boolean(this.controllerRegistry && this.controllerRegistry.getDevices().length > 0);
   }
   cancelOperations(reason, generation = null, client = null) {
     const err = reason instanceof Error ? reason : new Error(reason || 'Operação cancelada.');
@@ -393,6 +401,12 @@ class Hardware extends EventEmitter {
         zones: raw.zones.map(z => ({ id: z.id, name: z.name, leds: z.ledsCount, min: z.ledsMin, max: Math.min(4096, z.ledsMax), resizable: z.resizable })) };
       device.components = components(device); devices.push(device);
     }
+    if (this.controllerRegistry) {
+      for (const nativeDev of this.controllerRegistry.getDevices()) {
+        devices.push(nativeDev);
+        leds += nativeDev.ledCount;
+      }
+    }
     if (this.generation !== currentGen || this.stopped) return;
     const present = new Set(devices.map(device => device.id));
     for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
@@ -487,13 +501,15 @@ class Hardware extends EventEmitter {
       lastOccurredAt: this.lastFailure.lastOccurredAt,
       count: this.lastFailure.count
     } : null;
+    const hasNative = this.hasNativeControllers();
     return {
-      connected: this.connected,
+      connected: Boolean(this.connected || hasNative),
       detecting: this.detecting,
       error: this.error,
       controllerCount: this.devices.length,
       controllerHung: Boolean(this.controllerHung),
       busTypes: Array.from(new Set(this.devices.map(d => d.busType).filter(Boolean))),
+      nativeControllers: this.controllerRegistry ? this.controllerRegistry.getSummary() : [],
       lastFailure,
       metrics: {
         framesCalculated: this.metrics.framesCalculated,
@@ -510,8 +526,8 @@ class Hardware extends EventEmitter {
           ...device,
           ...component,
           ...(channels ? { modes: [], splitZone: true } : {}),
-          status: this.connected ? 'online' : 'offline',
-          stale: !this.connected,
+          status: (this.connected || device.nativeController) ? 'online' : 'offline',
+          stale: !(this.connected || device.nativeController),
           customized: Object.hasOwn(this.store.data.devices, component.id),
           mapExcluded: excluded.has(component.id),
           smoothPowerCapable,
@@ -599,6 +615,7 @@ class Hardware extends EventEmitter {
     return base.map(c => ({ red: Math.round(c.red * mult), green: Math.round(c.green * mult), blue: Math.round(c.blue * mult) }));
   }
   async applyMode(device, mode, settings, perLedColors = false) {
+    if (device.nativeController) return;
     const config = { ...mode };
     if (mode.flagList.includes('brightness')) config.brightness = perLedColors ? mode.brightnessMax : Math.round(mode.brightnessMin + (mode.brightnessMax - mode.brightnessMin) * (settings.power ? settings.brightness / 100 : 0));
     if (mode.flagList.includes('speed')) config.speed = perLedColors ? mode.speedMin : Math.round(mode.speedMin + (mode.speedMax - mode.speedMin) * settings.speed / 100);
@@ -619,6 +636,17 @@ class Hardware extends EventEmitter {
     if (!forceSend && last && colorsEqual(last, colors)) {
       this.metrics.framesDeduplicated++;
       return false;
+    }
+
+    // Native USB-HID controllers (Lian Li Uni Hub, NZXT Kraken, etc.)
+    if (device.nativeController) {
+      if (this.controllerRegistry) {
+        this.controllerRegistry.sendLeds(device.id, colors, isPowerOff);
+      }
+      this.metrics.framesSent++;
+      this.hasDroppedFrame = false;
+      this.lastSentColors.set(id, colors.map(c => ({ red: c.red, green: c.green, blue: c.blue })));
+      return true;
     }
 
     // 2. Safe rate limit for SMBus / RAM controllers (fixed 20 FPS = minimum ~46 ms between physical writes)
@@ -656,7 +684,7 @@ class Hardware extends EventEmitter {
     return true;
   }
   async tick(spatialFrame = false) {
-    if (this.stopped || !this.connected) return;
+    if (this.stopped || (!this.connected && !this.hasNativeControllers())) return;
     if (this.busy) {
       this.tickPending = true;
       if (spatialFrame) this.tickPendingSpatial = true;
@@ -673,7 +701,7 @@ class Hardware extends EventEmitter {
     this.busy = true; let changedErrors = false;
     try {
       if ((this.client?.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
-      if (Date.now() >= this.nextDiscovery) {
+      if (this.client && Date.now() >= this.nextDiscovery) {
         const socketBacklogged = Boolean(this.client?.socket && typeof this.client.socket.writableLength === 'number' && this.client.socket.writableLength > 0);
         if (socketBacklogged) {
           this.nextDiscovery = Date.now() + 500;
@@ -830,4 +858,4 @@ class Hardware extends EventEmitter {
     this.connected = false;
   }
 }
-module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual, isSmbusRam, detectBusArchitecture, classifyDeviceType };
+module.exports = { Hardware, identity, frame, hue, paletteColor, colorsEqual, isSmbusRam, detectBusArchitecture, classifyDeviceType, ControllerRegistry };

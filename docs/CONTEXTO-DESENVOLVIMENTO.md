@@ -2,6 +2,23 @@
 
 Este é o registro público de continuidade entre sessões e ferramentas. Leia também [AGENTS.md](../AGENTS.md), o [plano de melhorias](PLANO-MELHORIAS.md) e o [guia de desenvolvimento](DESENVOLVIMENTO.md). Confirme o estado atual no Git e no ambiente antes de agir; versões instaladas em outros computadores podem ser diferentes.
 
+## Situação atual — 18/10/2026
+
+- **Suporte Nativo a Controladoras USB-HID (Design Clean-Room — Lian Li & NZXT Kraken):**
+  - **Decisão e Requisito do Usuário:** implementação de suporte nativo out-of-the-box para controladoras USB populares (Lian Li Uni Hub SL120/AL120/SL-INF/SL-V2, cabos Strimer Plus/V2 e NZXT Kraken X/Z/Elite AIO) para que o sistema reconheça e controle essas peças imediatamente ao plugar.
+  - **Blindagem Jurídica e Clean-Room (Licença MIT vs GPL/AGPL):** em estrito atendimento à determinação do usuário de evitar qualquer risco de processo ou contaminação de licença ("n fazer igual prs eu n tomar processo"), o código foi desenvolvido em arquitetura Clean-Room pura, 100% em JavaScript/Node.js nativo sob licença MIT, sem cópia de código de projetos C++ de terceiros sob GPL/AGPL. As estruturas de pacotes USB-HID de 64 bytes foram implementadas a partir de primitivas de Buffer puras do Node.js.
+  - **Arquitetura e Arquivos Criados/Alterados:**
+    1. `server/controllers/protocol-lianli.js`: codificador clean-room de pacotes de 64 bytes (`encodeLianLiPacket` com opcode `0xE0`, canal 1–4, contagem, escala de brilho e payload RGB), suporte a multi-pacotes (`encodeLianLiPackets`), gerador de descritor `buildLianLiDevice` com decomposição automática de canais em ventoinhas ARGB individuais independentes no Studio (`type: 3`, `shape: 'fan'`) e cabos Strimer (`type: 4`, `shape: 'strip'`).
+    2. `server/controllers/protocol-nzxt.js`: codificador clean-room de pacotes de 64 bytes (`encodeNzxtPacket` com opcode `0x22`, sub-opcode `0x00`, zonas de bomba/logo/canais e escala de cores), suporte a multi-pacotes (`encodeNzxtPackets`), gerador de descritor `buildNzxtKrakenDevice` com decomposição de anel da bomba (`shape: 'fan'`), logo central (`ledCount: 1`) e ventoinhas do radiador (`type: 3`, `shape: 'fan'`).
+    3. `server/controllers/index.js`: `ControllerRegistry` gerenciador do ciclo de vida das controladoras, inicialização a partir do store (`store.data.nativeControllers`), suporte a transporte customizado/virtual, roteamento de `sendLeds` e diagnósticos anonimizados seguros em `getSummary()`.
+    4. `server/hardware.js`: integração transparente no ciclo do `Hardware` (`options.controllerRegistry || new ControllerRegistry({ store: this.store })`); fusão de dispositivos em `discover()`; guarda em `applyMode()` para evitar chamadas indevidas ao SDK do OpenRGB; despacho direto de quadros em `sendLeds()`; permissão de execução de `tick()` e relato de `connected: true` / status `'online'` mesmo quando o daemon OpenRGB não estiver em execução; exportação de `ControllerRegistry`.
+    5. `tests/native-controllers.test.js`: 6 testes unitários aprofundados cobrindo protocolos, decomposição de ventoinhas, registro, descoberta, snapshot, entrega de pacotes, operação autônoma sem OpenRGB e valores de borda/sanitização.
+  - **Testes Executados e Resultados Observados:**
+    - `node --test tests/native-controllers.test.js`: 6/6 testes aprovados em ~100 ms.
+    - `node --test --test-concurrency=2 tests/*.test.js`: todos os 182 testes unitários aprovados (176 de baseline + 6 novos) com 0 falhas, 0 cancelamentos e 0 pulados.
+  - **Estado do Git:** alterações locais prontas para commit em `server/hardware.js`, novos arquivos em `server/controllers/` e `tests/native-controllers.test.js`.
+  - **Próximo Passo:** registrar no plano de melhorias, commitar e enviar para a branch `main`.
+
 ## Situação atual — 17/10/2026
 
 - **Remediação de alertas CodeQL / Code Scanning (`server/conflicts.js`):** resolução dos alertas #87 e #88 (`js/command-line-injection`). A injeção potencial era apontada pelo CodeQL devido ao uso de `process.env.SystemRoot` concatenado ao caminho de `reg.exe` e `tasklist.exe`. Em modelo de ameaça local (`threat-models: [local]`), `process.env` é classificado como entrada controlada pelo usuário. A chamada foi ajustada para invocar diretamente os executáveis do sistema como literais constantes seguros (`reg.exe` e `tasklist.exe`), removendo a dependência de `path` e saneando o fluxo de dados.
