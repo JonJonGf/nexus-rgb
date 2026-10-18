@@ -17,8 +17,11 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
     - `node --test tests/native-controllers.test.js`: 6/6 testes aprovados em ~100 ms.
     - `node --test --test-concurrency=2 tests/*.test.js`: todos os 182 testes unitários aprovados (176 de baseline + 6 novos) com 0 falhas, 0 cancelamentos e 0 pulados.
   - **Preparação da versão `v0.1.0-alpha.35`:** criação das notas de versão em `docs/releases/v0.1.0-alpha.35.md`, atualização dos links de download e documentação em `README.md`, e validação estrita com `scripts/check-release.cjs v0.1.0-alpha.35` aprovada.
-  - **Estado do Git:** commit de preparação e tag `v0.1.0-alpha.35` para acionamento dos workflows automatizados de validação de instalador (`installer.yml`), CodeQL (`codeql.yml`) e publicação (`publish-release.yml`).
-  - **Próximo Passo:** monitorar a execução dos workflows no GitHub Actions e verificar os assets compilados do instalador (`NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`).
+  - **Estado do Git:** commit de código `bd6c0f9`, commit de manifesto `6393a3d` e tag `v0.1.0-alpha.35` enviados para `origin/main`. Workflows em andamento no GitHub Actions:
+    - [Publicar versão Windows #39123441268](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441268)
+    - [Validar Nexus RGB #39123441267](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123441267)
+    - [Analisar segurança (CodeQL) #39123433145](https://github.com/JonJonGf/nexus-rgb/actions/runs/39123433145)
+  - **Próximo Passo:** acompanhar a conclusão dos workflows no GitHub Actions e verificar os assets compilados do instalador (`NexusRGB-Setup-0.1.0.exe` e `NexusRGB-Uninstall-0.1.0.exe`).
 
 ## Situação atual — 17/10/2026
 
