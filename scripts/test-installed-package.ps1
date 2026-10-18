@@ -113,12 +113,38 @@ try {
   Invoke-RestMethod ($origin+'/api/profiles') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"name":"VM preservation check"}' -WebSession $session | Out-Null
   $profileKey='profile:'+(State).profiles[0].id
   Invoke-RestMethod ($origin+'/api/library') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{key=$profileKey;favorite=$true;category='VM';transitionMs=300} | ConvertTo-Json -Compress) -WebSession $session | Out-Null
+  # A disconnected synthetic component exercises persisted geometry/calibration
+  # without depending on physical LEDs in the hosted VM.
+  $savedPiece=@{key='vm-calibrated-piece';deviceId=('f'*24);name='VM preserved map';start=0;count=12;x=0.37;y=0.61;width=0.18;height=0.29;rotation=45;shape='fan';columns=8;reverse=$false;rings=@(@{count=12;offset=3;reverse=$true});ledOrder=@(11..0);group='VM calibration'}
+  $mapBefore=Invoke-RestMethod ($origin+'/api/studio') -WebSession $session
+  $mapBody=@{layout=@($savedPiece);baseLayoutRevision=$mapBefore.layoutRevision}
+  Invoke-RestMethod ($origin+'/api/studio') -Method Post -Headers $headers -ContentType 'application/json' -Body ($mapBody | ConvertTo-Json -Depth 8 -Compress) -WebSession $session | Out-Null
+  $persistedMap=(Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress
   $settings=Join-Path $data 'app\settings.json'; $before=(Get-FileHash -LiteralPath $settings).Hash
   $firstDiagnostic=[IO.File]::ReadAllText((Join-Path $data 'installation.log'))
+  # Exercise the same extracted preflight/restore transaction used when setup
+  # is cancelled after preparation. No UI cancellation result is inferred.
+  $preflightFolder=Join-Path $reports 'cancel-transaction'
+  New-Item -ItemType Directory -Path $preflightFolder -Force | Out-Null
+  Copy-Item -LiteralPath (Join-Path $workspace 'installer\service-preflight.ps1'),(Join-Path $workspace 'installer\backup-before-upgrade.ps1'),(Join-Path $workspace 'scripts\install-path.ps1') -Destination $preflightFolder
+  & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $preflightFolder 'service-preflight.ps1') -Mode Prepare -Root $root -PanelPort $PanelPort -SDKPort $SDKPort -TempDir $preflightFolder
+  $resumeMask=$LASTEXITCODE
+  Check ($resumeMask -eq 3) 'Setup preparation records both running services for cancellation recovery'
+  Check (@(Get-Service NexusRGB,NexusRGBHardware | Where-Object Status -ne 'Stopped').Count -eq 0) 'Setup preparation stops only the owned services'
+  & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $preflightFolder 'service-preflight.ps1') -Mode Restore -Root $root -RestoreMask $resumeMask
+  Check ($LASTEXITCODE -eq 0) 'Cancelled-setup transaction restores previously running services'
+  Wait-Panel; Session; VerifyServices
+  Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Cancelled-setup transaction preserves settings and calibration byte for byte'
+  $trayBefore=Start-Process -FilePath (Join-Path $root 'NexusRGB.exe') -ArgumentList '--tray' -WindowStyle Hidden -PassThru
+  Start-Sleep -Seconds 2
+  Check (-not $trayBefore.HasExited) 'Own tray process is open before upgrade'
   Setup 'upgrade'; VerifyServices
+  $trayBefore.Refresh()
+  Check $trayBefore.HasExited 'Upgrade closes the previous tray process automatically'
   Check (-not $welcome) 'Upgrade does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Upgrade preserves settings and profiles byte for byte'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Upgrade preserves imported effects byte for byte'
+  Check (((Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress) -eq $persistedMap) 'Upgrade preserves saved map and calibration'
   $upgradeBackups=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json')
   Check ($upgradeBackups.Count -ge 1) 'Upgrade creates a complete backup before replacing payload'
   $upgradeBackup=[IO.File]::ReadAllText($upgradeBackups[0].FullName) | ConvertFrom-Json
@@ -148,6 +174,7 @@ try {
   $newOpenRGB=@(Get-CimInstance Win32_Process | Where-Object {$_.ParentProcessId -eq $hardwareAfter.ProcessId -and $_.Name -eq 'OpenRGB.exe'})
   Check ($oldOpenRGB.Count -eq 1 -and $newOpenRGB.Count -eq 1 -and $oldOpenRGB[0].ProcessId -ne $newOpenRGB[0].ProcessId) 'Recovery replaces the supervised OpenRGB process'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before -and (Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Recovery preserves settings and effect imports byte for byte'
+  Check (((Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress) -eq $persistedMap) 'Recovery preserves map and calibration'
   $helper=Start-Process -FilePath (Join-Path $root 'NexusRGB-Uninstall.exe') -ArgumentList '--check' -WindowStyle Hidden -Wait -PassThru
   Check ($helper.ExitCode -eq 0) 'Standalone uninstall helper validates installed registration'
   Uninstall 'first-removal'
@@ -158,6 +185,7 @@ try {
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Reinstall restores preserved data'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Reinstall restores imported effect files'
   Check ((State).performance.fps -eq 60) 'Reinstalled API restores selected FPS'
+  Check (((Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress) -eq $persistedMap) 'Reinstall restores map and calibration'
   Uninstall 'final-removal'
   Check (@(Get-NetFirewallRule -DisplayName $sentinel).Count -eq 1) 'Unrelated firewall rule preserved'
   $after=Get-CimInstance Win32_Service -Filter "Name='RpcSs'" | Select-Object Name,State,StartMode,PathName
