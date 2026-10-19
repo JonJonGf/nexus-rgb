@@ -36,3 +36,5 @@ Arco-íris passa a usar o ciclo interno Neon `0x13` do RK61; Onda mantém `0x01`
 ## Entrega
 
 Alterações de código/documentação ainda não commitadas neste registro inicial. Sem push, tag ou Release. Instalador publicado e PC continuam alpha.37 e não contêm estas correções. Preparar e conferir um pacote de desenvolvimento após os testes; avisar antes da instalação/UAC para permitir que o usuário aceite remotamente. Não reiniciar o Windows ou instalar outro driver. Confirmar resultado físico sem inferi-lo dos mocks ou do HTTP.
+
+**Checkpoint posterior:** código commitado em `5b3e2466fa99a81e5de5c56ba13aa9b5765e1845`, build de desenvolvimento concluído e 159 arquivos conferidos com a fonte. Worker/WASM do pacote importou o exemplo Canvas próprio com hardware desativado; painel respondeu 200. Sem binários WinRing no payload; auditoria de dependências de produção sem vulnerabilidades conhecidas na consulta. Hashes e pasta privada congelada estão no contexto. Sem instalação, UAC, push, tag ou Release neste checkpoint; a documentação posterior não altera o pacote criado.
