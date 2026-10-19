@@ -4,6 +4,11 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 19/10/2026
 
+### Aviso de Iluminação Dinâmica após desativar — leitura confirmada
+
+- Usuário informou que desativou a opção no Windows e o aviso de verificação incompleta permaneceu. Conferência somente de leitura: na conta interativa, `AmbientLightingEnabled` está desativado; o coletor do repositório confirma um perfil consultado, `enabled: false`, `partial: false`. Na instalação `1b42f71`, o serviço informa zero perfis consultados e `partial: true`, inclusive após renovar a amostra. Isso explica o aviso: incapacidade de conferir pela identidade do serviço, não evidência de que a preferência continua ativa nem de conflito real.
+- Nenhuma mudança em Registro, permissões, iluminação, instalação ou serviços; nenhum UAC. Sem correção de código neste diagnóstico: não esconder a incerteza nem tratar falha de leitura como confirmação de ativação. Evidências sanitizadas privadas em `data/dynamic-lighting-review-20261019/`. Caso se amplie a verificação futuramente, testar a leitura na sessão interativa e sua comunicação local sem elevar privilégios; esse trabalho não foi implementado neste bloco. Candidata `af73392` continua pronta e ainda não instalada; documentação posterior não altera o pacote.
+
 ### Testes autônomos autorizados — retorno do áudio corrigido localmente
 
 - Usuário autorizou testar sozinho, incluindo comandos temporários aos LEDs. Na instalação `1b42f71`, passaram RAM Arco-íris→Estático, Live/expiração, gravação, cenas/retorno, prioridade manual, geral desligado→peça individual ligada e perfil por aplicativo pela bandeja real. Captura WASAPI respondeu ao tom sintético, mas desabilitar áudio reteve o último quadro: defeito real reproduzido em HTTP→SDK, corrigido localmente em `server/hardware.js`, com regressão em `tests/experiences.test.js`. **258/258 gerais e 50/50 Edge sem retries passaram**. [Relatório e limites](validation/2026-10-19-testes-autonomos-experiencias.md).
