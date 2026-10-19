@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 19/10/2026
 
+### Testes autônomos autorizados — retorno do áudio corrigido localmente
+
+- Usuário autorizou testar sozinho, incluindo comandos temporários aos LEDs. Na instalação `1b42f71`, passaram RAM Arco-íris→Estático, Live/expiração, gravação, cenas/retorno, prioridade manual, geral desligado→peça individual ligada e perfil por aplicativo pela bandeja real. Captura WASAPI respondeu ao tom sintético, mas desabilitar áudio reteve o último quadro: defeito real reproduzido em HTTP→SDK, corrigido localmente em `server/hardware.js`, com regressão em `tests/experiences.test.js`. **258/258 gerais e 50/50 Edge sem retries passaram**. [Relatório e limites](validation/2026-10-19-testes-autonomos-experiencias.md).
+- Configurações e os 36 efeitos exatamente restaurados; seis componentes online, áudio/contexto voltaram a desativados. Revisão do backup completo recusou um importado antigo por orçamento de desenho; restauração validada somente com os seis importados referenciados preservou todos os arquivos. Não declarar o backup completo restaurável nem enfraquecer o limite. Dados/evidências privados em `data/experiences-autotest-20261019/`.
+- Correção do quadro final ainda **não commitada/compilada/instalada** neste ponto; PC segue `1b42f71`, Release pública alpha.37, nenhum push/tag/Release/UAC/reinício. Próximo: concluir regressões, registrar checkpoint local e preparar pacote se adequado. Instalação posterior exige confirmar disponibilidade/autorização para UAC. WLED e Echo reais e aparência física continuam pendentes; não equiparar o stream de saída a leitura física.
+
 ### Experiências implementadas — candidata instalada e conferida
 
 - **Instalação autorizada concluída em 19/10:** usuário confirmou disponibilidade e autorizou abrir a candidata. Backup novo feito imediatamente antes; helper privado `data/experiences-validation/install-approved-1b42f71.ps1` fixou o hash e abriu progresso visível na sessão interativa, sem instalar PawnIO/reiniciar Windows. Log encerrado às 16h34 (Brasília), serviços ativos e bandeja na sessão do usuário. `ShellExecute` não capturou exit code; conclusão confirmada pelo log, API e comparação dos arquivos, sem inventar esse resultado.

@@ -760,7 +760,11 @@ class Hardware extends EventEmitter {
     }
     if (this.identification && Date.now() >= this.identification.until) this.cancelIdentification();
     const experienceFrame = Boolean(this.experiences?.isAnimating());
-    const animated = experienceFrame || this.devices.some(d => (d.components || [d]).some(component => {
+    // A stopped overlay still owes the controller one base frame. Dirty alone
+    // cannot do this: the saved lighting signature is unchanged by music/gestures.
+    const experienceEnded = Boolean(this.experienceActive && !experienceFrame);
+    this.experienceActive = experienceFrame;
+    const animated = experienceFrame || experienceEnded || this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
       const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
       const powerChanged = this.powerKnown.has(component.id) && this.powerKnown.get(component.id) !== Boolean(s.power);
@@ -794,7 +798,7 @@ class Hardware extends EventEmitter {
           const powerRamp = this.powerRamps.has(component.id);
           const lit = Boolean(identify || powerRamp || (s.power && (s.brightness > 0 || s.nativeMode !== undefined)));
           return lit
-            ? { id: component.id, count: component.ledCount, ...s, identify, powerRamp, spatial: !identify && this.studio?.hasDevice(component.id) ? this.studio.revision : null }
+            ? { id: component.id, count: component.ledCount, ...s, identify, powerRamp, experience: experienceFrame, spatial: !identify && this.studio?.hasDevice(component.id) ? this.studio.revision : null }
             : { id: component.id, count: component.ledCount, lit: false, power: Boolean(s.power) };
         }));
         const changed = this.applied.get(d.id) !== signature;

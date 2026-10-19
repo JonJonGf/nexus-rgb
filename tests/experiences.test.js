@@ -107,3 +107,33 @@ test('live touches affect mapped LEDs, expire, and cannot illuminate excluded or
   app.store.data.studio.excluded=[];app.store.data.devices[id]={power:false};assert.equal(render().red,0);
   delete app.store.data.devices[id]; await new Promise(r=>setTimeout(r,190));assert.equal(render().red,0);
 });
+
+test('turning audio off restores the static frame through the SDK instead of retaining the last music color',async t=>{
+  const {app,request,cookie}=await fixture(t),{EventEmitter}=require('node:events'),writes=[];
+  class SDK extends EventEmitter {
+    async connect(){} async getControllerCount(){return 1;}
+    async getControllerData(){return {name:'Output fixture',vendor:'Fixture',location:'USB:experiences',type:2,serial:'',zones:[],colors:[{red:0,green:0,blue:0}],modes:[{id:2,name:'Direct',flagList:['perLedColor']}]};}
+    async updateMode(){} updateLeds(id,colors){writes.push(structuredClone(colors));} disconnect(){}
+  }
+  app.hardware.makeClient=()=>new SDK();app.hardware.stopped=false;await app.hardware.connect();
+  const id=app.hardware.snapshot().devices[0].id;
+  assert.equal((await request('/api/control',{method:'POST',cookie,body:{power:true,brightness:100,effect:'static',color:'#000000'}})).status,200);
+  assert.equal((await request('/api/studio',{method:'POST',cookie,body:{enabled:false,layout:[{key:id,deviceId:id,name:'Fixture',reverse:false,start:0,count:1,x:.5,y:.5,width:.1,height:.1,rotation:0,shape:'strip',columns:1}]}})).status,200);
+  await app.hardware.tick();
+  const audio={enabled:true,gain:1,palette:['#ff0000','#00ff00','#0000ff'],axis:'y'};
+  assert.equal((await request('/api/experiences/settings',{method:'POST',cookie,body:{audio}})).status,200);
+  await request('/api/experiences/signal',{method:'POST',cookie,body:{bands:[0,1,0],capture:'active'}});await app.hardware.tick();
+  assert.deepEqual(writes.at(-1),[{red:0,green:255,blue:0}]);
+  assert.equal((await request('/api/experiences/settings',{method:'POST',cookie,body:{audio:{...audio,enabled:false}}})).status,200);
+  await app.hardware.tick();assert.deepEqual(writes.at(-1),[{red:0,green:0,blue:0}]);
+  const count=writes.length;await app.hardware.tick();assert.equal(writes.length,count,'Static output must return to idle without repeated bus writes.');
+  for(const termination of ['stop','expiry']){
+    const gesture={x:.5,y:.5,color:'#ff0000',kind:'trail',durationMs:termination==='stop'?4000:100};
+    assert.equal((await request('/api/experiences/live',{method:'POST',cookie,body:{events:[gesture]}})).status,200);
+    await app.hardware.tick();assert.ok(writes.at(-1)[0].red>0,'Gesture must reach the SDK before testing its end.');
+    if(termination==='stop')await request('/api/experiences/stop',{method:'POST',cookie,body:{}});
+    else await new Promise(r=>setTimeout(r,1200)); // No ticks during expiry: simulates suspension/delay.
+    await app.hardware.tick();assert.deepEqual(writes.at(-1),[{red:0,green:0,blue:0}],termination+' must send the base frame.');
+    const sent=writes.length;await app.hardware.tick();assert.equal(writes.length,sent,'The terminal frame must not create an idle write loop.');
+  }
+});
