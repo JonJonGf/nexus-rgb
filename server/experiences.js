@@ -96,7 +96,15 @@ class Experiences {
     const layout=this.studio.layout();if(this.geometry?.layout!==layout){const points=new Map();for(const item of layout)for(const p of spatial.points(item)){if(!points.has(p.deviceId))points.set(p.deviceId,[]);points.get(p.deviceId)[p.index]={x:p.x/320,y:p.y/200};}this.geometry={layout,points};}
     const points=this.geometry.points.get(id);if(!points)return colors;
     const at=performance.now(),events=[...this.events,...(this.replay?.events||[])].filter(e=>at>=e.at&&at<e.at+e.durationMs).slice(-32),brightness=settings.brightness/100,audio=this.data.audio,age=at-(this.bandAt||-Infinity),palette=audio.palette.map(c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16)));
-    return colors.map((c,i)=>{const p=points[i];if(!p)return c;const v=live.sample(p.x,p.y,events,at);if(audio.enabled&&age<1000){const band=Math.min(2,Math.max(0,Math.floor(p[audio.axis]*3))),level=Math.min(1,this.bands[band]*audio.gain)*Math.max(0,1-Math.max(0,age-250)/750),color=palette[band];v.red=Math.min(255,v.red+color[0]*level);v.green=Math.min(255,v.green+color[1]*level);v.blue=Math.min(255,v.blue+color[2]*level);v.alpha=Math.max(v.alpha,level);}return {red:Math.round(c.red*(1-v.alpha)+v.red*brightness),green:Math.round(c.green*(1-v.alpha)+v.green*brightness),blue:Math.round(c.blue*(1-v.alpha)+v.blue*brightness)};});
+    const maximum=Math.round(255*brightness);
+    return colors.map((c,i)=>{
+      const p=points[i];if(!p)return c;const v=live.sample(p.x,p.y,events,at);
+      if(audio.enabled&&age<1000){const band=Math.min(2,Math.max(0,Math.floor(p[audio.axis]*3))),level=Math.min(1,this.bands[band]*audio.gain)*Math.max(0,1-Math.max(0,age-250)/750),color=palette[band];v.red=Math.min(255,v.red+color[0]*level);v.green=Math.min(255,v.green+color[1]*level);v.blue=Math.min(255,v.blue+color[2]*level);v.alpha=Math.max(v.alpha,level);}
+      // Gestures accumulate additively; their alpha is the strongest gesture.
+      // Saturate the complete mix, not just the overlay, before SDK byte encoding.
+      const mix=(base,overlay)=>Math.max(0,Math.min(maximum,Math.round(base*(1-v.alpha)+overlay*brightness)));
+      return {red:mix(c.red,v.red),green:mix(c.green,v.green),blue:mix(c.blue,v.blue)};
+    });
   }
   put(input) {
     const item=scene(input), next=structuredClone(this.data), index=next.scenes.findIndex(s=>s.id===item.id);

@@ -137,3 +137,41 @@ test('turning audio off restores the static frame through the SDK instead of ret
     const sent=writes.length;await app.hardware.tick();assert.equal(writes.length,sent,'The terminal frame must not create an idle write loop.');
   }
 });
+
+test('overlapping Live gestures stay valid RGB bytes and keep the real SDK encoder connected',async t=>{
+  const {app,request,cookie}=await fixture(t),{Client}=require('openrgb-sdk'),packets=[];
+  class SDK extends Client {
+    constructor(){super('Fixture',6742,'127.0.0.1');}
+    async connect(){} async getControllerCount(){return 1;}
+    async getControllerData(){return {name:'Live output fixture',vendor:'Fixture',location:'USB:live',type:2,serial:'',zones:[],colors:[{red:0,green:0,blue:0}],modes:[{id:2,name:'Direct',flagList:['perLedColor']}]};}
+    async updateMode(){} sendMessage(command,buffer){packets.push({command,buffer:Buffer.from(buffer)});} disconnect(){}
+  }
+  app.hardware.makeClient=()=>new SDK();app.hardware.stopped=false;await app.hardware.connect();
+  const id=app.hardware.snapshot().devices[0].id;
+  assert.equal((await request('/api/control',{method:'POST',cookie,body:{power:true,brightness:100,effect:'static',color:'#ffffff'}})).status,200);
+  assert.equal((await request('/api/studio',{method:'POST',cookie,body:{enabled:false,layout:[{key:id,deviceId:id,name:'Fixture',reverse:false,start:0,count:1,x:.5,y:.5,width:.1,height:.1,rotation:0,shape:'strip',columns:1}]}})).status,200);
+  await app.hardware.tick();
+  // Each gesture contributes roughly half intensity here. Two add to a full
+  // cyan overlay while half the white base remains: previously >255 at encoding.
+  const gesture={x:.25,y:.5,color:'#00ffff',kind:'trail',radius:.8,durationMs:4000};
+  assert.equal((await request('/api/experiences/live',{method:'POST',cookie,body:{events:[gesture,gesture]}})).status,200);
+  await app.hardware.tick();const status=app.hardware.snapshot();assert.equal(status.connected,true,status.error);
+  const encoded=packets.filter(p=>p.command===1050).at(-1).buffer;
+  assert.ok(encoded.readUInt8(6)<255,'The cyan gesture must visibly mix with the white base.');
+  assert.equal(encoded.readUInt8(7),255);assert.equal(encoded.readUInt8(8),255);
+  const recording=(await request('/api/experiences/recordings',{method:'POST',cookie,body:{name:'Overlapping replay',events:Array.from({length:32},()=>({...gesture,atMs:0}))}})).json();
+  for(const brightness of [20,50,100]){
+    await request('/api/experiences/stop',{method:'POST',cookie,body:{}});
+    await request('/api/control',{method:'POST',cookie,body:{brightness}});
+    assert.equal((await request('/api/experiences/recordings/'+recording.id+'/play',{method:'POST',cookie,body:{}})).status,200);
+    const audio={enabled:true,gain:8,palette:['#ffffff','#ffffff','#ffffff'],axis:'y'};
+    await request('/api/experiences/settings',{method:'POST',cookie,body:{audio}});
+    await request('/api/experiences/signal',{method:'POST',cookie,body:{bands:[1,1,1],capture:'active'}});
+    for(let n=0;n<3;n++){
+      assert.equal((await request('/api/experiences/live',{method:'POST',cookie,body:{events:Array(16).fill(gesture)}})).status,200);
+      await app.hardware.tick();const status=app.hardware.snapshot();assert.equal(status.connected,true,status.error);
+      const bytes=packets.filter(p=>p.command===1050).at(-1).buffer;
+      for(const offset of [6,7,8])assert.equal(bytes.readUInt8(offset),Math.round(255*brightness/100),'Live, replay and audio must respect the configured brightness ceiling.');
+    }
+  }
+});

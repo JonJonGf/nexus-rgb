@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 19/10/2026
 
+### Live contínuo — falha reproduzida e correção local em validação
+
+- Usuário relatou interrupção/retorno ao segurar e desenhar círculos. Reprodução na instalação `1b42f71`: 20 s de arraste, 157 requisições HTTP 200, sem erro JS, 21/24 amostras com conexão interrompida. API capturou `ERR_OUT_OF_RANGE` por canais RGB acima de 255; teste mínimo com dois gestos reproduziu 383 no codificador real do SDK. A causa confirmada é a soma da sobreposição com a cor base, não evidência de excesso de FPS. [Relatório](validation/2026-10-19-live-continuo.md).
+- Corrigido localmente `server/experiences.js`: saturar a mistura final ao limite do brilho configurado, sem mudar proteção da RAM/recuperação. Regressões em `tests/experiences.test.js` e novo `tests/ui/live-transport.spec.js`; fechamento **259/259 gerais** e **4/4 Edge afetados sem retries**. Alterações prontas para checkpoint/pacote local; ainda não instaladas. O último Edge completo anterior teve 50/50; não afirmar uma execução completa nova de 51 casos.
+- Configurações e efeitos preservados por comparação antes/depois; seis componentes voltaram online, sem erro. Sem UAC, reinício manual, driver ou publicação. Dados privados em `data/live-continuous-review-20261019/`. Próximo: concluir regressões, pacote e pedir disponibilidade somente antes da atualização real. A candidata anterior `af73392` não contém esta correção Live; preservar ambos os checkpoints.
+
 ### Aviso de Iluminação Dinâmica após desativar — leitura confirmada
 
 - Usuário informou que desativou a opção no Windows e o aviso de verificação incompleta permaneceu. Conferência somente de leitura: na conta interativa, `AmbientLightingEnabled` está desativado; o coletor do repositório confirma um perfil consultado, `enabled: false`, `partial: false`. Na instalação `1b42f71`, o serviço informa zero perfis consultados e `partial: true`, inclusive após renovar a amostra. Isso explica o aviso: incapacidade de conferir pela identidade do serviço, não evidência de que a preferência continua ativa nem de conflito real.
