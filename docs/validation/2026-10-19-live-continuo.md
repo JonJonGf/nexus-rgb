@@ -24,4 +24,8 @@ Não muda FPS, proteção da RAM, quantidade de LEDs, recuperação automática,
 
 ## Entrega e limites
 
-Correção ainda local neste checkpoint. PC segue `1b42f71`; nenhuma instalação, reinício manual de serviço, alteração de driver/proteção, push, tag ou Release. A reconexão automática observada foi consequência da reprodução autorizada. Próximo: conferir regressões, criar checkpoint e pacote local; instalar somente com autorização/disponibilidade para UAC, então repetir o mesmo arraste na versão corrigida. Não anunciar correção física concluída com base apenas na simulação.
+Correção commitada localmente em **`298761094514a7e7b434c21d5f689879bab16db4`**. Build de desenvolvimento aprovado, sem tag e sem nova dependência. Comparação de 62 arquivos de servidor/interface e smoke HTTP do payload passaram; identidade, assets, cena e backup conferidos. Auditoria npm de produção sem vulnerabilidades conhecidas na consulta; payload sem WinRing.
+
+Checkpoint preservado em `data/live-continuous-review-20261019/candidate-2987610/`. Setup SHA-256 **`f7c6dfb8889420833c0d0ad4f32d8bed0894251bbe5a4f38261ee60b60a10c47`**; desinstalador **`4feac5e898cf26f464cd6f9fbf0dcf2436acd2f0001d57311ed7658be4f0df2b`**. Manifesto superior regenerado com a identidade/hashes atuais. A candidata inclui também o retorno de quadro após desativar áudio da correção anterior.
+
+PC segue `1b42f71`; nenhuma instalação, reinício manual de serviço, alteração de driver/proteção, push, tag ou Release. A reconexão automática observada foi consequência da reprodução autorizada. Helper privado de instalação preparado, **não executado**: exige aprovação explícita, confere o hash e exporta backup novo imediatamente antes. Mantém progresso visível, não instala PawnIO e não reinicia o Windows. Próximo: instalar somente com autorização/disponibilidade para UAC, então repetir o mesmo arraste na versão corrigida. Não anunciar correção física concluída com base apenas na simulação.
