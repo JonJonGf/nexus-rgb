@@ -2,6 +2,18 @@
 
 Este registro mantém as melhorias aceitas para avaliação e implementação futura. Ele não anuncia recursos disponíveis nem uma data de entrega. A revisão do código identificou diferenças em relação às hipóteses do relatório externo; cada alteração precisa de reprodução e testes próprios.
 
+## Auditoria de 19/10/2026 — pendências confirmadas na alpha.37
+
+O [relatório desta auditoria](validation/2026-10-19-auditoria-alpha37.md) registra reproduções, testes e limites. A01 (último quadro estático adiado) e A09 (identificação de outro componente suspendia a proteção da RAM) foram corrigidos localmente em `d14be36`, com seis regressões; a simulação instável de SSE também foi corrigida. Testes finais: 220 gerais e 43 de navegador aprovados. Essas correções ainda não estão na Release ou no PC instalado; não anunciar como alpha.37 corrigida nem instalar/publicar automaticamente.
+
+Prioridades propostas para a próxima implementação, após revisar a entrega local:
+
+1. **A02/A03:** manter comandos nativos independentes da indisponibilidade do OpenRGB e impedir referências de perfil quebradas na remoção de efeitos, que tornam backups exportados irrestauráveis.
+2. **A04–A06:** preservar a preferência de desvincular o teclado nos controles gerais, capturar exclusões do mapa em perfis e respeitar o formato explícito de teclados Direct durante leituras.
+3. **A07:** reduzir reconstruções de snapshots e do mapa dentro do laço de atualização, medindo novamente nas mesmas condições. A reprodução com 64 controladoras sintéticas excedeu 30 ms por ciclo, antes do renderer; não extrapolar para o consumo do setup real.
+
+A causa do travamento físico do OpenRGB continua sem confirmação. O teste isolado de dez minutos não substitui diagnóstico do barramento. Os detalhes e evidências ficam no relatório; essas prioridades não autorizam testes físicos ou operações na instalação por dedução.
+
 ## Correções autorizadas em 18/10/2026 — candidata após alpha.36
 
 O usuário autorizou tratar a [auditoria funcional e de desempenho](validation/2026-10-18-auditoria-funcional-desempenho.md) e confirmou a perda de reconhecimento do teclado na alpha.36. O [relatório das correções](validation/2026-10-18-correcoes-estabilidade.md) registra implementação, regressões, limitações e estado do pacote.
