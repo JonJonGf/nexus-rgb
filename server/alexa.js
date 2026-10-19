@@ -52,8 +52,11 @@ class Alexa {
     const state = this.store.data.master;
     // Retain the dimmable descriptor used for discovery, but keep its virtual
     // brightness coherent between PUT and GET without changing RGB settings.
-    return { '1': { type: 'Dimmable light', modelid: 'HASS123', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, bri: this.hueBrightness, mode: 'homeautomation', alert: 'none', reachable: this.hardware.connected } } };
+    const lights = { '1': { type: 'Dimmable light', modelid: 'HASS123', manufacturername: 'Philips', swversion: '1.0', name: LIGHT_NAME, uniqueid: lightIdentity(this.data.uuid, 1), state: { on: state.power, bri: this.hueBrightness, mode: 'homeautomation', alert: 'none', reachable: this.hardware.connected } } };
+    for(const scene of this.hardware.experiences?.data.scenes||[])if(scene.alexa){const id=this.sceneLightId(scene.id);lights[id]={...lights[1],name:scene.name,uniqueid:lightIdentity(this.data.uuid,scene.id),state:{...lights[1].state,on:this.hardware.experiences.active?.scene.id===scene.id,bri:254}};}
+    return lights;
   }
+  sceneLightId(id) {return String(parseInt(crypto.createHash('sha256').update('nexus-scene:'+id).digest('hex').slice(0,7),16)+2);}
   description(ip) {
     return `<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>http://${xmlEscape(ip)}:${this.port}/</URLBase><device><deviceType>${HUE_DEVICE_TYPE}</deviceType><friendlyName>Nexus RGB (${xmlEscape(ip)})</friendlyName><manufacturer>Royal Philips Electronics</manufacturer><modelDescription>Philips hue Personal Wireless Lighting</modelDescription><modelName>Philips hue bridge 2012</modelName><modelNumber>929000226503</modelNumber><serialNumber>${this.identity.serial}</serialNumber><UDN>uuid:${this.data.uuid}</UDN><presentationURL>http://${xmlEscape(ip)}:${this.port}/</presentationURL></device></root>`;
   }
@@ -149,6 +152,13 @@ class Alexa {
         const hasPower = Object.hasOwn(patch, 'power'), hasBrightness = Object.hasOwn(body, 'bri');
         if (hasPower || hasBrightness) {
           if (hasPower) {
+            if(light!=='1'){
+              const experiences=this.hardware.experiences,scene=experiences?.data.scenes.find(s=>s.alexa&&this.sceneLightId(s.id)===light);
+              if(!scene)return send(404,{});
+              if(patch.power)experiences.play(scene.id);else if(experiences.active?.scene.id===scene.id)experiences.cancel();
+              return send(200,[{success:{[`/lights/${light}/state/on`]:patch.power}},...(hasBrightness?[{success:{[`/lights/${light}/state/bri`]:body.bri}}]:[])]);
+            }
+            this.hardware.experiences?.cancel();
             if (!patch.power) this.hardware.cancelIdentification?.();
             if (this.store.power(patch.power)) { this.hardware.changed(); this.onChange(); }
           }

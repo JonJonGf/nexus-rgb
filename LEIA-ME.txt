@@ -9,6 +9,8 @@ Iluminacao: cores, brilho e movimentos comuns.
 Dispositivos: ajustes individuais e quantidades reais de LEDs ARGB.
 Perfis: guarde combinacoes para ativar depois.
 Mapa do setup: organize e calibre as pecas para efeitos espaciais.
+Experiencias: gestos Live, cenas, WLED, audio e perfis por aplicativo.
+Audio e contexto sao opcionais e precisam da bandeja atualizada aberta.
 Configuracoes > Ajuda: guia local com formatacao, sem Internet.
 
 Criar efeito: Mapa > Trocar efeito > Criar efeito +.
@@ -32,6 +34,8 @@ Lighting: colors, brightness and common movements.
 Devices: individual settings and actual ARGB LED counts.
 Profiles: save combinations for later.
 Setup map: arrange and calibrate components for spatial effects.
+Experiences: Live gestures, scenes, WLED, audio and app profiles.
+Audio and app context are optional and require the updated tray running.
 Settings > Help: formatted offline guide.
 
 Create effect: Setup map > Change effect > Create effect +.

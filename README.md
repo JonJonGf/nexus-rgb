@@ -1,5 +1,7 @@
 # ⚡ Nexus RGB Studio
 
+> **Próxima candidata em desenvolvimento:** a aba Experiências reúne gestos pelo celular, cenas temporizadas, WLED local, áudio por bandas e perfis por aplicativo. Consulte o [guia e os limites](docs/EXPERIENCIAS.md). Esses recursos ainda não fazem parte do instalador público alpha.37.
+
 <p align="center">
   <img src="docs/assets/nexus-banner.svg" alt="Nexus RGB Studio — Seu RGB. Sua rede. Seu controle. Windows, OpenRGB incluído, controle local e Alexa para ligar e desligar." width="100%">
 </p>

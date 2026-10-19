@@ -19,6 +19,8 @@ const { Backups, MAX: BACKUP_MAX } = require('./backup');
 const { Resources } = require('./resources');
 const { diagnostics } = require('./diagnostics');
 const { Conflicts } = require('./conflicts');
+const { Experiences } = require('./experiences');
+const { Room } = require('./room');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -54,7 +56,7 @@ async function createApp(options = {}) {
   const hardware = options.hardware || new Hardware(store, { port: configuredPorts.sdk });
   const localPort = configuredPorts.panel;
   const clients = new Set();
-  const readRate = new RateLimiter(240), writeRate = new RateLimiter(180), heavyRate = new RateLimiter(60), assetRate = new RateLimiter(512), globalRate = new RateLimiter(2000);
+  const readRate = new RateLimiter(240), writeRate = new RateLimiter(180), signalRate = new RateLimiter(900), liveRate = new RateLimiter(900), heavyRate = new RateLimiter(60), assetRate = new RateLimiter(512), globalRate = new RateLimiter(2000);
   let local, heartbeat;
   const resolveLan = (port = local?.address()?.port || localPort) => {
     const addresses = getInterfaces();
@@ -82,6 +84,9 @@ async function createApp(options = {}) {
   const backups = new Backups(store,studio,directory);
   const resources = new Resources();
   const conflicts = options.conflicts || new Conflicts();
+  const experiences = new Experiences(store,hardware,studio,directory,broadcast);
+  hardware.experiences = experiences; studio.experiences = experiences;
+  const room=new Room(hardware,studio,directory,broadcast,{getInterfaces,...options.room});hardware.room=room;
   hardware.on('change', broadcast);
   function headers(res) {
     res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY');
@@ -91,6 +96,9 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/experiences.js',['experiences.js','application/javascript; charset=utf-8']],
+    ['/experiences.css',['experiences.css','text/css; charset=utf-8']],
+    ['/live-model.js',['live-model.js','application/javascript; charset=utf-8']],
     ['/help',['help.html','text/html; charset=utf-8']],
     ['/code-preview.js',['code-preview.js','application/javascript; charset=utf-8']],
     ['/recipe.js', ['recipe.js', 'application/javascript; charset=utf-8']],
@@ -123,7 +131,7 @@ async function createApp(options = {}) {
     const url = new URL(req.url, origin); const route = url.pathname;
     const isAsset = ['GET', 'HEAD'].includes(req.method) && assets.has(route);
     const isHeavy = route === '/api/studio/import' || route === '/api/studio/draft' || /^\/api\/studio\/effects\/[a-f0-9]{24}\/duplicate$/.test(route) || route === '/api/backups' || route.startsWith('/api/backups/') || route === '/api/resources' || route === '/api/diagnostics' || route === '/api/conflicts' || route === '/api/link' || route === '/api/alexa/discover';
-    const budget = isAsset ? assetRate : isHeavy ? heavyRate : ['GET', 'HEAD'].includes(req.method) ? readRate : writeRate;
+    const budget = isAsset ? assetRate : route==='/api/experiences/live' ? liveRate : route==='/api/experiences/signal' ? signalRate : isHeavy ? heavyRate : ['GET', 'HEAD'].includes(req.method) ? readRate : writeRate;
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     if (route === '/api/health' && req.method === 'GET' && isLocal) {
       const lan = resolveLan(lport);
@@ -142,13 +150,32 @@ async function createApp(options = {}) {
     if (route.startsWith('/api/')) {
       if (!session) return json(res, 401, { error: 'Abra o painel neste computador para iniciar a sessão local.' });
       const admin = () => { if (!session.admin || !isLocal) throw Object.assign(new Error('Este ajuste só pode ser feito no PC.'), { status: 403 }); };
+      if(route==='/api/experiences'&&req.method==='GET')return json(res,200,experiences.snapshot(session.admin&&isLocal));
+      if(route==='/api/experiences/settings'&&req.method==='POST'){admin();return json(res,200,experiences.configure(await readBody(req)));}
+      if(route==='/api/experiences/agent'&&req.method==='GET'){admin();return json(res,200,experiences.agentConfig());}
+      if(route==='/api/experiences/signal'&&req.method==='POST'){admin();return json(res,200,experiences.signal(await readBody(req)));}
+      if(route==='/api/room'&&req.method==='GET'){admin();return json(res,200,room.snapshot());}
+      if(route==='/api/room'&&req.method==='POST'){admin();return json(res,200,await room.put(await readBody(req)));}
+      const roomRoute=route.match(/^\/api\/room\/([a-f0-9]{24})$/);
+      if(roomRoute&&req.method==='DELETE'){admin();const result=await room.remove(roomRoute[1]);return json(res,200,{...room.snapshot(),...result});}
+      if(route==='/api/experiences/live'&&req.method==='POST')return json(res,200,experiences.touch(await readBody(req)));
+      if(route==='/api/experiences/recordings'&&req.method==='POST')return json(res,200,experiences.record(await readBody(req,65536)));
+      const recordingRoute=route.match(/^\/api\/experiences\/recordings\/([a-f0-9-]{36})(\/play)?$/);
+      if(recordingRoute&&req.method==='POST'&&recordingRoute[2])return json(res,200,experiences.replayRecording(recordingRoute[1]));
+      if(recordingRoute&&req.method==='DELETE'){admin();experiences.removeRecording(recordingRoute[1]);return json(res,200,experiences.snapshot());}
+      if(route==='/api/experiences/scenes'&&req.method==='POST'){admin();return json(res,200,experiences.put(await readBody(req,32768)));}
+      const sceneRoute=route.match(/^\/api\/experiences\/scenes\/([a-f0-9-]{36})$/);
+      if(sceneRoute&&req.method==='DELETE'){admin();experiences.remove(sceneRoute[1]);return json(res,200,experiences.snapshot());}
+      if(route==='/api/experiences/play'&&req.method==='POST'){const body=await readBody(req);if(Object.keys(body).some(k=>k!=='id'))throw Error('Comando inválido.');return json(res,200,experiences.play(body.id));}
+      if(route==='/api/experiences/stop'&&req.method==='POST'){await readBody(req);experiences.stop();return json(res,200,experiences.snapshot());}
+      if(req.method==='POST'&&(route==='/api/control'||route.startsWith('/api/devices/')||route.startsWith('/api/presets/')||route==='/api/studio'||route==='/api/studio/play'||/^\/api\/profiles\/[a-f0-9-]{36}$/.test(route)||route==='/api/backups/restore'))experiences.cancel();
       if (route === '/api/about' && req.method === 'GET') return json(res,200,about());
       if (route === '/api/resources' && req.method === 'GET') {admin();return json(res,200,await resources.sample());}
       if (route === '/api/diagnostics' && req.method === 'GET') {admin();return json(res,200,diagnostics(hardware,studio,store,resources));}
       if (route === '/api/conflicts' && req.method === 'GET') {admin();return json(res,200,await conflicts.sample());}
       if (route === '/api/backups' && req.method === 'GET') {admin();return json(res,200,backups.export());}
       if (route === '/api/backups/review' && req.method === 'POST') {admin();return json(res,200,await backups.review(await readBody(req,BACKUP_MAX)));}
-      if (route === '/api/backups/restore' && req.method === 'POST') {admin();const body=await readBody(req);if(Object.keys(body).length!==1||!Object.hasOwn(body,'token'))throw Error('Comando de restauração inválido.');const result=backups.apply(body.token);if(store.data.alexaEnabled)alexa.start();else alexa.stop();broadcast();return json(res,200,result);}
+      if (route === '/api/backups/restore' && req.method === 'POST') {admin();const body=await readBody(req);if(Object.keys(body).length!==1||!Object.hasOwn(body,'token'))throw Error('Comando de restauração inválido.');const result=backups.apply(body.token);experiences.reload();if(store.data.alexaEnabled)alexa.start();else alexa.stop();broadcast();return json(res,200,result);}
       if (route === '/api/settings' && req.method === 'POST') { admin(); store.performance(await readBody(req)); hardware.setFps?.(); broadcast(); return json(res, 200, snapshot()); }
       if(route==='/api/library'&&req.method==='POST'){admin();const keys=[...store.data.profiles.map(p=>'profile:'+p.id),...presets.map(p=>'preset:'+p.id),...require('./store').effects.map(e=>'motion:'+e),...[...studio.effects.keys()].map(e=>'spatial:'+e)];store.library(await readBody(req),keys);broadcast();return json(res,200,snapshot());}
       const cloneEffect=route.match(/^\/api\/studio\/effects\/([a-f0-9]{24})\/duplicate$/);
@@ -203,7 +230,7 @@ async function createApp(options = {}) {
       const profileRoute = route.match(/^\/api\/profiles\/([a-f0-9-]{36})$/);
       if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); hardware.transition?.(store.data.library?.transitionMs||0); studio.reset(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
-      if (profileRoute && req.method === 'DELETE') { admin(); store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
+      if (profileRoute && req.method === 'DELETE') { admin();if(experiences.usesProfile(profileRoute[1]))throw Object.assign(Error('Perfil em uso por uma cena ou regra de aplicativo.'),{status:409});store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
         admin(); const lan = resolveLan(lport);
         return json(res, 200, { urls: lan.addresses.map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), selectedAddress: lan.selectedAddress, lanUrl: lan.lanUrl, ports: { panel: lport, sdk: configuredPorts.sdk, alexa: alexa.port, discovery: 1900 }, alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });
@@ -257,11 +284,11 @@ async function createApp(options = {}) {
     return { localPort: local.address().port };
   }
   async function stop() {
-    clearInterval(heartbeat); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
+    clearInterval(heartbeat);await room.close(); experiences.close(); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
     for (const client of clients) client.res.end(); clients.clear();
     local.closeAllConnections(); if (local.listening) await new Promise(resolve => local.close(resolve));
   }
-  return { start, stop, local, store, security, hardware, alexa, studio, draftPreview, snapshot };
+  return { start, stop, local, store, security, hardware, alexa, studio, draftPreview, experiences, room, snapshot };
 }
 if (require.main === module) {
   let app, stopping = false;

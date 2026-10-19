@@ -1,5 +1,22 @@
 # Desempenho do Nexus RGB
 
+## Experiências opcionais — candidata de 19/10/2026
+
+Comparação de `1a5026b` com a implementação local de Live/cenas/WLED/áudio/contexto. Duas rodadas em ordens opostas, processo novo por cenário, dois segundos de aquecimento e cerca de dez segundos medidos. Servidor real e `Hardware` com SDK sintético: três controladoras e 92 LEDs, incluindo duas RAMs com a proteção de cadência existente. Sem hardware/USB, navegador, OpenRGB, bandeja ou captura de som real neste benchmark. Chamadas HTTP de gestos/bandas estão incluídas no servidor. [Condições e resultados sanitizados](benchmarks/2026-10-19-experiences.json); script `scripts/benchmark-experiences.cjs`.
+
+| Cenário | Servidor anterior (MiB RSS médio) | Candidata (MiB RSS médio) | CPU da candidata (% da máquina) |
+| --- | --- | --- | --- |
+| Estático, recursos opcionais desligados | 49,30–53,90 | 53,54–53,94 | 0,064–0,130 |
+| Onda, 60 FPS solicitados, opcionais desligados | 56,41–56,64 | 56,78–57,04 | 0,012–0,078 |
+| Gestos Live, 60 FPS solicitados | — | 59,86–60,05 | 0,128–0,246 |
+| Bandas sintéticas via HTTP, 60 FPS solicitados | — | 55,45–59,66 | 0,155–0,207 |
+
+São amostras curtas, sujeitas a JIT, coleta de lixo e atividade do desktop. Não demonstram ganho estatisticamente significativo de CPU, consumo de toda a aplicação, FPS físico, latência da rede ou estabilidade prolongada. Quadros idênticos continuam deduplicados, portanto envios por segundo não equivalem à taxa lógica solicitada. Nenhuma proteção de RAM foi removida.
+
+Um probe separado de WASAPI, em executável temporário isolado, abriu a saída padrão por 4,038 s: 26 resumos de bandas, zero erros, 15,625 ms de CPU acumulada e 19,33 MiB de working set ao final. Não incluiu interface, serviço HTTP ou processo real da bandeja; não é o acréscimo total de memória da integração. Só energias foram calculadas, sem gravar áudio. O medidor foi testado também com tons sintéticos de 60, 800 e 8.000 Hz. A aparência musical e equipamentos/formatos diferentes precisam de testes reais adicionais.
+
+O custo em repouso é limitado: não há processo novo permanente; WLED não abre socket/timer sem controladora ativa; a captura WASAPI só começa quando habilitada; o Live encerra seu stream e desenho ao sair/ocultar a página. A bandeja reutiliza sua consulta de cinco segundos para ativar/desativar a ponte e mantém eventos de primeiro plano somente quando existem regras habilitadas. Composição limita gestos ativos e reaproveita geometria; a prévia desenha no máximo 4.096 marcadores.
+
 ## Observação passiva da candidata instalada — 19/10/2026
 
 A candidata `5b3e246` foi acompanhada por **313,6 segundos**, em 61 consultas de estado: os seis componentes permaneceram online, sem estado inesperado, erro de conexão ou indicação de controlador travado nas amostras. Foram feitas somente leituras; a iluminação existente continuou sem comandos de teste ou reinício de serviços. Isso é observação curta por amostragem, sem leitura de retorno das cores físicas, e não garante estabilidade prolongada ou ausência de falhas entre consultas.

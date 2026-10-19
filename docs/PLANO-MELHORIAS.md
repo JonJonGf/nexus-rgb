@@ -207,4 +207,10 @@ Cada recurso deve ter textos PT/EN, funcionar no celular e no PC, preservar dado
 
 ## Critério de conclusão
 
+### Experiências aprovadas — 19/10/2026
+
+Implementação local em validação: Nexus Live (gestos/gravação), cenas/foco com referência a perfis e gravações, WLED opcional no mapa ou com efeito nativo, três bandas de áudio WASAPI e regras por aplicativo em primeiro plano. Interface PT/EN, composição transitória e cadência segura de RAM preservada. [Guia, limites e privacidade](EXPERIENCIAS.md).
+
+Antes da instalação/publicação: fechar regressões, conferir build/payload e registrar medições comparáveis. Testes físicos pendentes de WLED, novos dispositivos Hue no Echo, reação musical visual e contexto em múltiplas sessões. Não declarar essas confirmações por testes sintéticos. Atualização no PC real exige disponibilidade para aceitar UAC; publicação não está autorizada automaticamente neste pedido.
+
 Preservar dados existentes, testar o comportamento anterior e a recuperação, documentar limites e publicar executáveis correspondentes à versão do código. Instalações que pedem administrador exigem a confirmação do usuário. Problemas sem reprodução permanecem identificados como hipóteses.

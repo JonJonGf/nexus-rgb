@@ -538,10 +538,10 @@ class Hardware extends EventEmitter {
       }
     }
     return {
-      connected: Boolean(this.connected || (hasNative && this.controllerRegistry.getDevices().some(d => this.controllerRegistry.isConnected(d.id)))),
+      connected: Boolean(this.connected || (hasNative && this.controllerRegistry.getDevices().some(d => this.controllerRegistry.isConnected(d.id))) || this.room?.devices().some(d=>d.status==='online')),
       detecting: this.detecting,
       error: this.error,
-      controllerCount: effectiveDevices.length,
+      controllerCount: effectiveDevices.length+(this.room?.entries.length||0),
       controllerHung: Boolean(this.controllerHung),
       busTypes: Array.from(new Set(effectiveDevices.map(d => d.busType).filter(Boolean))),
       nativeControllers: this.controllerRegistry ? this.controllerRegistry.getSummary() : [],
@@ -573,14 +573,14 @@ class Hardware extends EventEmitter {
           powerTransitionFallback: Boolean(transitionMs >= 200 && !smoothPowerCapable),
           settings
         };
-      }))
+      })).concat(this.room?.devices()||[])
     };
   }
   settings(id, splitZone = false) {
     const settings = { ...this.store.data.master, ...(this.store.data.devices[id] || {}) };
     settings.power = this.store.data.master.power && settings.power;
     if (splitZone && !this.devices.some(d => d.id === id && d.type === 5 && d.components?.length === 1)) delete settings.nativeMode;
-    return settings;
+    return this.experiences?.settings(id, settings) || settings;
   }
   changed() { this.dirty = true; }
   transition(duration) {
@@ -623,7 +623,7 @@ class Hardware extends EventEmitter {
     const activePower = Boolean(settings.power || this.powerRamps.has(id));
     this.output.set(id, { colors, at: Date.now(), source: this.identification?.id === id ? 'identify' : !activePower ? 'off' : settings.nativeMode !== undefined ? 'native' : this.studio?.hasDevice(id) ? 'map' : 'software' });
   }
-  outputFor(id) { return this.connected ? this.output.get(id) : null; }
+  outputFor(id) { return this.connected || this.room?.runtime.get(id)?.online ? this.output.get(id) : null; }
   renderFrame(id, settings, count, seconds, now = this.now()) {
     if (this.identification?.id === id) return Array.from({length:count},(_,n) => ({red:0,green:this.identification.led === null || this.identification.led === n ? 64 : 0,blue:this.identification.led === null || this.identification.led === n ? 64 : 0}));
     const parent = this.devices.find(d => d.id === id || d.components?.some(c => c.id === id));
@@ -634,7 +634,7 @@ class Hardware extends EventEmitter {
     }
     const effective = settings.power ? settings : { ...settings, power: true };
     const spatial = this.studio?.colorsFor(id, effective, count);
-    const base = spatial
+    let base = spatial
       ? this.blend(id, spatial, effective)
       : (() => {
           const signature = JSON.stringify([effective.effect, effective.color, effective.palette, true]);
@@ -649,6 +649,7 @@ class Hardware extends EventEmitter {
           }
           return this.blend(id, frame(effective, count, Math.max(0, seconds - animation.startedAt)), effective);
         })();
+    if(this.experiences)base=this.experiences.compose(id,base,effective);
     if (mult >= 1) return base;
     return base.map(c => ({ red: Math.round(c.red * mult), green: Math.round(c.green * mult), blue: Math.round(c.blue * mult) }));
   }
@@ -758,7 +759,8 @@ class Hardware extends EventEmitter {
       return;
     }
     if (this.identification && Date.now() >= this.identification.until) this.cancelIdentification();
-    const animated = this.devices.some(d => (d.components || [d]).some(component => {
+    const experienceFrame = Boolean(this.experiences?.isAnimating());
+    const animated = experienceFrame || this.devices.some(d => (d.components || [d]).some(component => {
       const s = this.settings(component.id, !!d.components);
       const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
       const powerChanged = this.powerKnown.has(component.id) && this.powerKnown.get(component.id) !== Boolean(s.power);
@@ -799,7 +801,7 @@ class Hardware extends EventEmitter {
         const animation = channels.some(component => {
           const s = this.settings(component.id, !!d.components);
           const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
-          return this.powerRamps.has(component.id) || (s.power && canSmooth && (this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
+          return this.powerRamps.has(component.id) || (s.power && canSmooth && (experienceFrame || this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
         });
         if (!changed && !animation && !this.deferredOutput.has(d.id)) {
           if (spatialFrame && !channels.some(c => this.studio?.hasDevice(c.id))) {

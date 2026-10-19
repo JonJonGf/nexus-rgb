@@ -1,0 +1,120 @@
+{
+  "runs": [
+    {
+      "at": "2026-10-19T18:38:58.535Z",
+      "baseline": "1a5026b",
+      "candidate": "working tree",
+      "node": "v24.20.0",
+      "processors": 12,
+      "scope": "Isolated production server and real Hardware with synthetic SDK: three controllers, 92 LEDs (two 8-LED RAM controllers throttled by existing safety gate). Includes HTTP signal processing. No OpenRGB, tray, audio capture, browser, driver or physical network/RGB. Separate child per case; 2 s warm-up. RSS is server working set, not whole application.",
+      "scenarios": [
+        {
+          "name": "baseline-idle",
+          "seconds": 10.0782036,
+          "cpuPercentOfMachine": 0.1025315000912795,
+          "rssMeanMiB": 49.30255681818182,
+          "rssPeakMiB": 50.515625,
+          "simulatedWritesPerSecond": 0
+        },
+        {
+          "name": "candidate-idle",
+          "seconds": 10.081163199999999,
+          "cpuPercentOfMachine": 0.12977999734527992,
+          "rssMeanMiB": 53.53657670454545,
+          "rssPeakMiB": 54.921875,
+          "simulatedWritesPerSecond": 0
+        },
+        {
+          "name": "baseline-wave60",
+          "seconds": 10.080588800000001,
+          "cpuPercentOfMachine": 0.06530703180089374,
+          "rssMeanMiB": 56.40660511363637,
+          "rssPeakMiB": 59,
+          "simulatedWritesPerSecond": 69.14278658008547
+        },
+        {
+          "name": "candidate-wave60",
+          "seconds": 10.077999299999997,
+          "cpuPercentOfMachine": 0.07772706764658474,
+          "rssMeanMiB": 56.78338068181818,
+          "rssPeakMiB": 58.98046875,
+          "simulatedWritesPerSecond": 68.96210044388475
+        },
+        {
+          "name": "candidate-live60",
+          "seconds": 10.076822399999998,
+          "cpuPercentOfMachine": 0.12818194222284468,
+          "rssMeanMiB": 60.05433238636363,
+          "rssPeakMiB": 60.98046875,
+          "simulatedWritesPerSecond": 60.138005409324286
+        },
+        {
+          "name": "candidate-audio60",
+          "seconds": 10.077506999999997,
+          "cpuPercentOfMachine": 0.15546172944029382,
+          "rssMeanMiB": 59.65767045454545,
+          "rssPeakMiB": 60.68359375,
+          "simulatedWritesPerSecond": 14.090786540758547
+        }
+      ]
+    },
+    {
+      "at": "2026-10-19T18:40:29.703Z",
+      "baseline": "1a5026b",
+      "candidate": "working tree",
+      "node": "v24.20.0",
+      "processors": 12,
+      "scope": "Isolated production server and real Hardware with synthetic SDK: three controllers, 92 LEDs (two 8-LED RAM controllers throttled by existing safety gate). Includes HTTP signal processing. No OpenRGB, tray, audio capture, browser, driver or physical network/RGB. Separate child per case; 2 s warm-up. RSS is server working set, not whole application.",
+      "scenarios": [
+        {
+          "name": "candidate-audio60",
+          "seconds": 10.0794342,
+          "cpuPercentOfMachine": 0.20669149597041203,
+          "rssMeanMiB": 55.45241477272727,
+          "rssPeakMiB": 56.38671875,
+          "simulatedWritesPerSecond": 14.088092365343286
+        },
+        {
+          "name": "candidate-live60",
+          "seconds": 10.079373000000002,
+          "cpuPercentOfMachine": 0.24555098814182186,
+          "rssMeanMiB": 59.86221590909091,
+          "rssPeakMiB": 60.51171875,
+          "simulatedWritesPerSecond": 59.92436235865067
+        },
+        {
+          "name": "candidate-wave60",
+          "seconds": 10.076862800000002,
+          "cpuPercentOfMachine": 0.01240465435333703,
+          "rssMeanMiB": 57.04154829545455,
+          "rssPeakMiB": 59.41796875,
+          "simulatedWritesPerSecond": 69.36682714386068
+        },
+        {
+          "name": "baseline-wave60",
+          "seconds": 10.078424100000003,
+          "cpuPercentOfMachine": 0.06532105880852276,
+          "rssMeanMiB": 56.64133522727273,
+          "rssPeakMiB": 59.24609375,
+          "simulatedWritesPerSecond": 70.54674351320459
+        },
+        {
+          "name": "candidate-idle",
+          "seconds": 10.079669500000003,
+          "cpuPercentOfMachine": 0.06448624133955978,
+          "rssMeanMiB": 53.94140625,
+          "rssPeakMiB": 55.296875,
+          "simulatedWritesPerSecond": 0
+        },
+        {
+          "name": "baseline-idle",
+          "seconds": 10.077974099999992,
+          "cpuPercentOfMachine": 0.02646034451176719,
+          "rssMeanMiB": 53.89524147727273,
+          "rssPeakMiB": 55.12109375,
+          "simulatedWritesPerSecond": 0
+        }
+      ]
+    }
+  ]
+}

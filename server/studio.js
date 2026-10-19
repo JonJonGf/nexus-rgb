@@ -61,9 +61,10 @@ class Studio {
   }
   get config() {
     if (this.recoveryConfig) return this.recoveryConfig;
-    if (this.store.data.studio) return this.store.data.studio;
+    if (this.store.data.studio) return this.experiences?.config(this.store.data.studio) || this.store.data.studio;
     const excluded = Object.entries(this.store.data.devices || {}).filter(([, d]) => d && ('color' in d || 'effect' in d || 'nativeMode' in d)).map(([id]) => id);
-    return { enabled: false, activeId: builtin[0].id, values: {}, layout: [], excluded };
+    const base = { enabled: false, activeId: builtin[0].id, values: {}, layout: [], excluded };
+    return this.experiences?.config(base) || base;
   }
   get fps() { return this.store.data.performance?.fps || 20; }
   versionKey(activeId = this.config.activeId, values = this.config.values) {
@@ -153,7 +154,7 @@ class Studio {
   }
   recoverySnapshot() {
     if (this.hardware?.connected) this.hadController = true;
-    const controllerConfirmed = Boolean(this.hardware?.connected);
+    const controllerConfirmed = Boolean(this.hardware?.connected || this.hardware?.room?.devices().some(d=>d.status==='online'));
     const controllerState = !controllerConfirmed ? 'unconfirmed' : !this.store.data.master.power ? 'lights-off' : this.error ? 'fallback' : this.config.enabled ? 'spatial' : 'common';
     const lw = this.validLastWorking(Boolean(this.error));
     const lastWorking = lw ? { activeId: lw.activeId, name: lw.name, values: lw.values, promotedAt: lw.promotedAt } : null;
@@ -210,7 +211,7 @@ class Studio {
     // Hardware discovery replaces the root list; map edits replace the saved
     // layout. Cache only geometry, never power/settings or output colors.
     const cached = this.layoutCache;
-    if (Array.isArray(roots) && cached?.roots === roots && cached.length === roots.length && cached.source === source) return cached.layout;
+    if (Array.isArray(roots) && cached?.roots === roots && cached.length === roots.length && cached.source === source && cached.roomRevision === (this.hardware.room?.revision||0)) return cached.layout;
     // Keep old positions on disk, but do not sample/display hardware-mode-only devices.
     // Unknown/offline devices retain their positions for later reconnection.
     const snapshot = this.hardware.snapshot().devices;
@@ -223,7 +224,7 @@ class Studio {
       total += item.count; added.push(item);
     }
     const layout = [...saved, ...added];
-    this.layoutCache = { roots, length: roots?.length, source, layout, members: new Set(layout.map(item => item.deviceId)) };
+    this.layoutCache = { roots, length: roots?.length, source, layout, members: new Set(layout.map(item => item.deviceId)),roomRevision:this.hardware.room?.revision||0 };
     return layout;
   }
   snapshot(full = false) {
@@ -379,7 +380,7 @@ class Studio {
   previewPacket() {
     const devices = this.devices();
     const spatial = this.config.enabled && !this.error;
-    return { image: spatial && this.preview ? this.preview.toString('base64') : null, layout: spatial && this.frameLayout ? this.frameLayout : this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.connected, error: this.error, recovery: this.recoverySnapshot(),
+    return { image: spatial && this.preview ? this.preview.toString('base64') : null, layout: spatial && this.frameLayout ? this.frameLayout : this.layout(), enabled: this.config.enabled, power: this.store.data.master.power, connected: this.hardware.snapshot().connected, error: this.error, recovery: this.recoverySnapshot(),
       playback: { spatial, effect: this.store.data.master.effect, name: spatial ? this.effects.get(this.config.activeId)?.name || null : null },
       output: devices.map(device => {
         const sent = this.hardware.outputFor?.(device.id);
@@ -441,7 +442,7 @@ class Studio {
     this.fail(message, kind, { attempts: this.attempts, maxAttempts, quarantined: true, persist: true });
   }
   hasActiveDevices() {
-    return Boolean(this.config.enabled && !this.error && this.hardware.connected && this.devices().some(d => this.hasDevice(d.id) && ((this.store.data.master.power && d.settings?.power !== false) || this.hardware.isPowerTransitioning?.(d.id)) && (d.settings?.brightness ?? 100) > 0));
+    return Boolean(this.config.enabled && !this.error && (this.hardware.connected || this.hardware.room?.devices().some(d=>d.status==='online')) && this.devices().some(d => this.hasDevice(d.id) && ((this.store.data.master.power && d.settings?.power !== false) || this.hardware.isPowerTransitioning?.(d.id)) && (d.settings?.brightness ?? 100) > 0));
   }
   pump() {
     if (this.hardware?.connected) this.hadController = true;

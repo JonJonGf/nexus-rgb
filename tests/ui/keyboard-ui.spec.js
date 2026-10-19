@@ -2,10 +2,6 @@
 const { test, expect } = require('./fixture');
 test.use({ serviceWorkers: 'block' });
 
-test('dispositivos filtram periféricos e exibem sincronização com o PC para teclado', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', e => errors.push(e.message));
-
   const devices = [
     {
       id: '000000000000000000000001',
@@ -50,9 +46,9 @@ test('dispositivos filtram periféricos e exibem sincronização com o PC para t
     hardware: { connected: true, controllerCount: 2, error: null, devices }
   };
 
-  await page.route('**/api/state', route => route.fulfill({ json: mockState }));
-  await page.route('**/api/events', route => route.fulfill({ headers: { 'Content-Type': 'text/event-stream' }, body: `retry: 60000\ndata: ${JSON.stringify(mockState)}\n\n` }));
-
+test.use({hardwareSnapshot:mockState.hardware});
+test('dispositivos filtram periféricos e exibem sincronização com o PC para teclado', async ({ page }) => {
+  const errors=[];page.on('pageerror', e=>errors.push(e.message));
 
   await page.goto('/');
   await expect(page.locator('#power')).toBeEnabled();

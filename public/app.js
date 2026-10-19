@@ -108,8 +108,9 @@
     currentPage = name;
     document.querySelectorAll('[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === name));
     document.querySelectorAll('.nav').forEach(button => button.classList.toggle('active', button.dataset.page === name));
-    $('page-title').textContent = { control: T('Iluminação'), devices: T('Dispositivos'), profiles: T('Perfis'), connect: T('Conexões'), studio: T('Mapa do setup'), settings: T('Configurações') }[name];
+    $('page-title').textContent = { control: T('Iluminação'), devices: T('Dispositivos'), profiles: T('Perfis'), connect: T('Conexões'), studio: T('Mapa do setup'), settings: T('Configurações'),experiences:T('Experiências') }[name];
     window.NexusStudio?.open(name);
+    window.NexusExperiences?.open(name==='experiences');
     if (name === 'settings') api('/api/about').then(build=>{$('settings-build').textContent=(build.tag||T('Desenvolvimento'))+' · '+(build.commit?.slice(0,12)||build.version);}).catch(error=>toast(error.message));
     if (name === 'connect' && admin) loadNetwork();
   }
@@ -174,6 +175,7 @@
     }
     renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
     window.NexusStudio?.update(state, admin, api, toast, currentPage);
+    window.NexusExperiences?.update(state, admin, api, toast, currentPage);
     $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
     if (!admin) $('profile-form').hidden = true;
     $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';

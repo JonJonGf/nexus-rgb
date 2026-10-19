@@ -229,6 +229,7 @@ internal sealed class Tray : ApplicationContext {
     private readonly TrayMessageWindow messageWindow;
     private bool checking;
     private bool exiting;
+    private readonly ExperiencesBridge experiences = new ExperiencesBridge();
 
     internal static string ComputePathHash(string path) {
         using (var sha = System.Security.Cryptography.SHA256.Create()) {
@@ -288,7 +289,7 @@ internal sealed class Tray : ApplicationContext {
         string ico = Path.Combine(Program.Root, "app.ico");
         icon = new NotifyIcon { Icon = File.Exists(ico) ? new Icon(ico) : SystemIcons.Application, Text = "Nexus RGB", ContextMenuStrip = menu, Visible = true };
         icon.DoubleClick += (s, e) => Program.OpenPanel();
-        timer = new System.Windows.Forms.Timer { Interval = 5000 }; timer.Tick += (s, e) => CheckStatus(); timer.Start();
+        timer = new System.Windows.Forms.Timer { Interval = 5000 }; timer.Tick += (s, e) => { CheckStatus(); experiences.Tick(); }; timer.Start();
         CheckStatus(); if (open) Program.OpenPanel();
     }
     private async void CheckStatus() {
@@ -339,7 +340,7 @@ internal sealed class Tray : ApplicationContext {
         if (waitHandle != null) waitHandle.Unregister(null);
         if (exitEvent != null) exitEvent.Dispose();
         if (messageWindow != null) messageWindow.Dispose();
-        timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore();
+        experiences.Dispose(); timer.Stop(); timer.Dispose(); icon.Visible = false; icon.Dispose(); base.ExitThreadCore();
     }
 }
 internal sealed class Worker : ServiceBase {

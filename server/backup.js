@@ -5,7 +5,7 @@ const MAX=16*1024*1024,id=/^[a-f0-9]{24}$/,object=v=>v&&typeof v==='object'&&!Ar
 function fields(v,allowed) {if(!object(v)||Object.keys(v).some(k=>!allowed.includes(k)))throw Error('Backup: campos inválidos.');}
 function devices(value) {if(!object(value)||Object.keys(value).length>256)throw Error('Backup: componentes inválidos.');const result={};for(const [key,v] of Object.entries(value)){if(!id.test(key))throw Error('Backup: identificador inválido.');result[key]=validatePatch(v,true);}return result;}
 function normalize(value,effects) {
-  fields(value,['version','master','devices','profiles','alexaEnabled','zones','studio','performance','library','nativeControllers']);
+  fields(value,['version','master','devices','profiles','alexaEnabled','zones','studio','performance','library','nativeControllers','experiences']);
   if(value.version!==1||typeof value.alexaEnabled!=='boolean'||!Array.isArray(value.profiles)||value.profiles.length>32)throw Error('Backup: configuração incompatível.');
   const studio=(v,withLayout)=>{
     fields(v,withLayout?['enabled','activeId','values','excluded','layout']:['enabled','activeId','values','excluded']);
@@ -18,6 +18,7 @@ function normalize(value,effects) {
   if(value.performance){fields(value.performance,['fps','powerTransitionMs']);if(!Number.isInteger(value.performance.fps)||value.performance.fps<5||value.performance.fps>60)throw Error('Backup: FPS inválido.');const powerTransitionMs=value.performance.powerTransitionMs??0;if(!Number.isInteger(powerTransitionMs)||(powerTransitionMs!==0&&(powerTransitionMs<200||powerTransitionMs>3000)))throw Error('Backup: transição de energia inválida.');result.performance=powerTransitionMs>0?{fps:value.performance.fps,powerTransitionMs}:{fps:value.performance.fps};}
   result.zones={};if(value.zones!==undefined){if(!object(value.zones)||Object.keys(value.zones).length>128)throw Error('Backup: zonas inválidas.');for(const [controller,zones]of Object.entries(value.zones)){if(!id.test(controller)||!object(zones)||Object.keys(zones).length>256)throw Error('Backup: zonas inválidas.');result.zones[controller]={};for(const [zone,count]of Object.entries(zones)){if(!/^\d{1,5}$/.test(zone)||!Number.isInteger(count)||count<1||count>4096)throw Error('Backup: quantidade de zona inválida.');result.zones[controller][zone]=count;}}}
   if(value.library!==undefined)result.library=validateLibrary(value.library);
+  if(value.experiences!==undefined)result.experiences=require('./experiences').configuration(value.experiences,result.profiles);
   return result;
 }
 class Backups {
@@ -36,7 +37,7 @@ class Backups {
       if(this.studio.stopped)throw Error('O aplicativo está encerrando.');if(digest!==this.digest())throw Error('As configurações mudaram. Revise o backup novamente.');
       const merged=new Map(this.studio.effects);for(const [key,value]of effects)merged.set(key,value);if(merged.size>67)throw Error('Limite de 64 efeitos importados.');
       const token=crypto.randomBytes(24).toString('hex'),expiresAt=Date.now()+5*60000;this.pending={token,expiresAt,digest,settings,files,effects:merged};
-      return {token,expiresAt,summary:{profiles:settings.profiles.length,positions:settings.studio?.layout.length||0,imports:files.length,availableImports:merged.size-builtin.length,alexaEnabled:settings.alexaEnabled,fps:settings.performance?.fps||20}};
+      return {token,expiresAt,summary:{profiles:settings.profiles.length,positions:settings.studio?.layout.length||0,imports:files.length,availableImports:merged.size-builtin.length,alexaEnabled:settings.alexaEnabled,fps:settings.performance?.fps||20,experiences:{scenes:settings.experiences?.scenes.length||0,recordings:settings.experiences?.recordings.length||0,rules:settings.experiences?.context.rules.length||0,audioEnabled:Boolean(settings.experiences?.audio.enabled)}}};
     }finally{this.busy=false;this.studio.importing=false;}
   }
   apply(token){
