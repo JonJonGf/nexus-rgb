@@ -4,6 +4,8 @@ Este registro mantém as melhorias aceitas para avaliação e implementação fu
 
 ## Auditoria de 19/10/2026 — pendências confirmadas na alpha.37
 
+**Candidata posteriormente instalada:** usuário autorizou a instalação local de `5b3e246`; arquivos/dados conferidos e teste curto de transporte RAM/teclado aprovado, com iluminação anterior restaurada. Confirmação visual pelo usuário e ensaio prolongado permanecem pendentes. A Release pública continua alpha.37; consulte o contexto para não confundir instalação de desenvolvimento com publicação.
+
 **Atualização posterior — implementação local:** os quatorze achados confirmados abaixo receberam correções com regressões; veja [resultado e limites](validation/2026-10-19-correcoes-auditoria.md). A ordem abaixo é o registro da priorização original, não uma lista ainda sem implementação. S01 (identidade HKCU do serviço) continua em investigação. Próxima etapa: conferir pacote de desenvolvimento e validar fisicamente com aviso antes de instalação/UAC; não houve publicação nem atualização do PC por dedução. Arco-íris do RK61 foi remapeado para Neon a pedido do usuário, mantendo Onda separada.
 
 **Ampliação posterior para todo o código:** [relatório integral](validation/2026-10-19-revisao-integral.md) e [cobertura por arquivo](validation/2026-10-19-cobertura-revisao.md). Foram reproduzidas mais oito classes de defeito (A10–A17), ainda sem correção. O total atual é quatorze pendências confirmadas, incluindo ferramenta de inventário e modelos experimentais bloqueados para hardware real. A investigação adicional S01 (HKCU/usuário do serviço) ainda exige validação no Windows. Este plano registra prioridades; não anuncia implementação ou nova Release.
