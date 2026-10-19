@@ -1,5 +1,11 @@
 # Desempenho do Nexus RGB
 
+## Observação passiva da candidata instalada — 19/10/2026
+
+A candidata `5b3e246` foi acompanhada por **313,6 segundos**, em 61 consultas de estado: os seis componentes permaneceram online, sem estado inesperado, erro de conexão ou indicação de controlador travado nas amostras. Foram feitas somente leituras; a iluminação existente continuou sem comandos de teste ou reinício de serviços. Isso é observação curta por amostragem, sem leitura de retorno das cores físicas, e não garante estabilidade prolongada ou ausência de falhas entre consultas.
+
+Onze consultas de recursos retornaram leitura **parcial**, com somente serviço de rede, servidor e ponte USB presentes: soma de **91,9–93,9 MiB** e **0–0,1% CPU** observados. Esses valores não incluem o OpenRGB e outros processos inacessíveis, não são o consumo total do Nexus e não devem ser somados a medições antigas para formar um total. A coleta coincidiu com testes e compilação no PC; não é comparação controlada de versões nem medição de efeito ativo específico. Evidências brutas ficam privadas na pasta da auditoria, indicada no contexto.
+
 ## Custo de processamento do mapa — 19/10/2026
 
 Microbenchmark local do processamento de `Hardware.tick` com SDK sintético, quatro LEDs por controladora e mapa ativo, comparando `00625c1` com as correções locais da auditoria. Duas ordens de cenários, vinte ciclos medidos após três de aquecimento; tamanhos de cinco a 64 controladoras. O renderer, o navegador, o OpenRGB físico e a latência do barramento **não** fazem parte deste ensaio.
