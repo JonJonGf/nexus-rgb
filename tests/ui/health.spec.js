@@ -54,3 +54,19 @@ test('painel exibe avisos de Iluminação Dinâmica e softwares conflitantes com
   await expect(box).toContainText('Conflicting software running: Corsair iCUE');
 });
 
+test('lighting warning describes loaded profiles without claiming the current account',async({page})=>{
+  await page.route('**/api/conflicts',route=>route.fulfill({json:{hasConflicts:true,dynamicLighting:{supported:true,enabled:true,scope:'loaded-user-profiles',checkedProfiles:2,partial:false},conflicts:[]}}));
+  await page.goto('/');await expect(page.locator('#power')).toBeEnabled();await page.locator('.nav[data-page=settings]').click();
+  await expect(page.locator('#health-conflicts')).toContainText('pelo menos uma conta carregada');
+  await page.locator('#settings-language').selectOption('en');await expect(page.locator('#health-conflicts')).toContainText('at least one loaded Windows account');
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('an incomplete lighting check is shown as unknown even without confirmed conflicts',async({page})=>{
+  await page.route('**/api/conflicts',route=>route.fulfill({json:{hasConflicts:false,dynamicLighting:{supported:true,enabled:false,scope:'loaded-user-profiles',checkedProfiles:1,partial:true},conflicts:[]}}));
+  await page.goto('/');await expect(page.locator('#power')).toBeEnabled();await page.locator('.nav[data-page=settings]').click();
+  await expect(page.locator('#health-conflicts')).toBeVisible();await expect(page.locator('#health-conflicts')).toContainText('verificação da Iluminação Dinâmica ficou incompleta');
+  await page.locator('#settings-language').selectOption('en');await expect(page.locator('#health-conflicts')).toContainText('Dynamic Lighting check is incomplete');
+  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+

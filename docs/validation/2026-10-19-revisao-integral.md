@@ -100,6 +100,8 @@ A melhoria deve reduzir reconstruções de topologia por revisão e separar muda
 
 ## Risco identificado por leitura — validação adicional
 
+**Atualização posterior:** S01 foi confirmado pela comparação de leitura da candidata instalada com a conta interativa e recebeu [correção local com regressões](2026-10-19-conflitos-windows.md). O parágrafo seguinte preserva a hipótese original; não representa o estado atual da implementação. Instalação/validação sob LocalService ainda são etapas separadas.
+
 **S01 — contexto de usuário na detecção da Iluminação Dinâmica:** `server/conflicts.js` consulta `HKCU` usando `reg.exe`, enquanto `scripts/install-services.ps1` registra o serviço de rede como `LocalService`. O código não seleciona explicitamente o usuário interativo cuja preferência se pretende apresentar. Isso pode produzir diagnóstico de outro contexto ou um falso negativo. Os testes atuais injetam resultados prontos, e o teste de consulta real verifica apenas os tipos retornados. Confirmar em VM com preferência distinta entre usuário e serviço; não alterar Registro/proteções do PC para demonstrar a hipótese. Não contado entre as quatorze pendências reproduzidas.
 
 ## Verificações concluídas e resultados negativos úteis

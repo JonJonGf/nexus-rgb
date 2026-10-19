@@ -20,7 +20,7 @@ window.NexusHealth={create(hooks){
   function renderConflicts(conf) {
     const box = $('health-conflicts');
     if (!box) return;
-    if (!conf || !conf.hasConflicts) {
+    if (!conf || (!conf.hasConflicts && !conf.dynamicLighting?.partial)) {
       box.hidden = true;
       box.replaceChildren();
       return;
@@ -30,7 +30,15 @@ window.NexusHealth={create(hooks){
     if (conf.dynamicLighting && conf.dynamicLighting.enabled) {
       const p = document.createElement('p');
       p.className = 'conflict-item';
-      p.textContent = T('Atenção: A Iluminação Dinâmica do Windows está ativada. Isso pode disputar o controle dos dispositivos USB/HID com o Nexus RGB. Se houver perda de controle ou cintilação, desative-a nas Configurações do Windows > Personalização > Iluminação Dinâmica.');
+      p.textContent = conf.dynamicLighting.scope === 'loaded-user-profiles'
+        ? T('A Iluminação Dinâmica está ativada em pelo menos uma conta carregada do Windows. Confira na conta que você usa no PC em Configurações do Windows > Personalização > Iluminação Dinâmica. Ela pode disputar o controle RGB de dispositivos compatíveis.')
+        : T('Atenção: A Iluminação Dinâmica do Windows está ativada. Isso pode disputar o controle dos dispositivos USB/HID com o Nexus RGB. Se houver perda de controle ou cintilação, desative-a nas Configurações do Windows > Personalização > Iluminação Dinâmica.');
+      box.append(p);
+    }
+    if (conf.dynamicLighting?.partial) {
+      const p = document.createElement('p');
+      p.className = 'conflict-item';
+      p.textContent = T('A verificação da Iluminação Dinâmica ficou incompleta. Confira a opção na conta que usa o PC em Configurações do Windows > Personalização > Iluminação Dinâmica.');
       box.append(p);
     }
     if (conf.conflicts && conf.conflicts.length > 0) {

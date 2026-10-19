@@ -2,6 +2,84 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { Conflicts, KNOWN_CONFLICTING_APPS } = require('../server/conflicts');
+const {spawnSync}=require('node:child_process');
+const path=require('node:path');
+
+test('a failed Windows lighting query stays unknown rather than reporting a completed clear check',async()=>{
+  const report=await new Conflicts({queryWindowsDynamicLighting:async()=>{throw Error('Synthetic registry failure');},queryRunningProcesses:async()=>[]}).sample();
+  assert.equal(report.dynamicLighting.enabled,false);assert.equal(report.dynamicLighting.partial,true);assert.equal(report.hasConflicts,false);
+});
+
+test('Dynamic Lighting checks loaded user profiles rather than the service account',()=>{
+  const result=spawnSync(process.execPath,['-e',String.raw`
+    const assert=require('node:assert/strict'),cp=require('node:child_process');
+    Object.defineProperty(process,'platform',{value:'win32'});
+    const sid='S-1-5-21-100-200-300-1001',calls=[];
+    cp.execFile=(file,args,options,callback)=>{
+      calls.push([file,...args]);let value='',error=null;
+      if(file==='tasklist.exe')value='';
+      else if(args[1]==='HKU')value='HKEY_USERS\\.DEFAULT\r\nHKEY_USERS\\S-1-5-19\r\nHKEY_USERS\\'+sid+'\r\nHKEY_USERS\\'+sid+'_Classes\r\n';
+      else if(args[1]==='HKU\\'+sid+'\\Software\\Microsoft\\Lighting')value='AmbientLightingEnabled    REG_DWORD    0x1';
+      else if(args[1].startsWith('HKCU'))value='AmbientLightingEnabled    REG_DWORD    0x0';
+      else error=Error('Unexpected registry query');
+      queueMicrotask(()=>callback(error,value,''));return {kill(){}};
+    };
+    (async()=>{
+      const {Conflicts}=require(process.env.NEXUS_CONFLICTS_MODULE),report=await new Conflicts().sample();
+      assert.equal(report.dynamicLighting.enabled,true,'An enabled interactive profile was hidden by the service account preference');
+      assert.equal(report.dynamicLighting.scope,'loaded-user-profiles');
+      assert.equal(report.dynamicLighting.checkedProfiles,1);
+      assert.equal(report.hasConflicts,true);
+      assert(!JSON.stringify(report).includes(sid),'User SID leaked in the report');
+      assert(calls.every(call=>!call.some(arg=>typeof arg==='string'&&arg.startsWith('HKCU'))));
+      console.log('loaded-profile-conflict-detected');
+    })().catch(error=>{console.error(error);process.exitCode=1});
+  `],{encoding:'utf8',windowsHide:true,timeout:8000,env:{...process.env,NEXUS_CONFLICTS_MODULE:path.resolve(__dirname,'../server/conflicts')}});
+  assert.equal(result.status,0,result.stdout+result.stderr);assert.match(result.stdout,/loaded-profile-conflict-detected/);
+});
+
+test('profile lighting queries keep unknown states explicit, private and bounded',()=>{
+  const result=spawnSync(process.execPath,['-e',String.raw`
+    const assert=require('node:assert/strict'),cp=require('node:child_process');Object.defineProperty(process,'platform',{value:'win32'});
+    let fixture,queries,clock=0;Object.defineProperty(performance,'now',{value:()=>clock});
+    const sid=i=>'S-1-5-21-100-200-300-'+(1000+i);
+    cp.execFile=(file,args,options,callback)=>{
+      assert.equal(file,'reg.exe');assert(options.timeout>0&&options.timeout<=3000);assert(options.maxBuffer<=262144);
+      queries++;let value='',error=null;
+      if(args[1]==='HKU'){
+        if(fixture.rootError)error=Error('Access denied');
+        else value=Array.from({length:fixture.profiles},(_,i)=>'HKEY_USERS\\'+sid(i)).join('\n');
+        if(fixture.expired)clock=4000;
+      }else{
+        const index=Array.from({length:fixture.profiles},(_,i)=>sid(i)).findIndex(id=>args[1]==='HKU\\'+id+'\\Software\\Microsoft\\Lighting');
+        assert(index>=0,'Unexpected key');
+        if(fixture.unknown?.includes(index))error=Error('Missing or unreadable value');
+        else value=fixture.malformed?'Unexpected registry response':'AmbientLightingEnabled REG_DWORD 0x'+(fixture.on?.includes(index)?'1':'0');
+      }
+      queueMicrotask(()=>callback(error,value,''));return {kill(){}};
+    };
+    const {Conflicts}=require(process.env.NEXUS_CONFLICTS_MODULE);
+    (async()=>{
+      for(const data of [
+        {profiles:2,expected:[true,false,2,false,3]},
+        {profiles:2,on:[0],unknown:[1],expected:[true,true,1,true,3]},
+        {profiles:2,unknown:[1],expected:[true,false,1,true,3]},
+        {profiles:1,malformed:true,expected:[false,false,0,true,2]},
+        {profiles:0,expected:[false,false,0,true,1]},
+        {profiles:1,rootError:true,expected:[false,false,0,true,1]},
+        {profiles:20,expected:[true,false,16,true,17]},
+        {profiles:4,expired:true,expected:[false,false,0,true,1]}
+      ]){
+        fixture=data;queries=0;clock=0;
+        const report=await new Conflicts({queryRunningProcesses:async()=>[]}).sample(),d=report.dynamicLighting;
+        assert.deepEqual([d.supported,d.enabled,d.checkedProfiles,d.partial,queries],data.expected);
+        assert.equal(report.hasConflicts,d.enabled);assert(!JSON.stringify(report).includes('S-1-5-21'));
+      }
+      console.log('unknown-private-bounded');
+    })().catch(error=>{console.error(error);process.exitCode=1});
+  `],{encoding:'utf8',windowsHide:true,timeout:8000,env:{...process.env,NEXUS_CONFLICTS_MODULE:path.resolve(__dirname,'../server/conflicts')}});
+  assert.equal(result.status,0,result.stdout+result.stderr);assert.match(result.stdout,/unknown-private-bounded/);
+});
 
 test('conflicts: identifica quando Windows Dynamic Lighting está ativo ou desativado', async () => {
   let simulatedStdout = 'HKEY_CURRENT_USER\\Software\\Microsoft\\Lighting\r\n    AmbientLightingEnabled    REG_DWORD    0x1';

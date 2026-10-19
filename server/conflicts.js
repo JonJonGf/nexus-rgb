@@ -22,27 +22,33 @@ class Conflicts {
     this.inflight = null;
   }
 
-  checkDynamicLightingWindows() {
-    return new Promise(resolve => {
-      if (process.platform !== 'win32') {
-        return resolve({ supported: false, enabled: false });
-      }
-      execFile('reg.exe', ['query', 'HKCU\\Software\\Microsoft\\Lighting', '/v', 'AmbientLightingEnabled'], {
-        windowsHide: true,
-        timeout: 3000,
-        encoding: 'utf8'
-      }, (err, stdout) => {
-        if (err || !stdout) {
-          return resolve({ supported: false, enabled: false });
-        }
-        const match = /AmbientLightingEnabled\s+REG_DWORD\s+0x([0-9a-fA-F]+)/.exec(stdout);
-        if (match) {
-          const val = parseInt(match[1], 16);
-          return resolve({ supported: true, enabled: val !== 0 });
-        }
-        resolve({ supported: true, enabled: true });
-      });
+  async checkDynamicLightingWindows() {
+    if (process.platform !== 'win32') return { supported: false, enabled: false };
+    const scope = 'loaded-user-profiles', deadline = performance.now() + 3000;
+    const query = args => new Promise(resolve => {
+      const remaining = Math.ceil(deadline - performance.now());
+      if (remaining <= 0) return resolve(null);
+      execFile('reg.exe', ['query', ...args], { windowsHide: true, timeout: remaining, maxBuffer: 256 * 1024, encoding: 'utf8' }, (err, stdout) => resolve(err ? null : stdout));
     });
+    // HKCU belongs to LocalService in the installed server, not to the person
+    // using the PC. Query loaded local/domain/Entra user hives without names
+    // or SIDs in the result. Loaded profiles need not be active sessions.
+    const listing = await query(['HKU']);
+    if (listing === null) return { supported: false, enabled: false, scope, checkedProfiles: 0, partial: true };
+    const profiles = [...new Set(listing.split(/\r?\n/).map(line => /^HKEY_USERS\\(S-1-(?:5-21|12-1)-\d+-\d+-\d+-\d+)$/i.exec(line.trim())?.[1]).filter(Boolean))];
+    const values = [];
+    // Bound both the work and total wall time; never launch one process per
+    // profile without a limit on a multi-user PC.
+    for (let offset = 0; offset < Math.min(profiles.length, 16); offset += 4) {
+      const batch = await Promise.all(profiles.slice(offset, Math.min(offset + 4, 16)).map(async sid => {
+        const stdout = await query(['HKU\\' + sid + '\\Software\\Microsoft\\Lighting', '/v', 'AmbientLightingEnabled']);
+        const match = stdout && /AmbientLightingEnabled\s+REG_DWORD\s+0x([0-9a-f]+)\b/i.exec(stdout);
+        return match ? parseInt(match[1], 16) !== 0 : null;
+      }));
+      values.push(...batch);
+    }
+    const checkedProfiles = values.filter(value => value !== null).length;
+    return { supported: checkedProfiles > 0, enabled: values.includes(true), scope, checkedProfiles, partial: !profiles.length || checkedProfiles !== profiles.length };
   }
 
   checkProcessesWindows() {
@@ -94,7 +100,7 @@ class Conflicts {
 
   async measure() {
     const [dynamicLighting, apps] = await Promise.all([
-      this.queryWindowsDynamicLighting().catch(() => ({ supported: false, enabled: false })),
+      this.queryWindowsDynamicLighting().catch(() => ({ supported: false, enabled: false, scope: 'loaded-user-profiles', checkedProfiles: 0, partial: true })),
       this.queryRunningProcesses().catch(() => [])
     ]);
 

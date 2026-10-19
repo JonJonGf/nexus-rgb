@@ -630,6 +630,8 @@ window.NexusEnglish = Object.freeze({
   "Alguns componentes precisam de atenção": "Some components need attention",
   "Pronto para controlar": "Ready to control",
   "Atenção: A Iluminação Dinâmica do Windows está ativada. Isso pode disputar o controle dos dispositivos USB/HID com o Nexus RGB. Se houver perda de controle ou cintilação, desative-a nas Configurações do Windows > Personalização > Iluminação Dinâmica.": "Notice: Windows Dynamic Lighting is enabled. It may compete with Nexus RGB for USB/HID device control. If devices flicker or disconnect, disable it in Windows Settings > Personalization > Dynamic Lighting.",
+  "A Iluminação Dinâmica está ativada em pelo menos uma conta carregada do Windows. Confira na conta que você usa no PC em Configurações do Windows > Personalização > Iluminação Dinâmica. Ela pode disputar o controle RGB de dispositivos compatíveis.": "Dynamic Lighting is enabled in at least one loaded Windows account. Check the account you use on this PC in Windows Settings > Personalization > Dynamic Lighting. It may compete for RGB control of compatible devices.",
+  "A verificação da Iluminação Dinâmica ficou incompleta. Confira a opção na conta que usa o PC em Configurações do Windows > Personalização > Iluminação Dinâmica.": "The Dynamic Lighting check is incomplete. Check the option in the account you use on this PC in Windows Settings > Personalization > Dynamic Lighting.",
   "Softwares concorrentes em execução: {0}. Eles podem disputar o barramento SMBus ou portas USB e causar travamentos no controlador.": "Conflicting software running: {0}. They may dispute the SMBus or USB ports and cause controller freezes.",
   "★ Favoritos": "★ Favorites",
   "Filtrar por categoria": "Filter by category",

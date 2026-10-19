@@ -4,6 +4,8 @@ Este registro mantém as melhorias aceitas para avaliação e implementação fu
 
 ## Auditoria de 19/10/2026 — pendências confirmadas na alpha.37
 
+**S01 na retomada:** defeito de contexto de usuário confirmado e corrigido localmente, sem alterar preferências/ACLs do Windows. [Diagnóstico, regressões e limites](validation/2026-10-19-conflitos-windows.md). Suítes posteriores: 243 gerais e 47 de navegador aprovadas. Esta correção adicional ainda não está na candidata `5b3e246` instalada; validação sob a identidade do serviço depende de atualização posterior autorizada.
+
 **Candidata posteriormente instalada:** usuário autorizou a instalação local de `5b3e246`; arquivos/dados conferidos e teste curto de transporte RAM/teclado aprovado, com iluminação anterior restaurada. Confirmação visual pelo usuário e ensaio prolongado permanecem pendentes. A Release pública continua alpha.37; consulte o contexto para não confundir instalação de desenvolvimento com publicação.
 
 **Atualização posterior — implementação local:** os quatorze achados confirmados abaixo receberam correções com regressões; veja [resultado e limites](validation/2026-10-19-correcoes-auditoria.md). A ordem abaixo é o registro da priorização original, não uma lista ainda sem implementação. S01 (identidade HKCU do serviço) continua em investigação. Próxima etapa: conferir pacote de desenvolvimento e validar fisicamente com aviso antes de instalação/UAC; não houve publicação nem atualização do PC por dedução. Arco-íris do RK61 foi remapeado para Neon a pedido do usuário, mantendo Onda separada.
