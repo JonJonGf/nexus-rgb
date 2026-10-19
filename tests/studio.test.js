@@ -8,6 +8,29 @@ const { setTimeout: sleep } = require('node:timers/promises');
 const source = (code, meta = '') => '<head><title>Teste próprio</title><meta publisher="Nexus tests">' + meta + '</head><body><canvas id="exCanvas" width="320" height="200"></canvas></body><script>' + code + '</script>';
 const paint = 'var c=document.getElementById("exCanvas"),ctx=c.getContext("2d");function update(){ctx.fillStyle=ink;ctx.fillRect(0,0,320,200);requestAnimationFrame(update)}requestAnimationFrame(update);';
 const html = source(paint, '<meta property="ink" label="Cor" type="color" default="#1234ab">');
+
+test('Canvas restore exposes the saved style values to imported effect code',async()=>{
+  const renderer=new StudioRenderer();
+  try {
+    await renderer.load(schema.parseHTML(source('var ctx=document.getElementById("exCanvas").getContext("2d");ctx.fillStyle="#0000ff";ctx.globalAlpha=1;ctx.lineWidth=3;ctx.save();ctx.fillStyle="#ff0000";ctx.globalAlpha=.2;ctx.lineWidth=9;ctx.restore();if(ctx.globalAlpha!==1||ctx.lineWidth!==3)throw Error("Canvas state was not restored");ctx.fillStyle=ctx.fillStyle;ctx.fillRect(0,0,320,200);')));
+    assert.deepEqual(renderer.sample([{x:20,y:20}],renderer.frame(50)),[[0,0,255]]);
+  }finally{renderer.close();}
+});
+
+test('assigning a Canvas dimension resets styles and clears the save stack',async()=>{
+  const renderer=new StudioRenderer();
+  try {
+    await renderer.load(schema.parseHTML(source('var c=document.getElementById("exCanvas"),ctx=c.getContext("2d");ctx.fillStyle="#ff0000";ctx.lineWidth=9;ctx.save();c.width=c.width;ctx.restore();if(ctx.lineWidth!==1)throw Error("Dimension did not reset Canvas state");ctx.fillStyle=ctx.fillStyle;ctx.fillRect(0,0,320,200);')));
+    assert.deepEqual(renderer.sample([{x:20,y:20}],renderer.frame(50)),[[0,0,0]]);
+  }finally{renderer.close();}
+});
+
+test('profiles created from the map preserve individual exclusions when reapplied',async t=>{
+  const {app}=await fixture(t),id='e'.repeat(24);app.studio.configure({enabled:true});
+  app.store.device(id,{effect:'static',color:'#123456',power:false});
+  const profile=app.studio.profile({name:'Keep excluded'});app.studio.configure({enabled:false});app.store.applyProfile(profile.id);
+  assert.deepEqual(app.studio.config.excluded,[id]);assert.equal(app.store.data.devices[id].power,false);
+});
 test('importador limita metadados, rejeita scripts externos e valida fórmulas', () => {
   const parsed = schema.parseHTML(html); assert.equal(parsed.controls[0].default, '#1234ab');
   assert.deepEqual({ ...schema.parameters(parsed, { ink: '#fe7621' }) }, { ink: '#fe7621' });

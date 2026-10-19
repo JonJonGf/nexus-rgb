@@ -13,8 +13,8 @@ $threats=@(Get-MpThreat)
 $drivers=@(Get-CimInstance Win32_SystemDriver | Where-Object {$_.Name -match 'WinRing|PawnIO'} | Select-Object Name,State)
 $rules=@(Get-NetFirewallRule -Group 'Nexus RGB' | ForEach-Object {
   $addresses=$_ | Get-NetFirewallAddressFilter
-  $ports=$_ | Get-NetFirewallPortFilter
-  [pscustomobject]@{Name=$_.DisplayName;Enabled=$_.Enabled.ToString();Direction=$_.Direction.ToString();Action=$_.Action.ToString();RemoteAddresses=@($addresses.RemoteAddress);LocalPorts=@($ports.LocalPort)}
+  $rulePorts=$_ | Get-NetFirewallPortFilter
+  [pscustomobject]@{Name=$_.DisplayName;Enabled=$_.Enabled.ToString();Direction=$_.Direction.ToString();Action=$_.Action.ToString();RemoteAddresses=@($addresses.RemoteAddress);LocalPorts=@($rulePorts.LocalPort)}
 })
 $permissions=@(foreach($relative in @('','runtime\node.exe','server\index.js','scripts\install-services.ps1')) {
   $file=if($relative){Join-Path $root $relative}else{$root}

@@ -3,6 +3,14 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {Store}=require('../server/store'),{Studio}=require('../server/studio'),{Backups}=require('../server/backup');
 function fixture(t){const directory=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-backup-')),store=new Store(directory),hardware={snapshot:()=>({devices:[]}),changed(){},setFps(){},cancelIdentification(){}},studio=new Studio(store,hardware,directory,()=>{});t.after(()=>{studio.stop();fs.rmSync(directory,{recursive:true,force:true});});return {directory,store,studio,backups:new Backups(store,studio,directory)};}
 const original=JSON.stringify({format:'nexus-effect/1',name:'Backup test',pattern:'gradient',palette:['#123456'],speed:0,angle:0,scale:1});
+
+test('an effect used by a profile cannot be removed and its exported backup remains restorable',async t=>{
+  const {studio,backups,store}=fixture(t),id=await studio.import(original);
+  studio.profile({name:'Keep my effect',activeId:id});
+  assert.throws(()=>studio.remove(id),{status:409});
+  const reviewed=await backups.review(backups.export());assert.equal(reviewed.summary.profiles,1);
+  store.data.profiles=[];store.save();studio.remove(id);assert.equal(studio.effects.has(id),false);
+});
 test('lighting backup excludes machine HID paths and preserves local controller setup on restore',async t=>{
   const {store,backups}=fixture(t);store.data.nativeControllers={keyboard:{enabled:true,hidPath:'synthetic-private-device'}};
   const backup=backups.export();assert.equal(backup.settings.nativeControllers,undefined);

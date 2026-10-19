@@ -96,7 +96,8 @@ class Store {
     if (this.data.master.power === value) return false;
     this.data.master.power = value; this.save(); return true;
   }
-  master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; if (this.data.studio && ('color' in valid || 'effect' in valid)) this.data.studio = { ...this.data.studio, enabled: false, excluded: [] }; else if (this.data.studio) this.data.studio = { ...this.data.studio, excluded: [] }; this.data.devices = {}; this.save(); }
+  devicePreferences() { return Object.fromEntries(Object.entries(this.data.devices).filter(([, value]) => typeof value?.syncWithPc === 'boolean').map(([id, value]) => [id, { syncWithPc: value.syncWithPc }])); }
+  master(patch) { const valid = validatePatch(patch); this.data.master = { ...this.data.master, ...valid }; if (('color' in valid || 'effect' in valid) && !('palette' in valid)) delete this.data.master.palette; if (this.data.studio && ('color' in valid || 'effect' in valid)) this.data.studio = { ...this.data.studio, enabled: false, excluded: [] }; else if (this.data.studio) this.data.studio = { ...this.data.studio, excluded: [] }; this.data.devices = this.devicePreferences(); this.save(); }
   performance(patch) {
     if (!patch || typeof patch !== 'object' || Array.isArray(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['fps', 'powerTransitionMs'].includes(k))) throw Error('Taxa de atualização: escolha de 5 a 60 FPS.');
     const fps = Object.hasOwn(patch, 'fps') ? patch.fps : (this.data.performance?.fps ?? 20);
@@ -168,7 +169,9 @@ class Store {
   applyProfile(id) {
     const p = this.data.profiles.find(p => p.id === id);
     if (!p) throw new Error('Perfil não encontrado.');
+    const preferences = this.devicePreferences();
     this.data.master = structuredClone(p.master); this.data.devices = structuredClone(p.devices);
+    for (const [key, value] of Object.entries(preferences)) this.data.devices[key] = { ...(this.data.devices[key] || {}), ...value };
     if (this.data.studio || p.studio) this.data.studio = { layout: [], ...this.data.studio, enabled: false, ...(p.studio ? structuredClone(p.studio) : {}) };
     this.save();
   }

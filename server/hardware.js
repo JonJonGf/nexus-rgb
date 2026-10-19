@@ -681,11 +681,12 @@ class Hardware extends EventEmitter {
     if (device.nativeController) {
       const pending = this.nativePending.get(id);
       if (pending) { pending.refresh = true; return false; }
-      const generation = this.generation;
       const oldError = device.error;
       const delivery = { refresh: false }; this.nativePending.set(id, delivery);
       this.controllerRegistry.sendLeds(device.id, colors, isPowerOff).then(sent => {
-        if (this.stopped || generation !== this.generation || this.nativePending.get(id) !== delivery) return;
+        // HID acknowledgements belong to their own transport, not the SDK's
+        // connection generation. The entry identity still rejects obsolete work.
+        if (this.stopped || this.nativePending.get(id) !== delivery) return;
         this.nativePending.delete(id);
         if (!sent) { this.applied.delete(id); this.lastSentColors.delete(id); }
         else {
@@ -740,7 +741,17 @@ class Hardware extends EventEmitter {
     return true;
   }
   async tick(spatialFrame = false) {
-    if (this.stopped || (!this.connected && !this.hasNativeControllers())) return;
+    if (this.stopped) return;
+    // Native keyboard modes do not use the SDK socket or its discovery lock.
+    // Run their event-driven submission even while OpenRGB is connecting.
+    for (const d of this.controllerRegistry.getDevices()) {
+      if (d.controllerType !== 'keyboard') continue;
+      const settings = this.settings(d.id, true), signature = JSON.stringify(settings);
+      if (this.applied.get(d.id) === signature && !d.error && (this.nativePending.has(d.id) || this.controllerRegistry.isConnected(d.id))) continue;
+      this.sendLeds(d, [], !settings.power, true);
+      this.applied.set(d.id, signature);
+    }
+    if (!this.connected && !this.hasNativeControllers()) return;
     if (this.busy) {
       this.tickPending = true;
       if (spatialFrame) this.tickPendingSpatial = true;
@@ -757,7 +768,7 @@ class Hardware extends EventEmitter {
     this.busy = true; let changedErrors = false;
     try {
       if ((this.client?.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
-      if (this.client && Date.now() >= this.nextDiscovery) {
+      if (this.connected && this.client && Date.now() >= this.nextDiscovery) {
         const socketBacklogged = Boolean(this.client?.socket && typeof this.client.socket.writableLength === 'number' && this.client.socket.writableLength > 0);
         if (socketBacklogged) {
           this.nextDiscovery = Date.now() + 500;
@@ -768,13 +779,7 @@ class Hardware extends EventEmitter {
       this.dirty = false;
       const tickNow = this.now(), seconds = tickNow / 1000;
       for (const d of this.devices) {
-        if (d.nativeController && d.controllerType === 'keyboard') {
-          const settings = this.settings(d.id, true), signature = JSON.stringify(settings);
-          if (this.applied.get(d.id) === signature && !d.error && (this.nativePending.has(d.id) || this.controllerRegistry.isConnected(d.id))) continue;
-          this.sendLeds(d, [], !settings.power, true);
-          this.applied.set(d.id, signature);
-          continue;
-        }
+        if (d.nativeController && d.controllerType === 'keyboard' || !d.nativeController && !this.connected) continue;
         const channels = d.components || [d];
         for (const component of channels) {
           if (this.identification?.id === component.id) continue;

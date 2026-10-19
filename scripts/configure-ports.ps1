@@ -40,7 +40,7 @@ try {
   }
   foreach($process in $processes){if($owned.ContainsKey([int]$process.ParentProcessId) -and $process.ExecutablePath -in @((Join-Path $root 'runtime\node.exe'),(Join-Path $root 'openrgb\OpenRGB.exe'))){$owned[[int]$process.ProcessId]=$true}}
   $alexaEnabled=$false; $settings=Join-Path $dataRoot 'app\settings.json'
-  if(Test-Path -LiteralPath $settings){$alexaEnabled=((Get-Content -LiteralPath $settings -Raw | ConvertFrom-Json).alexaEnabled -eq $true)}
+  $alexaEnabled=Get-NexusAlexaEnabled $settings
   $required=@($PanelPort,$SDKPort); if($alexaEnabled){$required+=$AlexaPort}
   $conflict=Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object {$_.LocalPort -in $required -and -not $owned.ContainsKey([int]$_.OwningProcess)} | Select-Object -First 1
   if($conflict){$process=$processes | Where-Object ProcessId -eq $conflict.OwningProcess | Select-Object -First 1; throw ('Porta '+$conflict.LocalPort+' ocupada por '+$process.Name+' (PID '+$conflict.OwningProcess+'). Escolha outra porta.')}

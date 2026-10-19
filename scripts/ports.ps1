@@ -30,3 +30,18 @@ function Set-NexusPorts([int]$PanelPort,[int]$SDKPort,[int]$AlexaPort) {
     $key.Flush()
   } finally {if($key){$key.Dispose()}}
 }
+function Get-NexusAlexaEnabled([string]$SettingsPath) {
+  if(-not (Test-Path -LiteralPath $SettingsPath)){return $false}
+  $json=[IO.File]::ReadAllText($SettingsPath)
+  # Effect parameters are case-sensitive JSON keys. PS 5.1 PSCustomObject
+  # conversion rejects valid documents containing both Speed and speed.
+  if($PSVersionTable.PSVersion.Major -ge 6) {
+    $settings=$json | ConvertFrom-Json -AsHashtable
+  } else {
+    Add-Type -AssemblyName System.Web.Extensions
+    $parser=New-Object System.Web.Script.Serialization.JavaScriptSerializer
+    $parser.MaxJsonLength=8*1024*1024
+    $settings=$parser.DeserializeObject($json)
+  }
+  return ($settings -is [Collections.IDictionary] -and $settings['alexaEnabled'] -is [bool] -and $settings['alexaEnabled'])
+}

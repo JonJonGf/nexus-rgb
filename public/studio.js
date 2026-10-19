@@ -42,7 +42,7 @@
       $('studio-dirty').textContent = dirty ? dragging ? T('Solte para salvar a posição') : T('Salvando posição…') : T('Salvo automaticamente');
       $('studio-retry').hidden = true;
     } catch (e) {
-      if (String(e?.message || '').includes('alterado em outro dispositivo')) {
+      if (e.status === 409) {
         dirty = false; savedVersion = editVersion;
         error(e);
         await refresh(false, true);

@@ -4,6 +4,21 @@ Este registro mantém as melhorias aceitas para avaliação e implementação fu
 
 ## Auditoria de 19/10/2026 — pendências confirmadas na alpha.37
 
+**Atualização posterior — implementação local:** os quatorze achados confirmados abaixo receberam correções com regressões; veja [resultado e limites](validation/2026-10-19-correcoes-auditoria.md). A ordem abaixo é o registro da priorização original, não uma lista ainda sem implementação. S01 (identidade HKCU do serviço) continua em investigação. Próxima etapa: conferir pacote de desenvolvimento e validar fisicamente com aviso antes de instalação/UAC; não houve publicação nem atualização do PC por dedução. Arco-íris do RK61 foi remapeado para Neon a pedido do usuário, mantendo Onda separada.
+
+**Ampliação posterior para todo o código:** [relatório integral](validation/2026-10-19-revisao-integral.md) e [cobertura por arquivo](validation/2026-10-19-cobertura-revisao.md). Foram reproduzidas mais oito classes de defeito (A10–A17), ainda sem correção. O total atual é quatorze pendências confirmadas, incluindo ferramenta de inventário e modelos experimentais bloqueados para hardware real. A investigação adicional S01 (HKCU/usuário do serviço) ainda exige validação no Windows. Este plano registra prioridades; não anuncia implementação ou nova Release.
+
+Ordem atualizada:
+
+1. **A15/A03:** preservar o mapa inválido durante recuperação e resolver referências de perfis antes de excluir efeitos, mantendo backups restauráveis.
+2. **A02/A10/A11/A04:** independência SDK/HID, confirmação pendente atravessando reconexão, precedência dos controles individuais e preferência persistente de participação do teclado.
+3. **A05/A06/A14/A12:** exclusões em perfis, leitura sem mudar o formato escolhido, recuperação de conflito independente do idioma e configuração de portas com parâmetros JSON válidos que diferem por caixa.
+4. **A07/A16/A13/A17:** reduzir reconstrução de mapa/snapshots inclusive em repouso; paridade do estado Canvas com navegador; reparar inventário de portas; corrigir brilho zero nos encoders experimentais sem habilitar protocolos físicos não validados.
+
+Cada correção deverá começar pela reprodução correspondente e uma regressão na interface adequada. Não repetir toda a suíte ou benchmark sem alteração/falha/preocupação concreta, nem confundir compilação/simulação com ensaio físico.
+
+### Resultado do primeiro bloco da auditoria, preservado
+
 O [relatório desta auditoria](validation/2026-10-19-auditoria-alpha37.md) registra reproduções, testes e limites. A01 (último quadro estático adiado) e A09 (identificação de outro componente suspendia a proteção da RAM) foram corrigidos localmente em `d14be36`, com seis regressões; a simulação instável de SSE também foi corrigida. Testes finais: 220 gerais e 43 de navegador aprovados. Essas correções ainda não estão na Release ou no PC instalado; não anunciar como alpha.37 corrigida nem instalar/publicar automaticamente.
 
 Prioridades propostas para a próxima implementação, após revisar a entrega local:
@@ -59,6 +74,8 @@ O teste físico da alpha.20 ainda acusou falha ao acender/apagar. Depois, o usu�
 - Recuperação de OpenRGB parcialmente indisponível: primeira etapa implementada na `v0.1.0-alpha.27` (isolamento de geração, falha estruturada, componentes offline, sincronia de RAM ao ligar/desligar e recuperação manual supervisionada via `nexusrgb://restart`) e refinada na preparação da alpha.28 (cancelamento explícito com `ECANCELLED`, descarte de contaminação de diagnósticos entre gerações, atualização automática do mapa do Studio sem precisar trocar de efeito, compatibilidade com Windows Restart Manager e encerramento limpo/retorno automático da bandeja pelo instalador com isolamento de sessão). Opção automática futura permanece em planejamento supervisionado. Consulte a [proposta detalhada](RECUPERACAO-CONTROLADOR.md).
 
 ### Efeitos Proprietários de Hardware no Teclado, Latência Zero de Digitação (0 ms) e Alternador "Sincronizar com o PC"
+
+**Correção de interpretação — 19/10/2026:** as tabelas históricas seguintes preservam o relato original de desenvolvimento. As expressões “latência zero”, “eliminando 100%” e “60 FPS nativos” não foram demonstradas por medição física e não são garantias do projeto. A geometria ANSI não demonstra controle por tecla: o RK61 validado usa modos internos e fica fora do mapa espacial. A conversão automática de Linha para Matriz foi removida nesta auditoria; a aparência do Neon precisa de confirmação física na candidata. Encoders de outros fabricantes continuam experimentais, bloqueados para controle USB real sem validação específica.
 
 | Problema reproduzido | Correção realizada | Teste executado | Resultado observado | Limitações e pendências |
 | :--- | :--- | :--- | :--- | :--- |

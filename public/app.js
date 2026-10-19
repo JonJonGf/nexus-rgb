@@ -100,7 +100,7 @@
       await sessionRefresh;
       return api(route, body, method, false);
     }
-    const data = await response.json(); if (!response.ok) throw new Error(T(data.error) || T('Não foi possível concluir.')); return data;
+    const data = await response.json(); if (!response.ok) throw Object.assign(new Error(T(data.error) || T('Não foi possível concluir.')), { status: response.status }); return data;
   }
   async function action(route, body, method) { try { const data = await api(route, body, method); if (data.master) render(data); return data; } catch (error) { toast(error.message); return null; } }
   function enable(value) { controls.forEach(id => { $(id).disabled = !value; }); wheel.setAttribute('aria-disabled', String(!value)); document.querySelectorAll('.effect,.swatch,.quick-preset').forEach(b => { b.disabled = !value; }); }

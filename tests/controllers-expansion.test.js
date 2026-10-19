@@ -28,6 +28,30 @@ const spatial = require('../public/spatial');
 
 const defaults = { power: true, brightness: 100, speed: 50, effect: 'rainbow', color: '#ff0055', palette: 'neon' };
 
+for(const [name,encode,offset] of [
+  ['Corsair',encodeCorsairPacket,4],['Razer',encodeRazerChromaPacket,8],
+  ['Nollie',encodeNolliePortPacket,4],['CoolerMaster',encodeCoolerMasterPacket,4],
+  ['Gigabyte',encodeGigabytePacket,4],['MSI',encodeMsiPacket,4]
+])test(name+' experimental encoding preserves explicit zero brightness',()=>{
+  const colors=[{red:255,green:100,blue:50}];
+  for(const brightness of [0,-10])assert.deepEqual([...encode({colors,brightness}).subarray(offset,offset+3)],[0,0,0]);
+  for(const brightness of [100,110,undefined])assert.deepEqual([...encode({colors,brightness}).subarray(offset,offset+3)],[255,100,50]);
+});
+
+test('experimental registry adapters also preserve zero brightness before encoding',async()=>{
+  const registry=new ControllerRegistry({hidBridge:{isTest:true,stop(){}}});
+  try {
+    for(const [method,options,offset] of [
+      ['addCorsairController',{},4],['addRazerChromaController',{},8],['addNollieController',{},4],
+      ['addCoolerMasterController',{},4],['addMotherboardController',{brand:'gigabyte'},4],['addMotherboardController',{brand:'msi'},4]
+    ]){
+      const device=registry[method]({...options,brightness:0});
+      assert.equal(await registry.sendLeds(device.id,[{red:255,green:100,blue:50}]),true);
+      assert.deepEqual([...registry.getLastPacket(device.id).subarray(offset,offset+3)],[0,0,0],method);
+    }
+  }finally{registry.destroy();}
+});
+
 test('Universal Keyboard: layout calculations and SinoWealth feature report encoding', () => {
   // 1. Layout verification
   assert.equal(KEYBOARD_LAYOUTS['60%'].leds, 61);

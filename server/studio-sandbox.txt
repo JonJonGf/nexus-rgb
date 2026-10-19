@@ -1,6 +1,6 @@
 (function() {
   'use strict';
-  var queues = [], timers = new Map(), nextId = 0, now = 0, commands = [];
+  var queues = [], timers = new Map(), nextId = 0, now = 0, commands = [], styles = {}, styleStack = [];
   var flush = function() { if (commands.length) { var pending = commands; commands = []; _nexusDraw('batch', JSON.stringify(pending)); } };
   var enqueue = function(op, args) { if (commands.length >= 30000) throw Error('Muitas operações no quadro.'); commands.push([op, args]); };
   var call = function(op, args) { flush(); return JSON.parse(_nexusDraw(op, JSON.stringify(args || []))); };
@@ -9,15 +9,18 @@
     return { kind: kind, coords: coords, stops: stops, addColorStop: function(offset, color) { if (stops.length >= 64) throw Error('Muitas cores no gradiente.'); stops.push([offset, color]); } };
   };
   var context = {}, canvas = { id: 'exCanvas', style: {}, addEventListener: function() {}, getBoundingClientRect: function() { return { x: 0, y: 0, left: 0, top: 0, width: canvas.width, height: canvas.height }; }, getContext: function(kind) { if (kind !== '2d') throw Error('Somente Canvas 2D.'); return context; } };
-  ['width', 'height'].forEach(function(key) { Object.defineProperty(canvas, key, { get: function() { return call('dimension', [key]); }, set: function(value) { call('dimension', [key, value]); } }); });
+  ['width', 'height'].forEach(function(key) { Object.defineProperty(canvas, key, { get: function() { return call('dimension', [key]); }, set: function(value) { call('dimension', [key, value]); styles = Object.assign({}, initialStyles); styleStack = []; } }); });
   context.canvas = canvas;
   ['fillRect', 'clearRect', 'strokeRect', 'beginPath', 'closePath', 'rect', 'arc', 'ellipse', 'moveTo', 'lineTo', 'bezierCurveTo', 'quadraticCurveTo', 'fill', 'stroke', 'clip', 'save', 'restore', 'translate', 'rotate', 'scale', 'transform', 'setTransform', 'resetTransform', 'getTransform'].forEach(function(name) {
     context[name] = function() { var args = Array.prototype.slice.call(arguments); return name === 'getTransform' ? call(name, args) : enqueue(name, args); };
   });
   ['fillStyle', 'strokeStyle', 'globalAlpha', 'lineWidth', 'lineJoin', 'lineCap', 'globalCompositeOperation'].forEach(function(name) {
-    var value = name.indexOf('Style') >= 0 ? '#000000' : name === 'globalAlpha' || name === 'lineWidth' ? 1 : name === 'globalCompositeOperation' ? 'source-over' : name === 'lineJoin' ? 'miter' : 'butt';
-    Object.defineProperty(context, name, { get: function() { return value; }, set: function(v) { enqueue('style', [name, v]); value = v; } });
+    styles[name] = name.indexOf('Style') >= 0 ? '#000000' : name === 'globalAlpha' || name === 'lineWidth' ? 1 : name === 'globalCompositeOperation' ? 'source-over' : name === 'lineJoin' ? 'miter' : 'butt';
+    Object.defineProperty(context, name, { get: function() { return styles[name]; }, set: function(v) { enqueue('style', [name, v]); styles[name] = v; } });
   });
+  var initialStyles = Object.assign({}, styles);
+  context.save = function() { if (styleStack.length >= 64) throw Error('Pilha Canvas excedida.'); enqueue('save', []); styleStack.push(Object.assign({}, styles)); };
+  context.restore = function() { enqueue('restore', []); if (styleStack.length) styles = styleStack.pop(); };
   context.createLinearGradient = function() { return gradient('linear', Array.prototype.slice.call(arguments)); };
   context.createRadialGradient = function() { return gradient('radial', Array.prototype.slice.call(arguments)); };
   globalThis.window = globalThis;

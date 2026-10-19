@@ -6,6 +6,53 @@ const {Hardware}=require('../server/hardware');
 const {EventEmitter}=require('node:events');
 const spatial=require('../public/spatial');
 const {diagnostics}=require('../server/diagnostics');
+
+test('rainbow uses the keyboard Neon color cycle while wave retains the traveling wave',async()=>{
+  const packets=[],store={data:{master:{...defaults,effect:'rainbow'},devices:{}}};
+  const registry=new ControllerRegistry({store,hidBridge:{sendFeatureReport:async(_p,packet)=>{packets.push(Buffer.from(packet));return true;},stop(){}}});
+  const kb=registry.addKeyboardController({hidPath:'synthetic-only'});
+  try {
+    await registry.sendLeds(kb.id,[]);
+    assert.equal(packets[0][5],0x13);assert.equal(packets[0][12],0);
+    store.data.master.effect='wave';await registry.sendLeds(kb.id,[]);
+    assert.equal(packets[1][5],0x01);assert.equal(packets[1][12],1);
+    await registry.sendLeds(kb.id,[]);assert.equal(packets.length,2);
+  } finally {registry.destroy();}
+});
+
+test('USB acknowledgement remains independent of an SDK reconnect and delivers the next keyboard change',async t=>{
+  let release,writes=0;const store={data:{master:{...defaults,effect:'static'},devices:{}}};
+  const registry=new ControllerRegistry({store,hidBridge:{sendFeatureReport:async()=>{if(++writes===1)await new Promise(resolve=>{release=resolve;});return true;},stop(){release?.();}}});
+  registry.addKeyboardController({hidPath:'synthetic-only'});
+  class SDK extends EventEmitter{constructor(){super();this.socket={on(){},destroy(){},writableLength:0};}async connect(){}async getControllerCount(){return 0;}disconnect(){}}
+  const hardware=new Hardware(store,{controllerRegistry:registry,makeClient:()=>new SDK()});t.after(()=>hardware.stop());hardware.stopped=false;
+  await hardware.connect();hardware.nextDiscovery=Infinity;await hardware.tick();
+  await hardware.connect();hardware.nextDiscovery=Infinity;release();await new Promise(setImmediate);
+  store.data.master.color='#0000ff';hardware.changed();await hardware.tick();await new Promise(setImmediate);
+  assert.equal(writes,2);assert.equal(hardware.snapshot().devices[0].status,'online');
+});
+
+test('keyboard controls work while SDK connection is waiting and after SDK failure',async t=>{
+  let release,writes=0;const store={data:{master:{...defaults,effect:'static'},devices:{}}};
+  const registry=new ControllerRegistry({store,hidBridge:{sendFeatureReport:async()=>{writes++;return true;},stop(){}}});registry.addKeyboardController({hidPath:'synthetic-only'});
+  class SDK extends EventEmitter{constructor(){super();this.socket={destroy(){}};}connect(){return new Promise((resolve,reject)=>{release=()=>reject(Error('Synthetic SDK unavailable'));});}disconnect(){}}
+  const hardware=new Hardware(store,{controllerRegistry:registry,makeClient:()=>new SDK()});t.after(()=>hardware.stop());hardware.stopped=false;
+  const connecting=hardware.connect();await new Promise(setImmediate);
+  await hardware.tick();await new Promise(setImmediate);const during=writes;
+  release();await connecting;
+  store.data.master.color='#0000ff';hardware.changed();await hardware.tick();await new Promise(setImmediate);
+  assert.equal(during,1);assert.equal(writes,2);assert.equal(hardware.connected,false);assert.equal(hardware.snapshot().devices[0].status,'online');
+});
+
+test('individual keyboard color and software mode override the master without continuous USB streaming',async t=>{
+  const packets=[],store={data:{master:{...defaults,effect:'wave',color:'#ff0000'},devices:{}}};
+  const registry=new ControllerRegistry({store,hidBridge:{sendFeatureReport:async(_p,packet)=>{packets.push(Buffer.from(packet));return true;},stop(){}}});const kb=registry.addKeyboardController({hidPath:'synthetic-only'});
+  const hardware=new Hardware(store,{controllerRegistry:registry});t.after(()=>hardware.stop());hardware.stopped=false;hardware.nextDiscovery=Infinity;
+  await hardware.tick();await new Promise(setImmediate);
+  store.data.devices[kb.id]={color:'#0000ff',effect:'static'};hardware.changed();await hardware.tick();await new Promise(setImmediate);
+  assert.equal(packets.length,2);assert.equal(packets[1][5],0x11);assert.deepEqual([...packets[1].subarray(9,12)],[0,0,255]);
+  for(let i=0;i<10;i++)await hardware.tick();assert.equal(packets.length,2);
+});
 test('a native peripheral does not make an offline OpenRGB component appear online in diagnostics',async t=>{
   const store={data:{master:{...defaults},devices:{}}},registry=new ControllerRegistry({store});registry.addKeyboardController();
   const hardware=new Hardware(store,{controllerRegistry:registry});t.after(()=>hardware.stop());

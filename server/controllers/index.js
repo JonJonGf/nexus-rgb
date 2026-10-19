@@ -76,7 +76,7 @@ class ControllerRegistry {
           channel: 1,
           colors,
           isPowerOff,
-          brightness: options.brightness || 100
+          brightness: options.brightness ?? 100
         });
         this.lastPackets.set(dev.id, packet);
         if (dev.hidPath) {
@@ -98,7 +98,7 @@ class ControllerRegistry {
           target: 0x10,
           colors,
           isPowerOff,
-          brightness: options.brightness || 100
+          brightness: options.brightness ?? 100
         });
         this.lastPackets.set(dev.id, packet);
         if (dev.hidPath) {
@@ -121,7 +121,7 @@ class ControllerRegistry {
           offset: 0,
           colors,
           isPowerOff,
-          brightness: options.brightness || 100
+          brightness: options.brightness ?? 100
         });
         this.lastPackets.set(dev.id, packet);
         if (dev.hidPath) {
@@ -144,7 +144,7 @@ class ControllerRegistry {
           offset: 0,
           colors,
           isPowerOff,
-          brightness: options.brightness || 100
+          brightness: options.brightness ?? 100
         });
         this.lastPackets.set(dev.id, packet);
         if (dev.hidPath) {
@@ -166,7 +166,7 @@ class ControllerRegistry {
           port: 1,
           colors,
           isPowerOff,
-          brightness: options.brightness || 100
+          brightness: options.brightness ?? 100
         });
         this.lastPackets.set(dev.id, packet);
         if (dev.hidPath) {
@@ -189,7 +189,7 @@ class ControllerRegistry {
           offset: 0,
           colors,
           isPowerOff,
-          brightness: options.brightness || 100
+          brightness: options.brightness ?? 100
         });
         this.lastPackets.set(dev.id, packet);
         if (dev.hidPath) {
@@ -208,8 +208,8 @@ class ControllerRegistry {
     const transport = options.transport || {
       send: (colors, isPowerOff) => {
         const packet = dev.motherboardBrand === 'gigabyte'
-          ? encodeGigabytePacket({ header: 1, colors, isPowerOff, brightness: options.brightness || 100 })
-          : encodeMsiPacket({ header: 1, colors, isPowerOff, brightness: options.brightness || 100 });
+          ? encodeGigabytePacket({ header: 1, colors, isPowerOff, brightness: options.brightness ?? 100 })
+          : encodeMsiPacket({ header: 1, colors, isPowerOff, brightness: options.brightness ?? 100 });
         this.lastPackets.set(dev.id, packet);
         return packet;
       }
@@ -258,15 +258,18 @@ class ControllerRegistry {
           colorMixing = rainbowModes.includes(mode) ? 0x01 : 0x00;
         } else {
           // Use proprietary native hardware effects of the keyboard
-          const eff = (isSynced ? (masterSettings.effect || devSettings.effect) : devSettings.effect) || 'wave';
-          const hex = (isSynced ? (masterSettings.color || devSettings.color) : devSettings.color) || '#00FFFF';
+          const eff = devSettings.effect || (isSynced ? masterSettings.effect : undefined) || 'wave';
+          const hex = devSettings.color || (isSynced ? masterSettings.color : undefined) || '#00FFFF';
           const rgb = hexToRgb(hex);
           red = rgb.red; green = rgb.green; blue = rgb.blue;
 
           switch (eff) {
             case 'rainbow':
+              mode = 0x13; // Neon cycles the whole keyboard through colors, like the master rainbow.
+              colorMixing = 0x00;
+              break;
             case 'wave':
-              mode = 0x01; // Native Hardware Wave / Rainbow (proprietary 60 FPS internal animation)
+              mode = 0x01; // Traveling wave generated internally by the keyboard.
               colorMixing = 0x01; // ARGB multicolor per-key
               break;
             case 'breathe':

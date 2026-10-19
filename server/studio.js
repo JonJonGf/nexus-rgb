@@ -170,7 +170,7 @@ class Studio {
         controllerConfirmed,
         controllerState,
         lastWorking,
-        actions: ['retry', ...(lastWorking ? ['last-working'] : []), 'lights-off']
+        actions: this.recoveryConfig ? ['lights-off'] : ['retry', ...(lastWorking ? ['last-working'] : []), 'lights-off']
       };
     }
     const hwSnap = this.hardware?.snapshot?.() || {};
@@ -206,27 +206,25 @@ class Studio {
   }
   devices() { return this.hardware.snapshot().devices.filter(d => d.spatialCapable !== false && d.ledCount > 0 && d.effects.includes('wave')); }
   layout() {
+    const roots = this.hardware.devices, source = this.config.layout;
+    // Hardware discovery replaces the root list; map edits replace the saved
+    // layout. Cache only geometry, never power/settings or output colors.
+    const cached = this.layoutCache;
+    if (Array.isArray(roots) && cached?.roots === roots && cached.length === roots.length && cached.source === source) return cached.layout;
     // Keep old positions on disk, but do not sample/display hardware-mode-only devices.
     // Unknown/offline devices retain their positions for later reconnection.
-    const unsupported = new Set(this.hardware.snapshot().devices.filter(d => d.spatialCapable === false).map(d => d.id));
-    const saved = (this.config.layout || []).filter(i => !unsupported.has(i.deviceId)), devices = this.devices(), covered = new Set(saved.map(item => item.deviceId));
-    const deviceMap = new Map(devices.map(d => [d.id, d]));
-    for (const item of saved) {
-      const dev = deviceMap.get(item.deviceId);
-      if (dev && (dev.type === 5 || dev.kind === 'keyboard') && item.shape === 'strip') {
-        item.shape = 'matrix';
-        item.columns = 14;
-        if (!item.width || item.width < 0.2) item.width = 0.32;
-        if (!item.height || item.height < 0.1) item.height = 0.12;
-      }
-    }
+    const snapshot = this.hardware.snapshot().devices;
+    const unsupported = new Set(snapshot.filter(d => d.spatialCapable === false).map(d => d.id));
+    const saved = (source || []).filter(i => !unsupported.has(i.deviceId)), devices = snapshot.filter(d => d.spatialCapable !== false && d.ledCount > 0 && d.effects.includes('wave')), covered = new Set(saved.map(item => item.deviceId));
     let total = saved.reduce((n, item) => n + item.count, 0);
     const added = [];
     for (const item of spatial.defaults(devices.filter(d => !covered.has(d.id)))) {
       if (saved.length + added.length >= 256 || total + item.count > 32768) continue;
       total += item.count; added.push(item);
     }
-    return [...saved, ...added];
+    const layout = [...saved, ...added];
+    this.layoutCache = { roots, length: roots?.length, source, layout, members: new Set(layout.map(item => item.deviceId)) };
+    return layout;
   }
   snapshot(full = false) {
     const data = { enabled: this.config.enabled, activeId: this.config.activeId, excluded: [...(this.config.excluded || [])], layoutRevision: this.layoutRevision, error: this.error, recovery: this.recoverySnapshot(), metrics: { ...this.metrics }, fps: this.fps };
@@ -312,6 +310,7 @@ class Studio {
   }
   async recover(action) {
     if (!['retry', 'last-working', 'lights-off'].includes(action)) throw Error('Ação de recuperação inválida.');
+    if (this.recoveryConfig && action !== 'lights-off') throw Object.assign(Error('O mapa salvo está inválido. A configuração original foi preservada; revise o mapa antes de reativar.'), { status: 409 });
     clearTimeout(this.retryTimer); this.retryTimer = null; this.retrying = false;
     if (action === 'retry') {
       this.quarantined = null; this.attempts = 0; this.attemptKey = '';
@@ -344,6 +343,7 @@ class Studio {
   }
   remove(id) {
     const effect = this.effects.get(id); if (!effect || effect.builtin) throw Error('Este efeito não pode ser removido.');
+    if (this.store.data.profiles.some(profile => profile.studio?.activeId === id)) throw Object.assign(Error('Este efeito está em uso por um perfil. Remova ou edite o perfil antes de excluir o efeito.'), { status: 409 });
     if (this.config.activeId === id) this.configure({ activeId: builtin[0].id, enabled: false });
     if (this.workingHistory.some(i => i.activeId === id)) {
       this.workingHistory = this.workingHistory.filter(i => i.activeId !== id);
@@ -363,10 +363,14 @@ class Studio {
     const effect = this.effects.get(Object.hasOwn(body, 'activeId') ? body.activeId : this.config.activeId);
     if (!effect) throw Error('Efeito não encontrado.');
     const values = schema.parameters(effect, Object.hasOwn(body, 'values') ? body.values : effect.id === this.config.activeId ? this.config.values : {});
-    return this.store.profile(body.name, undefined, { enabled: true, activeId: effect.id, values, excluded: [] });
+    return this.store.profile(body.name, undefined, { enabled: true, activeId: effect.id, values, excluded: [...(this.config.excluded || [])] });
   }
   reset() { clearTimeout(this.retryTimer); this.retryTimer = null; this.retrying = false; this.signature = ''; this.error = null; this.failure = null; this.colors.clear(); this.stopWorker(); this.preview = null; this.rendered = false; this.healthySince = 0; this.healthyFrames = 0; }
-  hasDevice(id) { return this.config.enabled && !this.error && !(this.config.excluded || []).includes(id) && this.layout().some(item => item.deviceId === id); }
+  hasDevice(id) {
+    if (!this.config.enabled || this.error || (this.config.excluded || []).includes(id)) return false;
+    this.layout();
+    return this.layoutCache.members.has(id);
+  }
   colorsFor(id, settings, count) {
     if (!this.hasDevice(id) || !this.colors.has(id)) return null;
     const colors = this.colors.get(id), scale = settings.power ? settings.brightness / 100 : 0;

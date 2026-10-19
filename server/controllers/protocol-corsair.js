@@ -54,7 +54,7 @@ function encodeCorsairPacket({
   buf[3] = count;
 
   // Scale factor for brightness
-  const scale = isPowerOff ? 0 : Math.max(0, Math.min(100, Number(brightness) || 100)) / 100;
+  const scale = isPowerOff ? 0 : Math.max(0, Math.min(100, Number(brightness) || 0)) / 100;
 
   // Payload: G, R, B or R, G, B depending on Corsair channel config (standard: RGB)
   if (!isPowerOff) {

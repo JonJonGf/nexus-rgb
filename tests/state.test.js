@@ -2,6 +2,17 @@
 const test = require('node:test'); const assert = require('node:assert/strict'); const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
 const { Store, validatePatch } = require('../server/store');
 
+test('keyboard participation survives general controls and profiles without retaining old lighting overrides',t=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-participation-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));const store=new Store(dir);
+  const profile=store.profile('Global scene',{palette:['#ff0000'],effect:'wave'});
+  store.device('keyboard',{syncWithPc:false,color:'#123456',effect:'static'});
+  for(const patch of [{color:'#abcdef'},{brightness:20},{power:false},{effect:'wave'}]){
+    store.master(patch);assert.deepEqual(store.data.devices.keyboard,{syncWithPc:false});
+  }
+  store.applyProfile(profile.id);assert.deepEqual(store.data.devices.keyboard,{syncWithPc:false});
+  assert.equal(new Store(dir).data.devices.keyboard.syncWithPc,false);
+});
+
 test('perfil guarda efeito espacial e parâmetros sem substituir o mapa compartilhado', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-spatial-profile-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));

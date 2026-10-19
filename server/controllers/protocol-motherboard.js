@@ -66,7 +66,7 @@ function encodeGigabytePacket({ header = 1, colors = [], brightness = 100, isPow
   buf[1] = Math.max(0, Math.min(3, (Number(header) || 1) - 1));
   const count = isPowerOff ? 0 : Math.min(colors.length, 20);
   buf[2] = count;
-  const scale = isPowerOff ? 0 : Math.max(0, Math.min(100, Number(brightness) || 100)) / 100;
+  const scale = isPowerOff ? 0 : Math.max(0, Math.min(100, Number(brightness) || 0)) / 100;
   if (!isPowerOff) {
     for (let i = 0; i < count; i++) {
       const c = colors[i] || { red: 0, green: 0, blue: 0 };
@@ -91,7 +91,7 @@ function encodeMsiPacket({ header = 1, colors = [], brightness = 100, isPowerOff
   buf[2] = Math.max(0, Math.min(3, (Number(header) || 1) - 1));
   const count = isPowerOff ? 0 : Math.min(colors.length, 20);
   buf[3] = count;
-  const scale = isPowerOff ? 0 : Math.max(0, Math.min(100, Number(brightness) || 100)) / 100;
+  const scale = isPowerOff ? 0 : Math.max(0, Math.min(100, Number(brightness) || 0)) / 100;
   if (!isPowerOff) {
     for (let i = 0; i < count; i++) {
       const c = colors[i] || { red: 0, green: 0, blue: 0 };

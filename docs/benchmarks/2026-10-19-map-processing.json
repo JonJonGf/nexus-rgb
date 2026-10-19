@@ -1,0 +1,462 @@
+{
+  "scope": "Synthetic SDK, four LEDs per controller; no renderer, physical hardware or browser resource measurement",
+  "baseline": "00625c150a431bcb4ccfaa293470d6f3b065594f",
+  "candidate": "local audited fixes after baseline, not installed",
+  "conditions": "Same local probes and controller counts; final candidate measurements rerun after UI/unit completion; short historical comparison under ordinary desktop activity",
+  "before": [
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.023,
+      "maxTickMs": 0.034,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 30,
+      "medianTickMs": 0.565,
+      "maxTickMs": 0.999,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.057,
+      "maxTickMs": 0.103,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 96,
+      "medianTickMs": 2.162,
+      "maxTickMs": 5.325,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.084,
+      "maxTickMs": 0.134,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 192,
+      "medianTickMs": 8.449,
+      "maxTickMs": 9.496,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.133,
+      "maxTickMs": 0.576,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 384,
+      "medianTickMs": 32.936,
+      "maxTickMs": 37.035,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 30,
+      "medianTickMs": 0.219,
+      "maxTickMs": 0.46,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.011,
+      "maxTickMs": 0.017,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 96,
+      "medianTickMs": 1.999,
+      "maxTickMs": 2.474,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.034,
+      "maxTickMs": 0.062,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 192,
+      "medianTickMs": 8.058,
+      "maxTickMs": 9.003,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.068,
+      "maxTickMs": 0.076,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 384,
+      "medianTickMs": 30.771,
+      "maxTickMs": 32.715,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.151,
+      "maxTickMs": 0.232,
+      "workerStarted": false
+    }
+  ],
+  "after": [
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.022,
+      "maxTickMs": 0.033,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.029,
+      "maxTickMs": 0.033,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.075,
+      "maxTickMs": 0.402,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.061,
+      "maxTickMs": 0.182,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.088,
+      "maxTickMs": 0.112,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.085,
+      "maxTickMs": 0.404,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 1,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.142,
+      "maxTickMs": 0.604,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 1,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.147,
+      "maxTickMs": 0.566,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.012,
+      "maxTickMs": 0.03,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 5,
+      "leds": 20,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.012,
+      "maxTickMs": 0.04,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.042,
+      "maxTickMs": 0.07,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 16,
+      "leds": 64,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.041,
+      "maxTickMs": 0.047,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.073,
+      "maxTickMs": 0.107,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 32,
+      "leds": 128,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.072,
+      "maxTickMs": 0.486,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": true,
+      "round": 2,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.146,
+      "maxTickMs": 0.638,
+      "workerStarted": false
+    },
+    {
+      "mapEnabled": false,
+      "round": 2,
+      "controllers": 64,
+      "leds": 256,
+      "iterations": 20,
+      "snapshotsPerTick": 0,
+      "medianTickMs": 0.139,
+      "maxTickMs": 0.618,
+      "workerStarted": false
+    }
+  ],
+  "idleBefore": [
+    {
+      "controllers": 5,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 11,
+      "medianPumpMs": 0.203,
+      "maxPumpMs": 0.393,
+      "workerStarted": false,
+      "physicalWrites": 0
+    },
+    {
+      "controllers": 16,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 33,
+      "medianPumpMs": 1.418,
+      "maxPumpMs": 1.678,
+      "workerStarted": false,
+      "physicalWrites": 0
+    },
+    {
+      "controllers": 32,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 65,
+      "medianPumpMs": 1.978,
+      "maxPumpMs": 2.49,
+      "workerStarted": false,
+      "physicalWrites": 0
+    },
+    {
+      "controllers": 64,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 129,
+      "medianPumpMs": 7.793,
+      "maxPumpMs": 10.183,
+      "workerStarted": false,
+      "physicalWrites": 0
+    }
+  ],
+  "idleAfter": [
+    {
+      "controllers": 5,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 1,
+      "medianPumpMs": 0.021,
+      "maxPumpMs": 0.056,
+      "workerStarted": false,
+      "physicalWrites": 0
+    },
+    {
+      "controllers": 16,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 1,
+      "medianPumpMs": 0.06,
+      "maxPumpMs": 0.125,
+      "workerStarted": false,
+      "physicalWrites": 0
+    },
+    {
+      "controllers": 32,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 1,
+      "medianPumpMs": 0.09,
+      "maxPumpMs": 0.377,
+      "workerStarted": false,
+      "physicalWrites": 0
+    },
+    {
+      "controllers": 64,
+      "allIndividualLightsOff": true,
+      "previewClients": 0,
+      "requestedFps": 20,
+      "pumpIntervalMs": 8,
+      "snapshotsPerPump": 1,
+      "medianPumpMs": 0.177,
+      "maxPumpMs": 0.436,
+      "workerStarted": false,
+      "physicalWrites": 0
+    }
+  ]
+}

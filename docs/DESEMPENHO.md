@@ -1,5 +1,15 @@
 # Desempenho do Nexus RGB
 
+## Custo de processamento do mapa — 19/10/2026
+
+Microbenchmark local do processamento de `Hardware.tick` com SDK sintético, quatro LEDs por controladora e mapa ativo, comparando `00625c1` com as correções locais da auditoria. Duas ordens de cenários, vinte ciclos medidos após três de aquecimento; tamanhos de cinco a 64 controladoras. O renderer, o navegador, o OpenRGB físico e a latência do barramento **não** fazem parte deste ensaio.
+
+Com **64 controladoras**, a mediana de um ciclo passou de **30,771–32,936 ms para 0,146–0,147 ms**, sem reconstruir snapshots completos após aquecer o cache (antes: 384 por ciclo). A geometria é reutilizada até mudança do mapa ou redescoberta; energia, brilho e exclusões continuam consultados no estado atual. A regressão também verifica edição e nova quantidade de LEDs após descoberta.
+
+Com todas as peças individualmente apagadas, sem clientes de prévia nem worker, a mediana de `Studio.pump` passou de **7,793 ms para 0,177 ms**, e os snapshots de **129 para um** por chamada. Nenhum envio físico foi realizado. O teste de regressão também pega o primeiro ciclo sem cache: antes, 640 reconstruções para 64 controladoras.
+
+São amostras curtas sob atividade normal do desktop; a execução final da candidata ocorreu após os testes gerais e de interface. Esses números demonstram redução do trabalho repetido neste caminho, **não** uma redução equivalente no consumo total, uma medida atual de RAM/CPU do aplicativo inteiro ou correção da causa física do travamento do OpenRGB. Os [dados sanitizados e condições](benchmarks/2026-10-19-map-processing.json) preservam os resultados anteriores e posteriores. A limitação de cadência da RAM não foi reduzida.
+
 ## Revisão da candidata após alpha.36 — 18/10/2026
 
 Comparação local entre `8a11684` e a candidata corrigida, sem alterar a instalação real. Ryzen 5 3600, 12 processadores lógicos, Node 24.20.0. O mesmo harness do motor usou SDK simulado, três controladoras, cinco componentes e 92 LEDs; os dois descritores de RAM são SMBus e conservam o limite de 20 FPS. Cada cenário teve três segundos de aquecimento e 21 amostras, com janelas medidas de aproximadamente 27–31 segundos. Os sete cenários foram executados primeiro na baseline e depois na candidata, sem outros benchmarks concorrentes.

@@ -11,6 +11,19 @@ async function fixture(page) {
   return layout;
 }
 const saved=async page=>(await (await page.request.get('/api/studio')).json()).layout;
+
+for(const language of ['pt-BR','en'])test('map conflict replaces local positions and clears retry in '+language,async({page})=>{
+  await fixture(page);
+  await page.locator('.nav[data-page=settings]').click();await page.locator('#settings-language').selectOption(language);
+  await page.locator('.nav[data-page=studio]').click();
+  const layout=await saved(page),remote=layout.map((item,index)=>index===0?{...item,x:.82}:item);
+  await page.request.post('/api/studio',{headers:{Origin:new URL(page.url()).origin,'X-Nexus-Client':'web'},data:{layout:remote}});
+  await page.locator('.studio-item').first().press('ArrowLeft');
+  await expect(page.locator('#studio-dirty')).toHaveText(language==='en'?'Map updated by another device':'Mapa atualizado por outro dispositivo');
+  await expect(page.locator('#studio-retry')).toBeHidden();
+  await expect.poll(()=>page.locator('.studio-item').first().evaluate(node=>parseFloat(node.style.left))).toBeCloseTo(82,5);
+  expect((await saved(page))[0].x).toBe(.82);
+});
 test('multisseleção, grupos, desfazer/refazer e alças persistem sem separar LEDs',async({page})=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));const layout=await fixture(page);
   const chips=page.locator('#studio-device-chips button');await chips.first().click();await chips.last().click({modifiers:['Shift']});

@@ -1,6 +1,7 @@
 'use strict';
 // First-party interface strings only. Device, profile and imported effect names are user content.
 window.NexusEnglish = Object.freeze({
+  "Este efeito está em uso por um perfil. Remova ou edite o perfil antes de excluir o efeito.": "This effect is used by a profile. Remove or edit that profile before deleting the effect.",
   "Nexus RGB — Controle local": "Nexus RGB — Local control",
   "CONTROLE LOCAL": "LOCAL CONTROL",
   "SEU ESPAÇO": "YOUR SPACE",

@@ -1,5 +1,7 @@
 # Auditoria funcional e de desempenho da alpha.37 — 19/10/2026
 
+**Ampliação posterior:** o usuário pediu revisão de todo o código. Os achados A10–A17, extensão do benchmark A07 e cobertura por arquivo estão no [relatório integral](2026-10-19-revisao-integral.md). Este documento preserva os resultados e limites do primeiro bloco; o total de seis pendências abaixo refere-se somente a esse bloco.
+
 ## Escopo e resultado
 
 Revisão solicitada com autonomia para investigar enquanto o usuário estava remoto. Skills usadas: `diagnosing-bugs`, `tdd` e `codebase-design`. Código inicial: `1dc5ef0`; a versão instalada e a Release consultadas eram a alpha.37, cujo código de produto corresponde à tag `0a78ede`.
