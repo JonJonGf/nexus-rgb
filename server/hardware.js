@@ -127,7 +127,7 @@ class Hardware extends EventEmitter {
     this.generation = 0; this.activeTimers = new Set(); this.activeOperations = new Set(); this.opSeq = 0;
     this.lastFailure = null; this.failureHistory = [];
     this.consecutiveDescriptionHangs = 0; this.controllerHung = false; this.sharedAnimations = new Map();
-    this.lastSentColors = new Map(); this.ramLastSentTime = new Map(); this.hasDroppedFrame = false; this.tickPending = false; this.tickPendingSpatial = false; this.deferredFromSpatial = new Set();
+    this.lastSentColors = new Map(); this.ramLastSentTime = new Map(); this.deferredOutput = new Set(); this.hasDroppedFrame = false; this.tickPending = false; this.tickPendingSpatial = false; this.deferredFromSpatial = new Set();
     this.metrics = { framesCalculated: 0, framesSent: 0, framesDeduplicated: 0, framesDroppedTransport: 0, framesThrottledRam: 0 };
     this.controllerRegistry = options.controllerRegistry || new ControllerRegistry({ store: this.store });
     if (this.controllerRegistry.getDevices().length > 0) {
@@ -282,6 +282,7 @@ class Hardware extends EventEmitter {
     this.activeTimers.clear();
     this.lastSentColors.clear();
     this.ramLastSentTime.clear();
+    this.deferredOutput.clear();
     this.hasDroppedFrame = false;
     this.tickPending = false;
     this.tickPendingSpatial = false;
@@ -360,6 +361,7 @@ class Hardware extends EventEmitter {
     this.connected = false; this.lostAt = Date.now();
     this.lastSentColors.clear();
     this.ramLastSentTime.clear();
+    this.deferredOutput.clear();
     this.hasDroppedFrame = false;
     this.tickPending = false;
     this.tickPendingSpatial = false;
@@ -435,6 +437,7 @@ class Hardware extends EventEmitter {
     const present = new Set(devices.map(device => device.id));
     for (const id of this.modes.keys()) if (!present.has(id)) { this.modes.delete(id); this.applied.delete(id); }
     for (const id of this.lastSentColors.keys()) if (!present.has(id)) this.lastSentColors.delete(id);
+    for (const id of this.deferredOutput) if (!present.has(id)) this.deferredOutput.delete(id);
     for (const device of devices) {
       const prev = this.devices.find(d => d.id === device.id);
       if (prev && prev.sdkId !== device.sdkId) {
@@ -670,6 +673,7 @@ class Hardware extends EventEmitter {
     // 1. Color deduplication: skip identical colors for this controller when no explicit change was requested
     if (!forceSend && last && colorsEqual(last, colors)) {
       this.metrics.framesDeduplicated++;
+      this.deferredOutput.delete(id);
       return false;
     }
 
@@ -698,11 +702,15 @@ class Hardware extends EventEmitter {
     // 2. Safe rate limit for SMBus / RAM controllers (fixed 20 FPS = minimum ~46 ms between physical writes)
     // Flooding SMBus controllers with 60 FPS writes causes bus saturation, I2C collision with motherboard sensors, and OpenRGB hangs.
     // Power-off frames and manual identification are never throttled so state changes take effect immediately.
-    if (!isPowerOff && !this.identification && isSmbusRam(device)) {
+    const identifyingThisController = this.identification && (this.identification.id === id || device.components?.some(component => component.id === this.identification.id));
+    if (!isPowerOff && !identifyingThisController && isSmbusRam(device)) {
       const now = this.now();
       const lastSent = this.ramLastSentTime.get(id);
       if (lastSent !== undefined && (now - lastSent) < 46) {
         this.metrics.framesThrottledRam = (this.metrics.framesThrottledRam || 0) + 1;
+        // Retain only the controller ID. A retry renders the latest settings,
+        // never a queue of obsolete colors or an earlier power-on command.
+        this.deferredOutput.add(id);
         return false;
       }
     }
@@ -716,11 +724,13 @@ class Hardware extends EventEmitter {
     if (isBacklogged && !isPowerOff) {
       this.metrics.framesDroppedTransport++;
       this.hasDroppedFrame = true;
+      this.deferredOutput.add(id);
       return false;
     }
 
     // 4. Send to SDK client
     this.client.updateLeds(device.sdkId, colors);
+    this.deferredOutput.delete(id);
     this.metrics.framesSent++;
     this.hasDroppedFrame = false;
     this.lastSentColors.set(id, colors.map(c => ({ red: c.red, green: c.green, blue: c.blue })));
@@ -743,7 +753,7 @@ class Hardware extends EventEmitter {
       const powerChanged = this.powerKnown.has(component.id) && this.powerKnown.get(component.id) !== Boolean(s.power);
       return this.powerRamps.has(component.id) || (canSmooth && powerChanged) || (s.power && canSmooth && (this.transitionState?.from.has(component.id) || !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
     }));
-    if (!this.dirty && !animated && Date.now() < this.nextDiscovery) return;
+    if (!this.dirty && !animated && !this.deferredOutput.size && Date.now() < this.nextDiscovery) return;
     this.busy = true; let changedErrors = false;
     try {
       if ((this.client?.socket?.writableLength || 0) > 512 * 1024) throw new Error('Controlador RGB está demorando a processar os comandos.');
@@ -786,7 +796,7 @@ class Hardware extends EventEmitter {
           const canSmooth = this.canSmoothPower(component.id, s, !!d.direct) && s.brightness > 0;
           return this.powerRamps.has(component.id) || (s.power && canSmooth && (this.transitionState?.from.has(component.id) || !spatialFrame && !this.studio?.hasDevice(component.id) && s.effect !== 'static'));
         });
-        if (!changed && !animation) {
+        if (!changed && !animation && !this.deferredOutput.has(d.id)) {
           if (spatialFrame && !channels.some(c => this.studio?.hasDevice(c.id))) {
             this.deferredFromSpatial.add(d.id);
           }
@@ -814,6 +824,7 @@ class Hardware extends EventEmitter {
             await this.applyMode(d, d.direct, { ...this.store.data.master, power: true }, true);
             await this.sendLeds(d, colors, allOff, forceSend);
           }
+          if (this.deferredOutput.has(d.id)) continue;
           if (d.nativeController && d.error) { changedErrors = true; continue; }
           d.error = null; this.applied.set(d.id, signature);
           for (const component of d.components) this.rememberOutput(component.id, colors.slice(component.offset, component.offset + component.ledCount), this.settings(component.id, true));
@@ -837,7 +848,11 @@ class Hardware extends EventEmitter {
           if ((!activePower || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) {
             colors = this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow);
             await this.sendLeds(d, colors, !activePower, forceSend);
+          } else {
+            // A confirmed hardware mode replaces the deferred software frame.
+            this.deferredOutput.delete(d.id);
           }
+          if (this.deferredOutput.has(d.id)) continue;
           if (d.nativeController && d.error) { changedErrors = true; continue; }
           if (!activePower && !colors) colors = Array.from({ length: d.ledCount }, () => ({ red: 0, green: 0, blue: 0 }));
           this.rememberOutput(d.id, colors, settings);
@@ -900,6 +915,7 @@ class Hardware extends EventEmitter {
     this.reconnect = null;
     this.lastSentColors.clear();
     this.ramLastSentTime.clear();
+    this.deferredOutput.clear();
     this.hasDroppedFrame = false;
     this.tickPending = false;
     this.tickPendingSpatial = false;

@@ -57,6 +57,96 @@ class MockClient extends EventEmitter {
   disconnect() { this.socket.destroy(); }
 }
 
+test('RAM applies the final static color after a rapid change from rainbow without bypassing its rate limit', async t => {
+  const store = { data: { master: { ...defaults, effect: 'rainbow', brightness: 100 }, devices: {} } };
+  const raw = { ...controller('Synthetic RAM', 'SMBus:1'), type: 1 };
+  const mock = new MockClient([raw]); let now = 1000;
+  const hardware = new Hardware(store, { makeClient: () => mock, now: () => now });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  const previous = mock.calls.filter(c => c[0] === 'leds').at(-1)[2];
+  now += 10; store.data.master = { ...store.data.master, effect: 'static', color: '#0000ff' };
+  hardware.changed(); await hardware.tick();
+  assert.equal(mock.calls.filter(c => c[0] === 'leds').length, 1, 'The protected RAM must not receive an early write');
+  assert.deepEqual(hardware.outputFor(hardware.devices[0].id).colors, previous, 'A deferred frame must not appear as delivered');
+  now += 50; await hardware.tick();
+  const sent = mock.calls.filter(c => c[0] === 'leds');
+  assert.equal(sent.length, 2, 'The final static frame must be retried without another user action');
+  assert.deepEqual(sent.at(-1)[2], Array.from({ length: 8 }, () => ({ red: 0, green: 0, blue: 255 })));
+  now += 100; await hardware.tick();
+  assert.equal(mock.calls.filter(c => c[0] === 'leds').length, 2, 'Static output settles after successful delivery');
+});
+
+test('a congested socket eventually receives only the latest static color and keeps the delivered preview until then', async t => {
+  const store = { data: { master: { ...defaults, effect: 'static', color: '#ff0000', brightness: 100 }, devices: {} } };
+  const mock = new MockClient([controller('Synthetic Board', 'USB:1')]);
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  mock.socket.writableLength = 4096;
+  for (const color of ['#00ff00', '#ffff00', '#0000ff']) { store.data.master.color = color; hardware.changed(); await hardware.tick(); }
+  assert.equal(mock.calls.filter(c => c[0] === 'leds').length, 1);
+  assert.deepEqual(hardware.outputFor(hardware.devices[0].id).colors[0], { red: 255, green: 0, blue: 0 });
+  mock.socket.writableLength = 0; mock.socket.emit('drain'); await new Promise(resolve => setImmediate(resolve));
+  await hardware.tick();
+  const sent = mock.calls.filter(c => c[0] === 'leds');
+  assert.equal(sent.length, 2, 'Deferred updates are coalesced instead of replayed');
+  assert.deepEqual(sent.at(-1)[2][0], { red: 0, green: 0, blue: 255 });
+  await hardware.tick(); assert.equal(mock.calls.filter(c => c[0] === 'leds').length, 2);
+});
+
+test('power-off supersedes a deferred color and is never followed by that obsolete color', async t => {
+  const store = { data: { master: { ...defaults, effect: 'static', color: '#ff0000' }, devices: {} } };
+  const mock = new MockClient([controller('Synthetic Board', 'USB:1')]);
+  const hardware = new Hardware(store, { makeClient: () => mock });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  mock.socket.writableLength = 4096; store.data.master.color = '#0000ff'; hardware.changed(); await hardware.tick();
+  store.data.master.power = false; hardware.changed(); await hardware.tick();
+  mock.socket.writableLength = 0; mock.socket.emit('drain'); await new Promise(resolve => setImmediate(resolve)); await hardware.tick();
+  const sent = mock.calls.filter(c => c[0] === 'leds');
+  assert.equal(sent.length, 2);
+  assert.deepEqual(sent.at(-1)[2], Array.from({ length: 8 }, () => ({ red: 0, green: 0, blue: 0 })));
+});
+
+test('a composite RAM controller retries a deferred final static frame for all of its zones', async t => {
+  const store = { data: { master: { ...defaults, effect: 'rainbow', brightness: 100 }, devices: {} } };
+  const raw = { ...controller('Synthetic RAM', 'SMBus:1'), type: 1, zones: [0, 1].map(id => ({ id, name: 'Zone '+id, ledsCount: 4, ledsMin: 4, ledsMax: 4, resizable: false })) };
+  const mock = new MockClient([raw]); let now = 1000;
+  const hardware = new Hardware(store, { makeClient: () => mock, now: () => now });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  assert.equal(hardware.snapshot().devices.length, 2);
+  now += 10; store.data.master = { ...store.data.master, effect: 'static', color: '#0000ff' }; hardware.changed(); await hardware.tick();
+  assert.equal(mock.calls.filter(c => c[0] === 'leds').length, 1);
+  now += 50; await hardware.tick();
+  const sent = mock.calls.filter(c => c[0] === 'leds');
+  assert.equal(sent.length, 2);
+  assert.deepEqual(sent.at(-1)[2], Array.from({ length: 8 }, () => ({ red: 0, green: 0, blue: 255 })));
+});
+
+test('native Off supersedes a deferred RGB frame even when the mode has no per-LED colors', async t => {
+  const store = { data: { master: { ...defaults, effect: 'static', color: '#ff0000' }, devices: {} } };
+  const raw = controller('Synthetic Board', 'USB:1'); raw.modes.push({ id: 3, name: 'Off', flagList: [] });
+  const mock = new MockClient([raw]); const hardware = new Hardware(store, { makeClient: () => mock });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  mock.socket.writableLength = 4096; store.data.master.color = '#0000ff'; hardware.changed(); await hardware.tick();
+  store.data.master.power = false; hardware.changed(); await hardware.tick();
+  const output = hardware.outputFor(hardware.devices[0].id);
+  assert.equal(output.source, 'off');
+  assert.deepEqual(output.colors, Array.from({ length: 8 }, () => ({ red: 0, green: 0, blue: 0 })));
+  mock.socket.writableLength = 0; mock.socket.emit('drain'); await new Promise(resolve => setImmediate(resolve)); await hardware.tick();
+  assert.equal(mock.calls.filter(c => c[0] === 'leds').length, 1, 'The old color must never be replayed after Off');
+});
+
+test('identifying another controller must not bypass the RAM write cadence', async t => {
+  const store = { data: { master: { ...defaults, effect: 'wave', speed: 50 }, devices: {} } };
+  const rawRam = { ...controller('Synthetic RAM', 'SMBus:1'), type: 1 };
+  const mock = new MockClient([rawRam, controller('Synthetic ARGB', 'USB:1')]); let now = 1000;
+  const hardware = new Hardware(store, { makeClient: () => mock, now: () => now });
+  t.after(() => hardware.stop()); hardware.stopped = false; await hardware.connect(); await hardware.tick();
+  hardware.identify(hardware.devices[1].id, 0);
+  for (let i = 0; i < 12; i++) { now += 1000 / 60; await hardware.tick(); }
+  const ramWrites = mock.calls.filter(c => c[0] === 'leds' && c[1] === 0);
+  assert.ok(ramWrites.length <= 5, `RAM received ${ramWrites.length} writes in 200 ms while identifying ARGB`);
+});
+
 test('colorsEqual helper compara canais RGB e detecta igualdade estrita sem alocação', () => {
   const c1 = [{ red: 255, green: 0, blue: 128 }, { red: 10, green: 20, blue: 30 }];
   const c2 = [{ red: 255, green: 0, blue: 128 }, { red: 10, green: 20, blue: 30 }];
