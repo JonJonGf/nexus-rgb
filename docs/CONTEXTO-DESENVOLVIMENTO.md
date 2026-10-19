@@ -4,13 +4,15 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 19/10/2026
 
-### Experiências implementadas — candidata aguardando instalação
+### Experiências implementadas — candidata instalada e conferida
+
+- **Instalação autorizada concluída em 19/10:** usuário confirmou disponibilidade e autorizou abrir a candidata. Backup novo feito imediatamente antes; helper privado `data/experiences-validation/install-approved-1b42f71.ps1` fixou o hash e abriu progresso visível na sessão interativa, sem instalar PawnIO/reiniciar Windows. Log encerrado às 16h34 (Brasília), serviços ativos e bandeja na sessão do usuário. `ShellExecute` não capturou exit code; conclusão confirmada pelo log, API e comparação dos arquivos, sem inventar esse resultado.
 
 - Usuário aprovou Live/gestos graváveis pelo celular, cenas temporizadas, WLED opcional, áudio por bandas e perfis por aplicativo, com foco em eficiência. Implementados em `1b42f71995e6d039d11482b7f2404bda9b771f0e`; documentação posterior não altera o binário. [Guia](EXPERIENCIAS.md) e [validação/histórico](validation/2026-10-19-experiencias.md).
 - 257/257 testes gerais, 50/50 Edge sem retries; supervisor e 12 cenários inertes de instalador passaram. Duas rodadas sintéticas comparáveis e probes WASAPI separados documentados em [Desempenho](DESEMPENHO.md). Testes físicos WLED/Echo/aparência musical e múltiplas sessões ainda pendentes; não equiparar simulação com hardware real.
 - Build local passou, `development: true`, `tag: null`, sem nova dependência npm, auditoria de produção sem vulnerabilidades conhecidas e sem WinRing no payload. Checkpoint privado `data/experiences-validation/candidate-1b42f71/`, Setup SHA-256 `76b1bb10f67ff8ca2adca8b59d5eb06859c025c47adedb35478ea26924850a47`. Comparados 62 arquivos de servidor/interface e smoke do pacote passou. Não houve teste de instalação real/upgrade desta candidata.
-- PC continua em `5b3e246`, seis componentes conectados na leitura, backup privado preparado. Release pública continua alpha.37. Nenhum push/tag/Release/UAC/instalação/reinício deste bloco. Pergunta de disponibilidade remota enviada; aguardar confirmação antes de abrir o instalador.
-- Se houver autorização: preparar helper que fixe **o novo hash**, mantenha progresso visível, preserve dados e desmarque PawnIO; não reutilizar helper antigo vinculado a outro pacote. Conferir identidade, dados, bandeja e detecção após instalar. Sem resposta, entregar candidata e registrar instalação pendente.
+- PC agora executa `1b42f71`, `development: true`, `tag: null`; seis componentes conectados, detecção encerrada e nenhum erro na leitura. Comparados **178 arquivos instalados**, sem divergências com o payload; ajustes e efeitos exportados idênticos antes/depois. Navegador na instalação real abriu Live/Cenas/Som e contexto, sem erro JS/overflow; áudio e regras continuam desativados. Evidências privadas em `data/experiences-validation/`, sem conteúdo pessoal versionado.
+- Release pública continua alpha.37: houve instalação local autorizada, mas nenhum push/tag/Release. Próximo: testes físicos do usuário para aparência/gestos e testes com WLED/Echo reais quando disponíveis; não afirmar validação de cor física pela API. Nenhuma nova publicação está autorizada por dedução.
 
 ### Pesquisa de direção do produto — sem implementação autorizada
 
