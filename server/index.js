@@ -268,7 +268,7 @@ async function createApp(options = {}) {
     res.end(fs.readFileSync(path.join(__dirname, '..', 'public', asset[0])));
   }
   const handler = (req, res) => request(req, res).catch(error => {
-    if (!res.headersSent) json(res, error.status || 400, { error: error.message }); else res.end();
+    if (!res.headersSent) json(res, error.status || 400, { error: error.message, ...(error.backupEffect ? {backupEffect:error.backupEffect} : {}) }); else res.end();
   });
   local = http.createServer(handler);
   local.requestTimeout = 15000; local.headersTimeout = 10000; local.keepAliveTimeout = 5000; local.maxConnections = 64; local.maxRequestsPerSocket = 100;

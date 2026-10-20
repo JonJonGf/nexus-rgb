@@ -33,7 +33,14 @@ class Backups {
       const digest=this.digest(),effects=new Map(builtin.map(e=>[e.id,{...e,builtin:true}])),files=[];
       const seen=new Set();for(const item of input.effects){fields(item,['id','original']);const effect=this.studio.parse(item.original);if(effect.id!==item.id||seen.has(effect.id))throw Error('Backup: efeito duplicado ou divergente.');seen.add(effect.id);if(effects.get(effect.id)?.builtin)continue;effects.set(effect.id,effect);files.push({id:effect.id,original:item.original});}
       const settings=normalize(input.settings,effects),deadline=Date.now()+20000;
-      for(const file of files){if(Date.now()>deadline)throw Error('Backup: validação excedeu o tempo.');await this.studio.probe(effects.get(file.id));}
+      for(const file of files){
+        if(Date.now()>deadline)throw Error('Backup: validação excedeu o tempo.');
+        try{await this.studio.probe(effects.get(file.id));}
+        catch(error){
+          error.backupEffect={id:file.id,name:effects.get(file.id).name,referenced:settings.studio?.activeId===file.id||settings.profiles.some(p=>p.studio?.activeId===file.id)};
+          throw error;
+        }
+      }
       if(this.studio.stopped)throw Error('O aplicativo está encerrando.');if(digest!==this.digest())throw Error('As configurações mudaram. Revise o backup novamente.');
       const merged=new Map(this.studio.effects);for(const [key,value]of effects)merged.set(key,value);if(merged.size>67)throw Error('Limite de 64 efeitos importados.');
       const token=crypto.randomBytes(24).toString('hex'),expiresAt=Date.now()+5*60000;this.pending={token,expiresAt,digest,settings,files,effects:merged};

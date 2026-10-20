@@ -4,6 +4,17 @@ const {Store}=require('../server/store'),{Studio}=require('../server/studio'),{B
 function fixture(t){const directory=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-backup-')),store=new Store(directory),hardware={snapshot:()=>({devices:[]}),changed(){},setFps(){},cancelIdentification(){}},studio=new Studio(store,hardware,directory,()=>{});t.after(()=>{studio.stop();fs.rmSync(directory,{recursive:true,force:true});});return {directory,store,studio,backups:new Backups(store,studio,directory)};}
 const original=JSON.stringify({format:'nexus-effect/1',name:'Backup test',pattern:'gradient',palette:['#123456'],speed:0,angle:0,scale:1});
 
+test('a rejected backup effect is identified without issuing a restore token or losing the original',async t=>{
+  const {request,cookie,app}=await require('./helpers/http-app').fixture(t);
+  const source='<title>Rejected drawing</title><canvas id="c"></canvas><script>var c=document.getElementById("c").getContext("2d");for(var n=0;n<31000;n++)c.fillRect(0,0,1,1);</script>';
+  const effect=app.studio.parse(source),backup=(await request('/api/backups',{cookie})).json();backup.effects=[{id:effect.id,original:source}];
+  const reviewed=await request('/api/backups/review',{cookie,method:'POST',body:backup});
+  assert.equal(reviewed.status,400);assert.equal(reviewed.json().backupEffect.id,effect.id);assert.equal(reviewed.json().backupEffect.name,'Rejected drawing');assert.equal(reviewed.json().backupEffect.referenced,false);assert.equal(reviewed.json().token,undefined);
+  assert.equal((await request('/api/backups/restore',{cookie,method:'POST',body:{token:'not-issued'}})).status,400);
+  const selected={...backup,effects:[]},retry=await request('/api/backups/review',{cookie,method:'POST',body:selected});assert.equal(retry.status,200,retry.text);
+  assert.equal((await request('/api/backups/restore',{cookie,method:'POST',body:{token:retry.json().token}})).status,200);assert.equal(backup.effects[0].original,source);
+});
+
 test('an effect used by a profile cannot be removed and its exported backup remains restorable',async t=>{
   const {studio,backups,store}=fixture(t),id=await studio.import(original);
   studio.profile({name:'Keep my effect',activeId:id});

@@ -4,6 +4,14 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 19/10/2026
 
+### Publicação da alpha.38 autorizada — preparação em andamento
+
+- Usuário autorizou **publicar quando as validações permitirem**. Preparação da tag `v0.1.0-alpha.38`, com as Experiências e correções locais anteriores; [notas](releases/v0.1.0-alpha.38.md) e [validação](validation/2026-10-19-alpha38.md). Isso substitui a pendência de autorização da revisão abaixo; não autoriza reinstalar no PC.
+- Resolvido o bloqueio de recuperação: HTTP identifica o importado recusado e suas referências; interface PT/EN permite **revisar sem este efeito** somente por escolha explícita e sem referência do mapa/perfis, revalida tudo e exige confirmação final. Original preservado, limites inalterados. Arquivos: `server/backup.js`, `server/index.js`, `public/app.js`, `public/backups.js`, `public/index.html`, `public/en.js` e regressões HTTP/Edge. README/guia/notas atualizados, sub-rede pessoal removida das fixtures de segurança.
+- **260/260 testes gerais**, 12/12 HTTP de backup/segurança e 2/2 Edge de backup aprovados; auditoria de dependências retornou zero vulnerabilidades. Recuperação de seleção revisada em armazenamento isolado preservou os ajustes e arquivo-fonte, sem restaurar no PC. Primeira suíte Edge completa: 51 aprovados e uma exceção intermitente de sintaxe na asserção da segunda página de apresentação inicial; repetição diagnóstica desse teste passou 3/3 sem retries. Suíte completa inalterada repetida com trace: **52/52 sem retries**. Causa intermitente não determinada; nenhum timeout/assert foi relaxado e os dois resultados estão preservados.
+- Código preparado para commit neste bloco, branch `codex/openrgb-incident-alpha37`, HEAD documental anterior `6e59e24`; remoto `main` confirmado em `1dc5ef0`, ancestral do trabalho local. Nenhuma tag alpha.38 local/remota na consulta. Próximo: commit/push autorizado, CI/CodeQL e só então tag imutável e os dois ciclos de VM da publicação automática. Evidências privadas em `data/publish-alpha38/`.
+- PC permanece na candidata `2987610`; Release pública alpha.37. Nenhum instalador/UAC/reinício/comando de LEDs desta preparação. Não confundir os futuros binários da Release com a instalação atual.
+
 ### Revisão de prontidão para GitHub — ainda sem publicação
 
 - Usuário perguntou o que falta antes de atualizar no GitHub. [Revisão e prioridades](validation/2026-10-19-prontidao-publicacao.md). Confirmação somente de leitura: `main` público em `1dc5ef0`, alpha.37 pública; CI/CodeQL aprovados nesse código anterior, sem validação dos commits locais novos. Nenhum push/tag/dispatch/Release/instalação/reinício nesta revisão.

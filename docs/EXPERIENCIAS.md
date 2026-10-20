@@ -1,6 +1,8 @@
 # Experiências Nexus
 
-Recursos da candidata em desenvolvimento, posteriores à alpha.37 pública. A presença deste guia no repositório não atualiza uma instalação antiga. A aba **Experiências** reúne Live, Cenas, Room e Som/contexto. Todos são opcionais; áudio e regras começam desativados. O controle continua local, sem conta externa ou nova dependência npm.
+Recursos da v0.1.0-alpha.38. A presença deste guia no repositório não atualiza uma instalação antiga. A aba **Experiências** reúne Live, Cenas, Room e Som/contexto. Todos são opcionais; áudio e regras começam desativados. O controle continua local, sem conta externa ou nova dependência npm.
+
+Cenas, WLED, áudio e regras são configurados pelo painel aberto no próprio PC. Pelo celular na LAN, use o Live, salve/reproduza gestos e inicie cenas já criadas.
 
 ## Nexus Live
 
@@ -35,6 +37,8 @@ UDP não confirma a exibição de um quadro. Latência, perda de pacotes e efeit
 
 ### Música
 
+Para destacar a reação musical, experimente Estático com cor preta e energia ligada, sensibilidade baixa e música na saída padrão do mesmo Windows. Depois aumente a sensibilidade gradualmente e clique em **Salvar áudio**. Sensibilidade máxima pode saturar as bandas e esconder variações; este recurso não detecta BPM.
+
 Ative **Reagir ao áudio do Windows**, escolha sensibilidade, cores e eixo das três regiões do mapa. A bandeja analisa a saída padrão usando WASAPI loopback; não usa microfone, não grava som e não envia áudio à Internet. Uma análise leve por filtros gera energia de graves, médios e agudos: não é reconhecimento de músicas nem uma FFT detalhada.
 
 Somente três valores limitados são enviados ao serviço, até oito vezes por segundo. O motor mistura as bandas no mapa e usa os limites normais de saída. Dados antigos desvanecem em até um segundo; perda da ponte não deixa uma banda travada. Fechar a bandeja/desativar a opção encerra a captura. Mudanças de configuração chegam à bandeja na consulta de até cinco segundos; o estado da captura aparece na aba.
@@ -57,7 +61,7 @@ Protocolos: [JSON WLED](https://kno.wled.ge/interfaces/json-api/), [DDP WLED](ht
 
 ## English quick start
 
-These features belong to a development candidate after public alpha.37. Choose **English** in Settings, then open **Experiences**. Nothing here installs a newer binary automatically.
+These features belong to v0.1.0-alpha.38. Choose **English** in Settings, then open **Experiences**. Nothing here installs a newer binary automatically.
 
 **Live:** draw ripples, trails or sweeps on your calibrated map. Record up to 30 seconds / 256 events, name and save, then replay or use the recording in a scene. Only powered, nonexcluded spatial devices receive gestures. The preview shows submitted frames, not physical LED feedback.
 
