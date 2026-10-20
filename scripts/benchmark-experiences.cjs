@@ -1,26 +1,38 @@
 'use strict';
 // Synthetic SDK only. No installed services, driver, audio or USB access.
+// Usage: node scripts/benchmark-experiences.cjs <snapshot-folder-under-data> [report-name.json]
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{fork}=require('node:child_process');
+function baselineFolder(name){
+  if(typeof name!=='string'||!(/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/).test(name))throw Error('Choose a baseline folder under data (a simple folder name).');
+  const directory=path.join(__dirname,'..','data',name);
+  if(fs.realpathSync(directory)!==path.resolve(directory))throw Error('The baseline folder must not redirect outside its snapshot.');
+  return directory;
+}
 if(process.argv[2]==='child'){
-  const root=process.argv[3],directory=process.argv[4],{EventEmitter}=require('node:events'),{Store}=require(path.join(root,'server/store')),{Hardware}=require(path.join(root,'server/hardware')),{createApp}=require(path.join(root,'server'));
+  const source=process.argv[3];if(source!=='candidate'&&source!=='baseline')throw Error('Unknown benchmark source.');
+  const root=source==='candidate'?path.resolve(__dirname,'..'):baselineFolder(process.argv[4]),directory=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-experience-bench-')),{EventEmitter}=require('node:events'),{Store}=require(path.join(root,'server/store')),{Hardware}=require(path.join(root,'server/hardware')),{createApp}=require(path.join(root,'server'));
   const store=new Store(directory),descriptors=[8,8,76].map((count,i)=>({name:'Synthetic '+i,vendor:'Benchmark',serial:'',location:'benchmark:'+i,type:i<2?1:0,colors:Array(count).fill({red:0,green:0,blue:0}),zones:[],modes:[{id:0,name:'Direct',flagList:['perLedColor']}]}));
   let writes=0;class SDK extends EventEmitter{async connect(){}async getControllerCount(){return 3;}async getControllerData(i){return descriptors[i];}async updateMode(){}updateLeds(){writes++;}disconnect(){}}
   const registry={getDevices:()=>[],getSummary:()=>[],autoDetectHardware:async()=>{},destroy(){}};
   const hardware=new Hardware(store,{makeClient:()=>new SDK(),controllerRegistry:registry});
   createApp({directory,store,hardware,localPort:0,disableHardware:true,disableAlexa:true,getInterfaces:()=>[]}).then(async app=>{
     await app.start();hardware.stopped=false;await hardware.connect();hardware.setFps();process.send({ready:true,port:app.local.address().port});
-    process.on('message',async m=>{if(m==='sample')process.send({cpu:process.cpuUsage(),rss:process.memoryUsage().rss,writes,error:hardware.error,worker:Boolean(app.studio.worker)});if(m==='stop'){await app.stop();process.exit(0);}});
-    process.on('disconnect',async()=>{await app.stop();process.exit(0);});
+    const stop=async()=>{try{await app.stop();}finally{fs.rmSync(directory,{recursive:true,force:true});}process.exit(0);};
+    process.on('message',async m=>{if(m==='sample')process.send({cpu:process.cpuUsage(),rss:process.memoryUsage().rss,writes,error:hardware.error,worker:Boolean(app.studio.worker)});if(m==='stop')await stop();});
+    process.on('disconnect',stop);
   }).catch(e=>{console.error(e);process.exit(1);});
 }else{
   (async()=>{
-    const root=path.resolve(__dirname,'..'),baseline=path.resolve(process.argv[2]),output=path.resolve(process.argv[3]||'data/experiences-validation/benchmark.json'),seconds=Number(process.env.NEXUS_BENCH_SECONDS||10);
+    const baseline=process.argv[2];baselineFolder(baseline);
+    const reportName=process.argv[3]||'benchmark.json';if(!(/^[A-Za-z0-9][A-Za-z0-9_-]{0,79}\.json$/).test(reportName))throw Error('Choose a simple JSON report filename.');
+    const outputDirectory=path.join(__dirname,'..','data','experiences-validation');fs.mkdirSync(outputDirectory,{recursive:true});if(fs.realpathSync(outputDirectory)!==path.resolve(outputDirectory))throw Error('The report folder must not redirect.');
+    const output=path.join(outputDirectory,reportName),seconds=Number(process.env.NEXUS_BENCH_SECONDS||10);
     if(!Number.isInteger(seconds)||seconds<5||seconds>120)throw Error('Choose 5..120 measured seconds per scenario.');
-    const report={at:new Date().toISOString(),baseline:'1a5026b',candidate:'working tree',node:process.version,processors:os.cpus().length,scope:'Isolated production server and real Hardware with synthetic SDK: three controllers, 92 LEDs (two 8-LED RAM controllers throttled by existing safety gate). Includes HTTP signal processing. No OpenRGB, tray, audio capture, browser, driver or physical network/RGB. Separate child per case; 2 s warm-up. RSS is server working set, not whole application.',scenarios:[]};
-    const cases=[['baseline-idle',baseline,'idle'],['candidate-idle',root,'idle'],['baseline-wave60',baseline,'wave'],['candidate-wave60',root,'wave'],['candidate-live60',root,'live'],['candidate-audio60',root,'audio']];
+    const report={at:new Date().toISOString(),baseline,candidate:'working tree',node:process.version,processors:os.cpus().length,scope:'Isolated production server and real Hardware with synthetic SDK: three controllers, 92 LEDs (two 8-LED RAM controllers throttled by existing safety gate). Includes HTTP signal processing. No OpenRGB, tray, audio capture, browser, driver or physical network/RGB. Separate child per case; 2 s warm-up. RSS is server working set, not whole application.',scenarios:[]};
+    const cases=[['baseline-idle','baseline','idle'],['candidate-idle','candidate','idle'],['baseline-wave60','baseline','wave'],['candidate-wave60','candidate','wave'],['candidate-live60','candidate','live'],['candidate-audio60','candidate','audio']];
     if(process.env.NEXUS_BENCH_REVERSE==='1')cases.reverse();
     for(const [name,source,kind]of cases){
-      const directory=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-experience-bench-')),child=fork(__filename,['child',source,directory],{windowsHide:true,stdio:['ignore','ignore','inherit','ipc']});let feeder;
+      const child=fork(__filename,['child',source,baseline],{windowsHide:true,stdio:['ignore','ignore','inherit','ipc']});let feeder;
       try{
         const ready=await new Promise((resolve,reject)=>{child.once('message',resolve);child.once('error',reject);child.once('exit',code=>reject(Error('Benchmark child exit '+code)));}),origin='http://127.0.0.1:'+ready.port;let cookie;
         const api=async(route,body)=>{const response=await fetch(origin+route,{method:'POST',headers:{Origin:origin,'X-Nexus-Client':'web','Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});if(!response.ok)throw Error(await response.text());if(route==='/api/session/local')cookie=response.headers.get('set-cookie').split(';')[0];return response.json();};
@@ -32,7 +44,7 @@ if(process.argv[2]==='child'){
         for(let i=0;i<seconds;i++){await new Promise(r=>setTimeout(r,1000));samples.push(await sample());}
         const elapsed=(performance.now()-start)/1000,last=samples.at(-1);if(feedError||samples.some(s=>s.error||s.worker))throw feedError||Error('Unexpected renderer/error');
         const cpu=s=>s.cpu.user+s.cpu.system;report.scenarios.push({name,seconds:elapsed,cpuPercentOfMachine:(cpu(last)-cpu(first))/1e6/elapsed/os.cpus().length*100,rssMeanMiB:samples.reduce((n,s)=>n+s.rss,0)/samples.length/1048576,rssPeakMiB:Math.max(...samples.map(s=>s.rss))/1048576,simulatedWritesPerSecond:(last.writes-first.writes)/elapsed});fs.writeFileSync(output,JSON.stringify(report,null,2));console.log(JSON.stringify(report.scenarios.at(-1)));
-      }finally{clearInterval(feeder);if(child.connected)child.send('stop');await new Promise(resolve=>{if(child.exitCode!==null)resolve();else child.once('exit',resolve);});fs.rmSync(directory,{recursive:true,force:true});}
+      }finally{clearInterval(feeder);if(child.connected)child.send('stop');await new Promise(resolve=>{if(child.exitCode!==null)resolve();else child.once('exit',resolve);});}
     }
   })().catch(e=>{console.error(e);process.exitCode=1;});
 }
