@@ -917,5 +917,18 @@ window.NexusEnglish = Object.freeze({
   "Não foi possível enviar o comando ao dispositivo USB.": "The command could not be sent to the USB device.",
   "Não foi possível detectar os dispositivos USB.": "USB devices could not be detected.",
   "Este controlador deve ser usado pelo OpenRGB; o protocolo USB nativo ainda não foi validado.": "Use this controller through OpenRGB; its native USB protocol has not been validated yet.",
-  "O mapa salvo está inválido. A configuração original foi preservada; revise o mapa antes de reativar.": "The saved map is invalid. The original settings were preserved; review the map before enabling it again."
+  "O mapa salvo está inválido. A configuração original foi preservada; revise o mapa antes de reativar.": "The saved map is invalid. The original settings were preserved; review the map before enabling it again.",
+  "Editar código": "Edit code",
+  "Em Perfis, Editar ajusta os parâmetros do efeito salvo. Editar código abre o JSON ou HTML com prévia. Salvar perfil mantém as luzes atuais; Ativar no mapa aplica o perfil e abre o setup. O efeito original da biblioteca é preservado.": "In Profiles, Edit adjusts the saved effect parameters. Edit code opens the JSON or HTML with a preview. Save profile keeps the current lights unchanged; Activate on map applies the profile and opens the setup. The original library effect is preserved.",
+  "Editar código do perfil": "Edit profile code",
+  "Salvar perfil": "Save profile",
+  "Salvar e ativar perfil": "Save and activate profile",
+  "Perfil salvo e ativado.": "Profile saved and activated.",
+  "Tipo de perfil": "Profile type",
+  "Efeito do mapa": "Map effect",
+  "Ativar no mapa": "Activate on map",
+  "As cores seguem a posição dos componentes no mapa.": "Colors follow the positions of the components on the map.",
+  "Salvar mantém as luzes atuais. Use Ativar no mapa para aplicar. As posições são compartilhadas entre os perfis.": "Saving keeps the current lights unchanged. Use Activate on map to apply. Positions are shared across profiles.",
+  "As alterações ficam neste perfil. O efeito original da biblioteca é preservado.": "Changes stay in this profile. The original library effect is preserved.",
+  "Escolha explicitamente Sequência de cores para substituir o efeito do mapa.": "Explicitly select Color sequence to replace the map effect."
 });

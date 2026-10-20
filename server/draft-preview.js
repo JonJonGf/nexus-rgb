@@ -3,10 +3,11 @@ const crypto=require('node:crypto'),schema=require('./studio-schema');
 // One transient worker, no files, controller access or active-effect changes.
 class DraftPreview {
   constructor(studio,{startupMs=6000,frameMs=1000,lifetimeMs=300000,idleMs=15000}={}){this.studio=studio;this.limits={startupMs,frameMs,lifetimeMs,idleMs};this.current=null;this.closed=false;}
-  async create(source,values={}){
+  async create(source,values={},profileId){
     if(this.closed)throw Error('O aplicativo está encerrando.');
     if(this.current&&!this.current.ready)throw Error('Aguarde a validação da prévia.');
-    const effect=this.studio.parse(source),selected=schema.parameters(effect,values);this.stop();
+    const effect=this.studio.parse(source);schema.parameters(effect,values);
+    const selected=schema.parameters(effect,{...(profileId?this.studio.profileValues(profileId,effect):{}),...values});this.stop();
     const child=this.studio.spawn(),draft=this.current={token:crypto.randomBytes(24).toString('hex'),child,ready:false,busy:false,client:null};
     const fail=message=>{if(this.current===draft)this.stop(message);};
     try{

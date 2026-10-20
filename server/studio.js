@@ -1,6 +1,6 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto'), { fork } = require('node:child_process');
-const { readJson, writeJson, readEffectJson, preserveJson } = require('./store');
+const { readJson, writeJson, readEffectJson, preserveJson, validatePatch } = require('./store');
 const schema = require('./studio-schema'), spatial = require('../public/spatial');
 const fingerprint = value => crypto.createHash('sha256').update(value).digest('hex');
 const savedFingerprint = value => /^[a-f0-9]{64}$/.test(value) ? value : fingerprint(value);
@@ -365,6 +365,55 @@ class Studio {
     if (!effect) throw Error('Efeito não encontrado.');
     const values = schema.parameters(effect, Object.hasOwn(body, 'values') ? body.values : effect.id === this.config.activeId ? this.config.values : {});
     return this.store.profile(body.name, undefined, { enabled: true, activeId: effect.id, values, excluded: [...(this.config.excluded || [])] });
+  }
+  profileInfo(profile) {
+    if (!profile.studio?.enabled) return {};
+    const { activeId, values = {} } = profile.studio, effect = this.effects.get(activeId);
+    const palette = effect?.format === 'nexus-effect/1' ? effect.palette : (effect?.controls || []).filter(c => c.type === 'color').map(c => values[c.key] ?? c.default);
+    return { studio: { activeId }, mapEffect: effect ? { name: effect.name, format: effect.format, palette, pattern: effect.pattern, speed: effect.speed } : null };
+  }
+  profileSource(id) {
+    const profile = this.store.data.profiles.find(p => p.id === id), activeId = profile?.studio?.activeId;
+    if (!profile?.studio?.enabled || !/^[a-f0-9]{24}$/.test(activeId)) throw Error('Perfil do mapa inválido.');
+    const effect = this.effects.get(activeId);
+    if (!effect) throw Error('Efeito não encontrado.');
+    const source = effect.builtin ? JSON.stringify(require('../public/recipe').normalize(effect), null, 2) : readEffectJson(path.join(this.directory, activeId + '.json')).original;
+    return { source, values: profile.studio.values || {}, effect: { name: effect.name, publisher: effect.publisher, controls: effect.controls, format: effect.format } };
+  }
+  async saveProfile(id, body) {
+    if (Object.keys(body).some(k => !['name', 'studio', 'settings'].includes(k))) throw Error('Perfil do mapa inválido.');
+    const previous = id ? this.store.data.profiles.find(p => p.id === id) : null;
+    if (id && !previous) throw Error('Perfil não encontrado.');
+    this.store.profileSettings(body.name);
+    if (!id && this.store.data.profiles.length >= 32) throw Error('Limite de 32 perfis.');
+    const spec = body.studio;
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec) || Object.keys(spec).some(k => !['activeId', 'values', 'recipe', 'source'].includes(k)) || Object.hasOwn(spec, 'source') && Object.hasOwn(spec, 'recipe')) throw Error('Perfil do mapa inválido.');
+    const effect = this.effects.get(spec.activeId);
+    if (!effect) throw Error('Efeito não encontrado.');
+    if (body.settings !== undefined && (!body.settings || typeof body.settings !== 'object' || Array.isArray(body.settings) || Object.keys(body.settings).some(k => k !== 'brightness'))) throw Error('Perfil do mapa inválido.');
+    const brightness = body.settings?.brightness;
+    if (brightness !== undefined) validatePatch({ brightness });
+    const edited = Object.hasOwn(spec, 'source') ? this.parse(spec.source) : Object.hasOwn(spec, 'recipe') ? schema.recipe(spec.recipe) : effect;
+    if (Object.hasOwn(spec, 'recipe') && effect.format !== 'nexus-effect/1') throw Error('Perfil do mapa inválido.');
+    const requested = Object.hasOwn(spec, 'values') ? spec.values : previous?.studio?.activeId === effect.id ? previous.studio.values || {} : {};
+    const retained = Object.hasOwn(spec, 'source') ? this.profileValues(id, edited) : {};
+    // Only formerly saved parameters may disappear when the source schema changes.
+    // Explicit new parameters and values still pass strict validation.
+    schema.parameters(edited, requested);
+    const values = schema.parameters(edited, { ...retained, ...requested });
+    let activeId = effect.id;
+    if (edited.id !== effect.id) activeId = await this.import(Object.hasOwn(spec, 'source') ? spec.source : JSON.stringify(require('../public/recipe').normalize(edited)));
+    const studio = { enabled: true, activeId, values, excluded: [...(previous?.studio?.excluded || this.config.excluded || [])] };
+    return this.store.saveMapProfile(id, body.name, studio, brightness);
+  }
+  profileValues(id, effect) {
+    const profile = this.store.data.profiles.find(p => p.id === id);
+    if (!profile?.studio?.enabled) throw Error('Perfil do mapa inválido.');
+    const retained = {};
+    for (const control of effect.controls) if (Object.hasOwn(profile.studio.values || {}, control.key)) {
+      try { Object.assign(retained, schema.parameters({ controls: [control] }, { [control.key]: profile.studio.values[control.key] })); } catch { /* A changed parameter type/range uses its newly validated default. */ }
+    }
+    return retained;
   }
   reset() { clearTimeout(this.retryTimer); this.retryTimer = null; this.retrying = false; this.signature = ''; this.error = null; this.failure = null; this.colors.clear(); this.stopWorker(); this.preview = null; this.rendered = false; this.healthySince = 0; this.healthyFrames = 0; }
   hasDevice(id) {

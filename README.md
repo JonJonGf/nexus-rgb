@@ -196,7 +196,11 @@ Na aba **Perfis**, clique em **+ Criar perfil**, dê um nome e escolha o movimen
 
 O criador oferece os dez movimentos da tabela. A tela principal mantém seis atalhos; os quatro movimentos adicionais ficam no criador e também nos componentes compatíveis em **Dispositivos**. Os modos próprios do hardware continuam nessa aba. Não é preciso instalar outro plugin de efeitos.
 
-Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos animados, as cores se alternam a cada ciclo. Estático mantém a primeira cor. Cometa e Vai e vem precisam de LEDs individualmente endereçáveis; esses movimentos comuns seguem a ordem de LEDs informada pelo OpenRGB. Editar um perfil que guardava ajustes individuais ou um efeito espacial substitui esses ajustes por uma sequência geral, como indicado no editor. Há um limite de 32 perfis salvos.
+Onda e Arco-íris misturam as cores na ordem escolhida. Nos outros movimentos animados, as cores se alternam a cada ciclo. Estático mantém a primeira cor. Cometa e Vai e vem precisam de LEDs individualmente endereçáveis; esses movimentos comuns seguem a ordem de LEDs informada pelo OpenRGB. Há um limite de 32 perfis salvos.
+
+Em **Tipo de perfil**, escolha **Sequência de cores** ou **Efeito no mapa**. Ao editar um perfil espacial, o painel mostra o efeito e seus parâmetros salvos: cores, movimento, ritmo, direção e escala para JSON, ou os controles declarados pelo HTML. O cartão mostra a paleta desse efeito, em vez dos últimos ajustes de Iluminação. Escolher explicitamente Sequência de cores substitui o efeito espacial e os ajustes individuais por uma sequência geral, conforme o aviso do editor.
+
+Nos perfis do mapa, **Editar código** abre o editor JSON ou HTML/Canvas com **Testar prévia**. **Salvar perfil** atualiza esse perfil sem ativar a iluminação; **Salvar e ativar perfil** também o aplica. Alterações no código criam uma versão própria do efeito na biblioteca, preservando o original e os demais perfis que o usam; o limite de 64 importados continua valendo. Parâmetros HTML salvos são preservados quando continuam compatíveis com o código editado. Use **Ativar no mapa** para aplicar um perfil e abrir o setup. As posições e a calibração do mapa são compartilhadas, enquanto os ajustes individuais, exclusões e estados de energia guardados no perfil são preservados ao editar seu efeito.
 
 <a id="studio"></a>
 

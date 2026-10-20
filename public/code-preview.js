@@ -1,5 +1,5 @@
 'use strict';
-window.NexusCodePreview={create({api,source,canvas,parameters,metadata,status,error,busy}){
+window.NexusCodePreview={create({api,source,canvas,parameters,metadata,status,error,busy,profile=()=>null}){
   const T=window.NexusI18n;let stream,token,version=0,values={},original='';
   function stop(){version++;stream?.close();stream=null;if(token){const old=token;token=null;api('/api/studio/draft/'+old,undefined,'DELETE').catch(()=>{});}busy(false);}
   function changed(){stop();if(original!==source.value){values={};parameters.replaceChildren();metadata.textContent='';original=source.value;}status(T('Código alterado. Clique em Testar prévia para validar e executar.'));}
@@ -15,7 +15,7 @@ window.NexusCodePreview={create({api,source,canvas,parameters,metadata,status,er
   async function start(){
     stop();const turn=version;busy(true);
     try{
-      const result=await api('/api/studio/draft',{source:source.value,values},'POST');
+      const profileId=profile(),result=await api('/api/studio/draft',{source:source.value,values,...(profileId?{profileId}:{})},'POST');
       if(turn!==version){api('/api/studio/draft/'+result.token,undefined,'DELETE').catch(()=>{});return;}
       token=result.token;values=result.values;original=source.value;controls(result.effect);stream=new EventSource('/api/studio/draft/'+token);
       const fail=message=>{if(turn!==version)return;stop();error(message);};
@@ -28,5 +28,5 @@ window.NexusCodePreview={create({api,source,canvas,parameters,metadata,status,er
       status(T('Prévia isolada do HTML. Não salva nem altera as luzes. Ao retomar, o código reinicia.'));
     }catch(e){if(turn===version)error(T(e.message));}finally{if(turn===version)busy(false);}
   }
-  return {start,stop,changed,values:()=>({...values}),playing:()=>Boolean(stream)};
+  return {start,stop,changed,seed(next,effect){stop();values={...next};original=source.value;controls(effect);},values:()=>({...values}),playing:()=>Boolean(stream)};
 }};

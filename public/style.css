@@ -191,6 +191,7 @@ select { width: 100%; }
 .scene-tag { font: 8px var(--mono); color: var(--accent); letter-spacing: 2px; display: block; margin-bottom: 10px; }
 .scene-meta { display: flex; gap: 13px; font: 9px var(--mono); color: #798496; margin: 17px 0; }
 #profile-form { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+#profile-mode-field, #profile-map-fields, #profile-map-recipe { margin-top: 18px; }
 .profile-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .editor-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .profile-fields, .profile-ranges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }

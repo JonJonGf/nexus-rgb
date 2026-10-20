@@ -251,7 +251,7 @@
     if (!data || !state) return;
     if (!force && !$('studio-picker-dialog').open) return;
     const cards = [
-      ...(state.profiles || []).map(p => ({ kind: 'profile', id: p.id, name: p.name, note: p.spatial ? T('Usa a posição no mapa') : T('Seu perfil salvo'), palette: p.settings?.palette || [p.color] })),
+      ...(state.profiles || []).map(p => ({ kind: 'profile', id: p.id, name: p.name, note: p.spatial ? T('Usa a posição no mapa') : T('Seu perfil salvo'), palette: p.spatial ? p.mapEffect?.palette || [] : p.settings?.palette || [p.color] })),
       ...(state.presets || []).map(p => ({ kind: 'preset', id: p.id, name: T(p.name), note: T(p.description), palette: p.colors })),
       ...Object.entries(effectNames).map(([id, name]) => ({ kind: 'motion', id, name, note: T('Segue a sequência de cada componente'), palette: state.master.palette || [state.master.color] })),
       ...data.effects.map(e => ({ kind: 'spatial', id: e.id, name: effectName(e), note: T('Usa a posição no mapa'), palette: e.palette || (e.controls || []).filter(c => c.type === 'color').map(c => data.values?.[c.key] || c.default) }))
@@ -410,7 +410,7 @@
     try { for (const file of Array.from(input.files).slice(0, 32)) { if (file.size > 128 * 1024) { toast(file.name + T(': limite de 128 KiB.')); continue; } await importSource(await file.text()); } } finally { input.value = ''; input.disabled = false; }
   });
   let formulaColors = ['#00f0ff', '#7954ff', '#ff0055'], formulaDraft, formulaValid = true, formulaSaving = false, formulaTimer, formulaPreviewOpen = false, formulaDrawDirty = true, formulaStarted = 0, formulaSeconds = 0, formulaProfileId;
-  let formulaHTML=false,codeBusy=false,formulaHistorySuspended=false,formulaLastValidJSON='';const formulaBuffers={json:'',html:''},formulaHistory=new NexusMapModel.History(40);
+  let formulaHTML=false,codeBusy=false,formulaHistorySuspended=false,formulaLastValidJSON='',formulaEditProfile=null;const formulaBuffers={json:'',html:''},formulaHistory=new NexusMapModel.History(40);
   function updateFormulaHistoryButtons() {
     const uBtn = $('formula-undo'), rBtn = $('formula-redo'), restoreBtn = $('formula-restore-valid');
     if (!uBtn || !rBtn || !restoreBtn) return;
@@ -426,7 +426,7 @@
     restoreBtn.hidden = formulaValid || formulaHTML || !formulaLastValidJSON;
     restoreBtn.disabled = formulaSaving;
   }
-  const codePreview=NexusCodePreview.create({api:(...args)=>api(...args),source:$('studio-source'),canvas:$('formula-preview'),parameters:$('formula-code-parameters'),metadata:$('formula-code-metadata'),status:message=>{$('formula-preview-note').textContent=message;$('formula-preview-toggle').textContent=T(codePreview.playing()?'Pausar prévia':'Testar prévia');},error:message=>{$('formula-error').textContent=message;$('formula-error').hidden=false;$('formula-preview-toggle').textContent=T('Testar prévia');},busy:value=>{codeBusy=value;formulaValidity(formulaValid);$('formula-preview-toggle').textContent=T(value?'Validando código…':codePreview.playing()?'Pausar prévia':'Testar prévia');}});
+  const codePreview=NexusCodePreview.create({profile:()=>formulaEditProfile?.id,api:(...args)=>api(...args),source:$('studio-source'),canvas:$('formula-preview'),parameters:$('formula-code-parameters'),metadata:$('formula-code-metadata'),status:message=>{$('formula-preview-note').textContent=message;$('formula-preview-toggle').textContent=T(codePreview.playing()?'Pausar prévia':'Testar prévia');},error:message=>{$('formula-error').textContent=message;$('formula-error').hidden=false;$('formula-preview-toggle').textContent=T('Testar prévia');},busy:value=>{codeBusy=value;formulaValidity(formulaValid);$('formula-preview-toggle').textContent=T(value?'Validando código…':codePreview.playing()?'Pausar prévia':'Testar prévia');}});
   function formulaMode(html,pasted){
     formulaStop();if(html!==formulaHTML){if(pasted===undefined)formulaBuffers[formulaHTML?'html':'json']=$('studio-source').value;$('studio-source').value=pasted??formulaBuffers[html?'html':'json'];}formulaHTML=html;$('formula-format').value=html?'html':'json';$('formula-json-fields').hidden=html;$('formula-palette-preview').hidden=html;$('formula-code-parameters').hidden=!html;$('formula-code-metadata').hidden=!html;$('formula-intro').hidden=html;
     for(const input of $('formula-json-fields').querySelectorAll('input,select,button'))input.disabled=html;
@@ -471,6 +471,9 @@
   window.addEventListener('pagehide',formulaStop);
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&formulaHTML)formulaStop();});
   function formulaOpen() {
+    formulaEditProfile = null;
+    for (const [id, text] of [['studio-formula-title', 'Crie seu movimento.'], ['formula-save', 'Salvar na biblioteca'], ['formula-apply', 'Salvar e aplicar']]) { $(id).dataset.i18n = text; $(id).textContent = T(text); }
+    $('formula-profile').closest('label').hidden = false;
     formulaStop(); formulaProfileId = null; formulaPreviewOpen = false; formulaSeconds = 0; $('formula-preview-wrap').hidden = true;
     formulaHistorySuspended = true;
     try {
@@ -479,6 +482,18 @@
     } finally { formulaHistorySuspended = false; }
     updateFormulaHistoryButtons();
     $('studio-picker-dialog').close(); $('studio-formula-dialog').showModal(); $('formula-name').focus();
+  }
+  async function editProfile(profile) {
+    if (!isAdmin || formulaSaving) return;
+    const saved = await api('/api/profiles/' + profile.id + '/effect');
+    await refresh(true, true);
+    formulaOpen(); formulaEditProfile = profile;
+    $('studio-source').value = saved.source;
+    if (saved.effect.format === 'signal-html') { formulaMode(true, saved.source); codePreview.seed(saved.values, saved.effect); }
+    else { formulaMode(false); $('studio-source').value = saved.source; formulaFromJSON(); formulaHistory.reset(structuredClone(formulaDraft)); }
+    for (const [id, text] of [['studio-formula-title', 'Editar código do perfil'], ['formula-save', 'Salvar perfil'], ['formula-apply', 'Salvar e ativar perfil']]) { $(id).dataset.i18n = text; $(id).textContent = T(text); }
+    $('formula-profile').closest('label').hidden = true;
+    updateFormulaHistoryButtons();
   }
   function formulaFromJSON() {
     try {
@@ -554,9 +569,16 @@
   $('studio-formula-close').addEventListener('click', () => $('studio-formula-dialog').close());
   $('studio-formula-form').addEventListener('submit', async event => {
     event.preventDefault(); if(formulaSaving || codeBusy || (!formulaHTML&&!formulaFromJSON())) return;
-    const source=formulaHTML?$('studio-source').value:JSON.stringify(formulaDraft),values=formulaHTML?codePreview.values():{}, apply = event.submitter?.id === 'formula-apply', profile = $('formula-profile').checked;formulaStop();
+    const source=formulaHTML||formulaEditProfile?$('studio-source').value:JSON.stringify(formulaDraft),values=formulaHTML?codePreview.values():{}, apply = event.submitter?.id === 'formula-apply', profile = $('formula-profile').checked;formulaStop();
     formulaSaving = true; formulaValidity(true); $('formula-error').hidden = true;
     try {
+      if (formulaEditProfile) {
+        await api('/api/profiles/' + formulaEditProfile.id, { name: formulaEditProfile.name, studio: { activeId: formulaEditProfile.studio.activeId, source, values } }, 'PUT');
+        if (apply && !await sharedPlay('/api/profiles/' + formulaEditProfile.id, {})) throw Error('Efeito salvo, mas não foi possível aplicar. Tente novamente.');
+        await refresh(true, true);
+        $('studio-formula-dialog').close(); toast(T(apply ? 'Perfil salvo e ativado.' : 'Perfil salvo. Use Ativar perfil quando quiser aplicar nas luzes.'));
+        return;
+      }
       const result = await api('/api/studio/import', { source }, 'POST');
       result.layout = data.layout; data = result; renderLibrary();
       const effect = result.effects.find(e => e.id === result.id);
@@ -691,6 +713,7 @@
   }
   window.NexusStudio = {
     open,
+    editProfile,
     update(next, admin, requestApi, showToast, page) {
       const prevSig = hardwareSignature(state?.hardware);
       const first = !api; state = next; stateRevision++; isAdmin = admin; api = requestApi; toast = showToast;

@@ -263,14 +263,16 @@
     if (!state.profiles?.length) return empty(container, admin ? T('Sua próxima combinação começa em + Criar perfil.') : T('Os perfis salvos no PC aparecem aqui.'));
     for (const p of state.profiles) {
       const card = el('article', 'profile-card'); if (/^#[a-f0-9]{6}$/i.test(p.color)) card.style.setProperty('--profile-color', p.color);
-      const colors = p.settings?.palette?.length ? p.settings.palette : [p.color];
+      const colors = p.spatial ? p.mapEffect?.palette || [] : p.settings?.palette?.length ? p.settings.palette : [p.color];
       const artwork = el('div', 'scene-art'); artwork.style.setProperty('--scene-palette', paletteGradient(colors));
       card.append(artwork, el('span', 'scene-tag', T('CRIADO POR VOCÊ')), el('h2', '', p.name));
-      const meta = el('div', 'scene-meta'); meta.append(el('span', '', p.spatial ? T('Efeito no mapa') : labels[p.settings?.effect] || T('Ajustes salvos')), el('span', '', `${colors.length} ${colors.length === 1 ? T('cor') : T('cores')}`)); card.append(meta);
-      card.append(el('p', '', p.deviceCount ? T`${p.deviceCount} componente(s) com ajustes individuais salvos.` : T`${p.settings?.brightness ?? 80}% de brilho · ${p.settings?.speed ?? 40}% de ritmo`));
+      const meta = el('div', 'scene-meta'); meta.append(el('span', '', p.spatial ? T('Efeito no mapa') : labels[p.settings?.effect] || T('Ajustes salvos'))); if (colors.length) meta.append(el('span', '', `${colors.length} ${colors.length === 1 ? T('cor') : T('cores')}`)); card.append(meta);
+      card.append(el('p', '', p.spatial ? p.mapEffect?.name || T('Efeito não encontrado.') : p.deviceCount ? T`${p.deviceCount} componente(s) com ajustes individuais salvos.` : T`${p.settings?.brightness ?? 80}% de brilho · ${p.settings?.speed ?? 40}% de ritmo`));
       const apply = el('button', 'button primary', T('Ativar perfil')); apply.addEventListener('click', () => action(`/api/profiles/${p.id}`, {})); card.append(apply);
+      if (p.spatial) { const map = el('button', 'button subtle', T('Ativar no mapa')); map.addEventListener('click', async () => { if (await action(`/api/profiles/${p.id}`, {})) page('studio'); }); card.append(map); }
       if (admin) {
         const edit = el('button', 'button subtle', T('Editar')); edit.addEventListener('click', () => openProfile('custom', p)); card.append(edit);
+        if (p.spatial) { const code = el('button', 'button subtle', T('Editar código')); code.addEventListener('click', () => { if (!profileSaving) { closeProfile(); window.NexusStudio.editProfile(p).catch(error => toast(error.message)); } }); card.append(code); }
         const copy = el('button','button subtle',T('Criar cópia'));copy.addEventListener('click',()=>action('/api/profiles/'+p.id+'/duplicate',{name:p.name.slice(0,40)+T(' cópia')}));card.append(copy);
         const remove = el('button', 'button subtle', T('Excluir')); remove.addEventListener('click', async () => { if (await action(`/api/profiles/${p.id}`, {}, 'DELETE')) { if (profileEditId === p.id) closeProfile(); } }); card.append(remove);
       }
@@ -288,7 +290,9 @@
       const card = el('article', 'profile-card'); card.style.setProperty('--scene-palette', gradient); card.append(el('div', 'scene-art'), el('span', 'scene-tag', T(preset.tag)), el('h2', '', T(preset.name)), el('p', '', T(preset.description))); const meta = el('div', 'scene-meta'); meta.append(el('span', '', labels[preset.settings.effect]), el('span', '', T`${preset.settings.brightness}% brilho`)); card.append(meta); const button = el('button', 'button primary', T('Ativar cena')); button.setAttribute('aria-label', T`Ativar ${T(preset.name)}`); button.addEventListener('click', apply); card.append(button); gallery.append(card);
     }
   }
-  let profileEditId = null, profileSnapshot = false, profileColors = [], profileSaving = false;
+  let profileEditId = null, profileSnapshot = false, profileColors = [], profileSaving = false, profileCatalog = [], profileOpening = 0, profileIndividual = false;
+  const profileMap = () => !profileSnapshot && $('profile-mode').value === 'map';
+  const profileMapEffect = () => profileCatalog.find(effect => effect.id === $('profile-map-effect').value);
   function paletteGradient(colors) {
     const valid = colors.filter(color => /^#[a-f0-9]{6}$/i.test(color));
     return `linear-gradient(110deg,${(valid.length > 1 ? valid : [valid[0] || '#00f0ff', valid[0] || '#00f0ff']).join(',')})`;
@@ -298,9 +302,9 @@
     $('profile-preview').style.setProperty('--scene-palette', paletteGradient(profileColors));
     $('profile-preview').setAttribute('aria-label', T`Sequência: ${profileColors.join(', ')}`);
     const effect = $('profile-effect').value;
-    $('profile-sequence-help').textContent = effect === 'static' ? T('Estático mantém a primeira cor. As outras ficam salvas para quando você mudar o movimento.') : `${descriptions[effect]}. ${['wave', 'rainbow'].includes(effect) ? T('As cores se misturam na ordem escolhida.') : T('As cores se alternam na ordem escolhida.')}`;
-    $('profile-strobe-note').hidden = effect !== 'strobe';
-    $('profile-speed').disabled = effect === 'static';
+    $('profile-sequence-help').textContent = profileMap() ? T('As cores seguem a posição dos componentes no mapa.') : effect === 'static' ? T('Estático mantém a primeira cor. As outras ficam salvas para quando você mudar o movimento.') : `${descriptions[effect]}. ${['wave', 'rainbow'].includes(effect) ? T('As cores se misturam na ordem escolhida.') : T('As cores se alternam na ordem escolhida.')}`;
+    $('profile-strobe-note').hidden = profileMap() || effect !== 'strobe';
+    $('profile-speed').disabled = !profileMap() && effect === 'static';
     for (const field of ['brightness', 'speed']) $(`profile-${field}-label`).textContent = `${$(`profile-${field}`).value}%`;
   }
   function renderProfileColors(focusIndex) {
@@ -320,20 +324,59 @@
     updateProfilePreview();
     if (focusIndex !== undefined) container.querySelectorAll('input')[focusIndex]?.focus({ preventScroll: true });
   }
-  function openProfile(type, profile) {
+  function renderProfileMap(values = {}) {
+    const map = profileMap(), effect = profileMapEffect(), recipe = map && effect?.format === 'nexus-effect/1';
+    $('profile-effect-field').hidden = profileSnapshot || map;
+    $('profile-map-fields').hidden = !map;
+    $('profile-builder').hidden = profileSnapshot || (map && !recipe);
+    $('profile-map-recipe').hidden = !recipe;
+    const parameters = $('profile-map-parameters'); parameters.replaceChildren();
+    profileLabels();
+    if (recipe) {
+      profileColors = [...effect.palette]; $('profile-speed').value = effect.speed;
+      $('profile-map-pattern').replaceChildren(...[...$('formula-pattern').options].map(option => option.cloneNode(true)));
+      $('profile-map-pattern').value = effect.pattern; $('profile-map-angle').value = effect.angle; $('profile-map-scale').value = effect.scale;
+      renderProfileColors();
+    } else if (map && effect) for (const control of effect.controls || []) {
+      const label = el('label', '', control.label), input = el(control.type === 'combobox' ? 'select' : 'input');
+      if (control.type === 'combobox') for (const value of control.values) { const option = el('option', '', value); option.value = value; input.append(option); }
+      else { input.type = control.type === 'boolean' ? 'checkbox' : control.type === 'color' ? 'color' : 'number'; if (control.type === 'number') { input.min = control.min; input.max = control.max; input.step = 'any'; } }
+      const value = values[control.key] ?? control.default;
+      if (control.type === 'boolean') input.checked = value; else input.value = value;
+      input.dataset.key = control.key; input.dataset.type = control.type; input.setAttribute('aria-label', control.label); label.append(input); parameters.append(label);
+    }
+    updateProfilePreview();
+  }
+  function profileLabels() {
+    $('profile-map-note').textContent = T('Salvar mantém as luzes atuais. Use Ativar no mapa para aplicar. As posições são compartilhadas entre os perfis.');
+    $('profile-edit-note').textContent = profileMap() ? T('As alterações ficam neste perfil. O efeito original da biblioteca é preservado.') : profileIndividual ? T('Esta edição substitui o efeito do mapa e os ajustes individuais salvos por uma sequência para todos os componentes compatíveis.') : T('Ao ativar, todos os componentes compatíveis seguem este perfil.');
+  }
+  async function openProfile(type, profile) {
     if (!admin || profileSaving) return;
+    const opening = ++profileOpening;
+    let catalog, saved;
+    try { catalog = await api('/api/studio'); if (profile?.spatial) saved = await api('/api/profiles/' + profile.id + '/effect'); } catch (error) { toast(error.message); return; }
+    if (opening !== profileOpening) return;
+    profileCatalog = catalog.effects;
     profileEditId = profile?.id || null; profileSnapshot = type === 'snapshot';
+    profileIndividual = Boolean(profile?.deviceCount || profile?.spatial);
     const settings = profile?.settings || state.master;
     profileColors = settings.palette?.length ? [...settings.palette] : [settings.color];
     $('profile-name').value = profile?.name || '';
     $('profile-effect').value = settings.effect;
     for (const field of ['brightness', 'speed']) $(`profile-${field}`).value = settings[field];
-    $('profile-builder').hidden = profileSnapshot; $('profile-effect-field').hidden = profileSnapshot; $('profile-snapshot-note').hidden = !profileSnapshot;
+    $('profile-mode-field').hidden = profileSnapshot; $('profile-mode').value = profile?.spatial ? 'map' : 'sequence';
+    $('profile-map-effect').replaceChildren();
+    for (const effect of profileCatalog) { const option = el('option', '', effect.builtin ? T(effect.name) : effect.name); option.value = effect.id; $('profile-map-effect').append(option); }
+    $('profile-map-effect').value = profile?.studio?.activeId || catalog.activeId;
+    $('profile-snapshot-note').hidden = !profileSnapshot;
     $('profile-editor-title').textContent = profile ? T('SEU ESTÚDIO / EDITAR PERFIL') : profileSnapshot ? T('GUARDAR / AJUSTES ATUAIS') : T('SEU ESTÚDIO / NOVO PERFIL');
     $('profile-edit-note').textContent = profile?.deviceCount || profile?.spatial ? T('Esta edição substitui o efeito do mapa e os ajustes individuais salvos por uma sequência para todos os componentes compatíveis.') : T('Ao ativar, todos os componentes compatíveis seguem este perfil.');
-    renderProfileColors(); $('profile-form').hidden = false; $('profile-name').focus();
+    renderProfileColors(); renderProfileMap(saved?.values); $('profile-form').hidden = false; $('profile-name').focus();
   }
-  function closeProfile() { $('profile-form').hidden = true; profileEditId = null; }
+  function closeProfile() { ++profileOpening; $('profile-form').hidden = true; profileEditId = null; }
+  $('profile-mode').addEventListener('change', () => renderProfileMap());
+  $('profile-map-effect').addEventListener('change', () => renderProfileMap());
   $('create-profile').addEventListener('click', () => openProfile('custom'));
   $('save-profile').addEventListener('click', () => openProfile('snapshot'));
   $('cancel-profile').addEventListener('click', () => { if (!profileSaving) closeProfile(); });
@@ -343,7 +386,18 @@
   $('profile-form').addEventListener('submit', async event => {
     event.preventDefault(); if (profileSaving || !admin) return;
     const body = { name: $('profile-name').value };
-    if (!profileSnapshot) body.settings = { power: true, color: profileColors[0], palette: [...profileColors], effect: $('profile-effect').value, brightness: Number($('profile-brightness').value), speed: Number($('profile-speed').value) };
+    if (profileMap()) {
+      const effect = profileMapEffect();
+      if (!effect) { toast(T('Efeito não encontrado.')); return; }
+      body.studio = { activeId: effect.id, values: {} };
+      if (effect.format === 'nexus-effect/1') {
+        body.settings = { brightness: Number($('profile-brightness').value) };
+        body.studio.recipe = { format: effect.format, name: effect.name, pattern: $('profile-map-pattern').value, palette: [...profileColors], speed: Number($('profile-speed').value), angle: Number($('profile-map-angle').value), scale: Number($('profile-map-scale').value) };
+      } else for (const input of $('profile-map-parameters').querySelectorAll('[data-key]')) body.studio.values[input.dataset.key] = input.dataset.type === 'boolean' ? input.checked : input.dataset.type === 'number' ? Number(input.value) : input.value;
+    } else if (!profileSnapshot) {
+      body.settings = { power: true, color: profileColors[0], palette: [...profileColors], effect: $('profile-effect').value, brightness: Number($('profile-brightness').value), speed: Number($('profile-speed').value) };
+      body.replaceSpatial = true;
+    }
     profileSaving = true; $('profile-submit').disabled = true; $('cancel-profile').disabled = true;
     const result = await action(profileEditId ? `/api/profiles/${profileEditId}` : '/api/profiles', body, profileEditId ? 'PUT' : 'POST');
     profileSaving = false; $('profile-submit').disabled = false; $('cancel-profile').disabled = false;
@@ -419,6 +473,7 @@
     $('page-title').textContent = T({control:'Iluminação',devices:'Dispositivos',profiles:'Perfis',connect:'Conexões',studio:'Mapa do setup',settings:'Configurações'}[currentPage]);
     if (!$('profile-form').hidden) {
       renderProfileColors();
+      profileLabels();
       $('profile-editor-title').textContent = T(profileEditId ? 'SEU ESTÚDIO / EDITAR PERFIL' : profileSnapshot ? 'GUARDAR / AJUSTES ATUAIS' : 'SEU ESTÚDIO / NOVO PERFIL');
     }
     if (networkInfo && currentPage === 'connect') loadNetwork();

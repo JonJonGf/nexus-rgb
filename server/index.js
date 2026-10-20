@@ -70,7 +70,7 @@ async function createApp(options = {}) {
     preferredAddress = address;
     writeJson(networkFile, { address: preferredAddress });
   };
-  const snapshot = () => ({ version: VERSION, library: store.data.library || {favorites:[],categories:{},transitionMs:0}, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(({ id, name, master, devices, studio: savedStudio }) => ({ id, name, color: master.color, settings: master, deviceCount: Object.keys(devices || {}).length, spatial: Boolean(savedStudio?.enabled) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
+  const snapshot = () => ({ version: VERSION, library: store.data.library || {favorites:[],categories:{},transitionMs:0}, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(p => ({ id: p.id, name: p.name, color: p.master.color, settings: p.master, deviceCount: Object.keys(p.devices || {}).length, spatial: Boolean(p.studio?.enabled), ...studio.profileInfo(p) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
   const broadcast = () => {
     const message = `data: ${JSON.stringify(snapshot())}\n\n`;
     for (const client of clients) {
@@ -190,7 +190,7 @@ async function createApp(options = {}) {
         return json(res,200,{active:hardware.identification || null});
       }
       if (route === '/api/studio' && req.method === 'GET') return json(res, 200, studio.snapshot(true));
-      if(route==='/api/studio/draft'&&req.method==='POST'){admin();const body=await readBody(req,256*1024);if(Object.keys(body).some(k=>!['source','values'].includes(k)))throw Error('Comando de prévia inválido.');return json(res,200,await draftPreview.create(body.source,body.values));}
+      if(route==='/api/studio/draft'&&req.method==='POST'){admin();const body=await readBody(req,256*1024);if(Object.keys(body).some(k=>!['source','values','profileId'].includes(k)) || body.profileId !== undefined && !/^[a-f0-9-]{36}$/.test(body.profileId))throw Error('Comando de prévia inválido.');return json(res,200,await draftPreview.create(body.source,body.values,body.profileId));}
       const draftRoute=route.match(/^\/api\/studio\/draft\/([a-f0-9]{48})$/);
       if(draftRoute&&req.method==='GET'){admin();draftPreview.watch(draftRoute[1],res,()=>security.session(req)?.admin);return;}
       if(draftRoute&&req.method==='DELETE'){admin();draftPreview.remove(draftRoute[1]);return json(res,200,{stopped:true});}
@@ -226,10 +226,12 @@ async function createApp(options = {}) {
         }
         broadcast(); return json(res, 200, snapshot());
       }
-      if (route === '/api/profiles' && req.method === 'POST') { admin(); const body = await readBody(req); store.profile(body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
+      if (route === '/api/profiles' && req.method === 'POST') { admin(); const body = await readBody(req); if (Object.hasOwn(body, 'studio')) { if ((body.studio?.source !== undefined || body.studio?.recipe !== undefined) && !heavyRate.take(ip)) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' }); await studio.saveProfile(null, body); } else store.profile(body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
+      const profileSourceRoute = route.match(/^\/api\/profiles\/([a-f0-9-]{36})\/effect$/);
+      if (profileSourceRoute && req.method === 'GET') { admin(); return json(res, 200, studio.profileSource(profileSourceRoute[1])); }
       const profileRoute = route.match(/^\/api\/profiles\/([a-f0-9-]{36})$/);
       if (profileRoute && req.method === 'POST') { store.applyProfile(profileRoute[1]); hardware.transition?.(store.data.library?.transitionMs||0); studio.reset(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
-      if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req); store.updateProfile(profileRoute[1], body.name, body.settings); broadcast(); return json(res, 200, snapshot()); }
+      if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req, 256 * 1024); if (Object.hasOwn(body, 'studio')) { if ((body.studio?.source !== undefined || body.studio?.recipe !== undefined) && !heavyRate.take(ip)) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' }); await studio.saveProfile(profileRoute[1], body); } else { if (Object.keys(body).some(k => !['name', 'settings', 'replaceSpatial'].includes(k)) || body.replaceSpatial !== undefined && typeof body.replaceSpatial !== 'boolean') throw Error('Perfil do mapa inválido.'); store.updateProfile(profileRoute[1], body.name, body.settings, body.replaceSpatial); } broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin();if(experiences.usesProfile(profileRoute[1]))throw Object.assign(Error('Perfil em uso por uma cena ou regra de aplicativo.'),{status:409});store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
         admin(); const lan = resolveLan(lport);

@@ -159,9 +159,21 @@ class Store {
     const item = { id: crypto.randomUUID(), ...configuration };
     this.data.profiles.push(item); this.save(); return item;
   }
-  updateProfile(id, name, settings) {
+  saveMapProfile(id, name, studio, brightness) {
+    const configuration = this.profileSettings(name);
+    const index = id ? this.data.profiles.findIndex(p => p.id === id) : -1;
+    if (id && index < 0) throw new Error('Perfil não encontrado.');
+    if (!id && this.data.profiles.length >= 32) throw new Error('Limite de 32 perfis.');
+    const previous = id ? structuredClone(this.data.profiles[index]) : configuration;
+    const patch = brightness === undefined ? {} : validatePatch({ brightness });
+    const item = { ...previous, id: id || crypto.randomUUID(), name: configuration.name, master: { ...previous.master, ...patch }, studio: structuredClone(studio) };
+    if (id) this.data.profiles[index] = item; else this.data.profiles.push(item);
+    this.save(); return item;
+  }
+  updateProfile(id, name, settings, replaceSpatial = false) {
     const index = this.data.profiles.findIndex(p => p.id === id);
     if (index < 0) throw new Error('Perfil não encontrado.');
+    if (this.data.profiles[index].studio?.enabled && replaceSpatial !== true) throw Object.assign(new Error('Escolha explicitamente Sequência de cores para substituir o efeito do mapa.'), { status: 409 });
     if (settings === undefined) throw new Error('Informe os ajustes do perfil.');
     const item = { id, ...this.profileSettings(name, settings) };
     this.data.profiles[index] = item; this.save(); return item;
