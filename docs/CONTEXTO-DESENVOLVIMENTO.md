@@ -4,6 +4,13 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 19/10/2026
 
+### Revisão de prontidão para GitHub — ainda sem publicação
+
+- Usuário perguntou o que falta antes de atualizar no GitHub. [Revisão e prioridades](validation/2026-10-19-prontidao-publicacao.md). Confirmação somente de leitura: `main` público em `1dc5ef0`, alpha.37 pública; CI/CodeQL aprovados nesse código anterior, sem validação dos commits locais novos. Nenhum push/tag/dispatch/Release/instalação/reinício nesta revisão.
+- **Backup confirmado como prioridade:** cópia isolada da exportação com 36 efeitos recusada por orçamento de desenho; revisão individual localizou um importado que reproduz sozinho. Nenhum restore executado nem limite alterado. Investigar recuperação explícita/revisável antes de prometer backup completo restaurável, inclusive em instalação limpa. Dados e código de terceiros somente em `data/release-readiness-20261019/`.
+- **51/51 Edge completos sem retries passaram** nesta revisão; código de produto permanece `2987610`, cuja suíte geral anterior passou 259/259. Faltam metadados/notas da nova tag e gates de CodeQL/VM sobre o commit a publicar. Polimentos: texto do diagnóstico incompleto, orientação do áudio e exemplo de IP nas fixtures. WLED/Echo reais e áudio após mudança de saída continuam com limites explícitos.
+- Usuário pediu ajuda com reação musical durante a revisão; consulta confirmou captura ativa, sem alterar preferências. Orientado a base estática preta, power ligado, sensibilidade gradual e som na saída padrão do mesmo Windows. Isso não confirma BPM ou aparência física. PC segue candidata `2987610`, seis componentes; preservar os ajustes atuais, sem restaurar baselines antigos. Próximo: tratar a revisão/restauração do importado recusado e preparar a publicação quando autorizado.
+
 ### Live contínuo — correção instalada e reprodução repetida com sucesso
 
 - **Atualização autorizada concluída:** usuário confirmou estar conectado e autorizou abrir. Helper `data/live-continuous-review-20261019/install-approved-2987610.ps1` conferiu o hash e exportou backup novo, depois abriu progresso visível. Log fechado às 20h43min15s (Brasília), sem reiniciar Windows ou instalar PawnIO. `ShellExecute` não capturou exit code; conclusão conferida por log, serviços, API e arquivos. PC agora executa **`298761094514a7e7b434c21d5f689879bab16db4`**, desenvolvimento/sem tag. Ambos os serviços ativos, bandeja na sessão interativa e seis componentes online, detecção encerrada.
