@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
+### R2 em execução e identificação dos canais de ventilação
+
+- Usuário atualizou por conta própria e pediu explicar os canais Nuvoton, informando ter seis ventoinhas. Leitura local confirmou R2 instalada (`a7aa268...`, development sem tag); API em **monitoring**, `simulated=false`, `enabled=false`, `error=null`, temperaturas/RPM reais retornados. Isso valida o fluxo instalado após a correção de privilégio para leitura; ainda não comprova controle mecânico, associação de canais ou recuperação física. Esta sessão só consultou estado; nenhum comando de detecção, escrita de curva, alteração de RPM, restart ou UAC foi enviado.
+- Backend expõe sete controles genéricos do SuperIO e um de GPU; três leituras de fan tinham RPM positivo, quatro zero. Canais expostos pelo chip não equivalem à quantidade física instalada. Manual oficial da placa consultado confirma três conectores físicos de ventilação (um CPU, dois chassis). Grupo de fans em hub/splitter pode compartilhar comando e um único retorno de RPM. Não presumir que Fan #1 é CPU_FAN nem que zero implica defeito/desconexão. Sensores de temperatura genéricos também não têm localização verificada.
+- Evidência privada filtrada em `data/cooling-dev/fan-identification.json`; não copiar dados pessoais ou amostra crua para docs públicas. A consulta de proprietário do processo via WMI não forneceu confirmação utilizável, portanto não usar comparação booleana isolada como prova de conta incorreta; funcionamento de monitoramento real e checagem de privilégio do handshake são evidências distintas. Código de produto/instalador não alterado nesta explicação. Próximo passo físico eventual é identificar cabeamento/canais com ensaio autorizado, preservando cooler do processador e curvas atuais; não adivinhar associações nem executar automaticamente.
+
 ### Correção em preparação: permissão da Ventilação no serviço instalado
 
 - Usuário relatou mensagem de administrador na aba Ventilação ao detectar sensores; reproduzida pela API instalada. Causa confirmada: `NexusRGB` roda como LocalService, não SYSTEM; launcher WMI herdou essa conta. Validação anterior não exercitou ambas as identidades reais. Não mudar a conta do servidor HTTP nem desativar a checagem de privilégio.
