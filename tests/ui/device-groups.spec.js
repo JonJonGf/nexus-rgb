@@ -56,15 +56,35 @@ test('agrupamento mantém nomes de aparelhos e traduz controles e contagens em i
 test.describe('saída ARGB não configurada', () => {
   const ports = appliance('Controladora com ARGB', 0, [0, 12]);
   test.use({ hardwareSnapshot: { connected: true, controllerCount: 1, devices: ports } });
-  test('explica os zero LEDs e permite configurar somente a saída escolhida', async ({ page }) => {
+  test('primeiro uso destaca portas ARGB e pede a quantidade sem sugerir LEDs inexistentes', async ({ page }) => {
+    const writes=[];page.on('request',request=>{if(request.method()==='POST'&&request.url().includes('/api/devices/'))writes.push(request.postDataJSON());});
     await page.goto('/'); await page.locator('.nav[data-page=devices]').click();
-    await page.getByText('Zonas e controles individuais', { exact: true }).click();
-    await expect(page.getByText('Esta saída está com zero LEDs. Configure a quantidade conectada para controlar sua iluminação.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Há saídas ARGB disponíveis para configurar.', { exact: true })).toBeVisible();
+    await page.getByRole('button', {name:'Configurar portas ARGB',exact:true}).click();
     const count = page.getByLabel('LEDs em Saída 1', { exact: true });
-    await expect(count).toBeVisible(); await expect(count).toHaveValue('0');
+    await expect(count).toBeVisible(); await expect(count).toHaveValue('');await expect(count).toBeFocused();
+    const port=page.locator('.device-zone').first();
+    await expect(port.getByText('Configuração pendente',{exact:true})).toBeVisible();
+    await expect(port.getByLabel('Cor de Controladora com ARGB',{exact:true})).toHaveCount(0);
+    await port.getByRole('button',{name:'Aplicar quantidade',exact:true}).click();
+    await expect(count).toBeFocused();
+    expect(writes).toEqual([]);
+    await page.screenshot({path:'data/argb-setup/desktop.png'});
+    await page.setViewportSize({width:390,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await page.screenshot({path:'data/argb-setup/mobile.png'});
     await count.fill('24');
     const request = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/api/devices/' + ports[0].id + '/resize'));
     await page.locator('.device-zone').first().getByRole('button', { name: 'Aplicar quantidade', exact: true }).click();
     expect((await request).postDataJSON()).toEqual({ zone: 0, count: 24 });
+    expect(writes).toEqual([{zone:0,count:24}]);
+  });
+  test('orientação de primeiro uso também aparece em inglês',async({page})=>{
+    await page.goto('/');await page.locator('.nav[data-page=settings]').click();await page.locator('#settings-language').selectOption('en');
+    await page.locator('.nav[data-page=devices]').click();
+    await expect(page.getByText('ARGB outputs are available to set up.',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Set up ARGB ports',exact:true}).click();
+    await expect(page.getByText('Setup needed',{exact:true})).toBeVisible();
+    await expect(page.getByLabel('LEDs in Saída 1',{exact:true})).toHaveValue('');
   });
 });

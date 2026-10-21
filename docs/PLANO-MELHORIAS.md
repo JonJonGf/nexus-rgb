@@ -4,6 +4,8 @@ Este registro mantém as melhorias aceitas para avaliação e implementação fu
 
 ## Ventilação, documentação internacional e GPU — 21/10/2026
 
+- **Primeiro uso ARGB, candidata local:** orientação de quantidade visível no cartão do aparelho, campo vazio e controles de iluminação ocultos enquanto a saída redimensionável estiver sem LEDs configurados. Zero técnico preservado; nenhuma quantidade inventada ou configuração automática. PT/EN e celular verificados. [Resultado](validation/2026-10-21-argb-first-use.md). Não faz parte do instalador alpha.40 existente.
+
 - **Candidata de desenvolvimento:** aba de ventilação opcional, cinco perfis (Silencioso, Equilibrado, Desempenho, Agressivo, TURBO), curvas e associação explícita canal/sensor. Módulo desligado não abre sensores/auxiliar; não reativa sozinho após reiniciar. Ensaios de protocolo/UI/benchmark simulados concluídos, prova física e avaliação de disputa de sensores pendentes. Sem instalação ou publicação automática. [Guia e medições](VENTILACAO.md).
 - **Documentação:** README principal em inglês, README-pt.md completo e README-en.md espelhado; guias de uso/desenvolvimento em docs/en. Histórico técnico e licenças originais preservados. Sem alegar que tradução ou presença do código atualiza binários publicados.
 - **GPU Gigabyte RX 7600:** usuário confirmou falha física também na alpha.40. Coletor portátil revisável implementado para obter evidência no PC afetado, sem comandos de cor, instalação de driver, reinício ou upload. [Procedimento](DIAGNOSTICO-GPU.md). Próximo passo: amigo gerar relatório e confirmar comportamento observado; não anunciar correção sem essa evidência.

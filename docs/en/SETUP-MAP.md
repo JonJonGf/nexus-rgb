@@ -8,6 +8,8 @@ Open **Setup map**. Drag components to match your case and release to save. Sele
 
 The number and capabilities of LEDs come from the controller, or from explicit calibration where supported. Software cannot infer every fan's physical LED count. If a resizable ARGB header reports zero LEDs, enter the real count in **Devices → Zones and LED count** first.
 
+**Development candidate:** the device card now offers **Set up ARGB ports** directly. Unconfigured outputs show **Setup needed**, an empty count field and no ineffective lighting controls. Enter the real count explicitly; empty ports need no setup. This interface change is not in the existing alpha.40 installer.
+
 **Split into fans** divides consecutive LEDs into separately positioned pieces. It cannot make a hub that electrically mirrors one signal independently addressable. Use the actual wiring and LED sequence; do not guess a large count to create nonexistent pieces.
 
 ## Calibrate geometry and order

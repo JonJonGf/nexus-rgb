@@ -149,6 +149,11 @@ footer b { font-weight: 400; color: var(--accent); padding: 0 4px; }
 .device-filter-btn.active { background: color-mix(in srgb, var(--accent) 15%, #1a1e27); border-color: var(--accent); color: var(--accent); }
 .device-filter-btn b { font-weight: 600; font-size: 10px; opacity: 0.85; }
 .device-card { margin-bottom: 17px; }
+.device-setup-callout { margin-top: 18px; padding: 16px; border: 1px solid var(--accent); border-radius: 6px; }
+.device-setup-callout p { margin: 0 0 12px; }
+.device-setup-label { color: var(--accent); font-weight: 700; margin-bottom: 8px; }
+.device-setup-note { line-height: 1.6; max-width: 75ch; }
+.device-setup-pending .zone-row input { width: 140px; max-width: 100%; }
 .device-group-zones { margin-top: 20px; }
 .device-group-zones > summary { cursor: pointer; color: var(--muted); }
 .device-zone { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); }

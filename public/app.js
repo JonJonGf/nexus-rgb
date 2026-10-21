@@ -199,6 +199,7 @@
   });
 
   const expandedDeviceGroups = new Set();
+  const needsLedSetup = d => d.ledCount === 0 && d.zones.some(z => z.resizable);
   function deviceGroups(devices) {
     const groups = new Map();
     for (const device of devices) {
@@ -238,7 +239,8 @@
       return empty(container, T(msg));
     }
     function renderComponent(d, nested = false) {
-      const card = el('article', nested ? 'device-zone' : 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div');
+      const unconfigured = needsLedSetup(d);
+      const card = el('article', (nested ? 'device-zone' : 'panel device-card') + (unconfigured ? ' device-setup-pending' : '')); const heading = el('div', 'panel-heading'); const title = el('div');
       const syncRow = el('div', 'device-sync-row');
       const isUnsyncedKb = d.type === 5 && d.settings.syncWithPc === false;
       const syncLabelText = d.mapExcluded ? T('Ajuste individual · fora do mapa') : isUnsyncedKb ? T('Desvinculado do PC') : d.customized ? T('Ajuste individual') : T('Segue o controle geral');
@@ -254,32 +256,59 @@
         syncLabel.append(syncCheck, el('span', '', T('Sincronizar com o PC')));
         syncRow.append(syncLabel);
       }
-      title.append(el(nested ? 'h3' : 'h2', '', nested ? d.zones[0]?.name || d.name : d.name), el('span', 'muted small', [nested ? null : d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, deviceTypeLabel(d), `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
+      title.append(el(nested ? 'h3' : 'h2', '', nested ? d.zones[0]?.name || d.name : d.name), el('span', 'muted small', [nested ? null : d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, deviceTypeLabel(d), unconfigured ? T('Quantidade não configurada') : `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
+      syncRow.hidden = unconfigured;
       const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', T`Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);
       if (d.error) card.append(el('p', 'error', T(d.error)));
       if (d.powerTransitionFallback) card.append(el('p', 'muted small device-fallback-note', T('Modo nativo usa transição instantânea ao ligar ou desligar.')));
-      const unconfigured = d.ledCount === 0 && d.zones.some(z => z.resizable);
-      if (unconfigured) card.append(el('p', 'device-setup-note', T('Esta saída está com zero LEDs. Configure a quantidade conectada para controlar sua iluminação.')));
+      power.hidden = unconfigured;
+      if (unconfigured) {
+        card.append(el('p', 'device-setup-label', T('Configuração pendente')),
+          el('p', 'device-setup-note', T('Conectou ventoinhas ou uma fita ARGB nesta saída? Informe a quantidade de LEDs para começar. Se a porta estiver vazia, não é preciso configurar.')));
+        if (!admin) card.append(el('p', 'muted small', T('Configure esta saída pelo Nexus no PC.')));
+      }
       const group = el('div', 'device-controls'); const colorLabel = el('label', '', T('Cor')); const color = el('input'); color.type = 'color'; color.value = d.settings.color; color.setAttribute('aria-label', T`Cor de ${d.name}`); color.addEventListener('change', () => action(`/api/devices/${d.id}`, { color: color.value, effect: 'static' })); color.disabled = !d.effects.includes('static'); colorLabel.append(color);
       const brightnessLabel = el('label', '', T`Brilho · ${d.settings.brightness}%`); const brightness = el('input'); brightness.type = 'range'; brightness.min = 0; brightness.max = 100; brightness.value = d.settings.brightness; brightness.setAttribute('aria-label', T`Brilho de ${d.name}`); brightness.addEventListener('change', () => action(`/api/devices/${d.id}`, { brightness: Number(brightness.value) })); brightnessLabel.append(brightness);
       const modeLabel = el('label', '', d.splitZone ? T('Efeito deste componente') : T('Efeito / modo do dispositivo')); const mode = el('select'); mode.setAttribute('aria-label', T`Modo de ${d.name}`);
       for (const effect of d.effects) { const option = el('option', '', labels[effect]); option.value = effect; mode.append(option); }
       for (const native of d.modes) { const option = el('option', '', `Hardware: ${native.name}`); option.value = `native:${native.id}`; mode.append(option); }
       mode.value = d.settings.nativeMode !== undefined ? `native:${d.settings.nativeMode}` : d.settings.effect;
-      mode.addEventListener('change', () => action(`/api/devices/${d.id}`, mode.value.startsWith('native:') ? { nativeMode: Number(mode.value.slice(7)) } : { effect: mode.value })); modeLabel.append(mode); group.append(colorLabel, brightnessLabel, modeLabel); card.append(group);
-      if (d.zones.length) { const details = el('details'); details.open = unconfigured; details.append(el('summary', '', T('Zonas e quantidade de LEDs'))); for (const z of d.zones) { const row = el('div', 'zone-row'); row.append(el('span', '', `${z.name} · ${z.leds} LEDs`)); if (z.resizable && admin) { const count = el('input'); count.type = 'number'; count.min = z.min; count.max = z.max; count.value = z.leds; count.setAttribute('aria-label', T`LEDs em ${z.name}`); const save = el('button', 'button subtle', T('Aplicar quantidade')); save.addEventListener('click', () => action(`/api/devices/${d.id}/resize`, { zone: z.id, count: Number(count.value) })); row.append(count, save); } details.append(row); } card.append(details); }
+      mode.addEventListener('change', () => action(`/api/devices/${d.id}`, mode.value.startsWith('native:') ? { nativeMode: Number(mode.value.slice(7)) } : { effect: mode.value })); modeLabel.append(mode); group.append(colorLabel, brightnessLabel, modeLabel); if (!unconfigured) card.append(group);
+      if (d.zones.length) {
+        const details = el('details'); details.open = unconfigured; details.append(el('summary', '', T(unconfigured ? 'Configurar iluminação da saída' : 'Zonas e quantidade de LEDs')));
+        for (const z of d.zones) {
+          const pending = z.resizable && z.leds === 0, row = el('div', 'zone-row');
+          row.append(el('span', '', `${z.name} · ${pending ? T('Quantidade não configurada') : `${z.leds} LEDs`}`));
+          if (z.resizable && admin) {
+            const count = el('input'); count.type = 'number'; count.min = pending ? Math.max(1, z.min) : z.min; count.max = z.max; count.step = '1'; count.required = true; count.value = pending ? '' : z.leds;
+            count.placeholder = T('Quantidade'); count.setAttribute('aria-label', T`LEDs em ${z.name}`);
+            const save = el('button', 'button subtle', T('Aplicar quantidade'));
+            save.addEventListener('click', () => { if (count.reportValidity()) action(`/api/devices/${d.id}/resize`, { zone: z.id, count: Number(count.value) }); });
+            row.append(count, save);
+          }
+          details.append(row);
+        }
+        card.append(details);
+      }
       return card;
     }
     for (const group of filtered) {
       if (group.items.length === 1) { container.append(renderComponent(group.items[0])); continue; }
       const card = el('article', 'panel device-card device-group'), heading = el('div', 'panel-heading'), title = el('div');
       const leds = group.items.reduce((sum, d) => sum + d.ledCount, 0);
-      title.append(el('h2', '', group.name), el('span', 'muted small', T`${group.items.length} zonas · ${leds} LEDs`));
+      const pending = group.items.some(needsLedSetup);
+      title.append(el('h2', '', group.name), el('span', 'muted small', leds === 0 && pending ? T('Quantidade não configurada') : T`${group.items.length} zonas · ${leds} LEDs`));
       heading.append(title); card.append(heading);
       const details = el('details', 'device-group-zones'); details.open = expandedDeviceGroups.has(group.id);
       details.append(el('summary', '', T('Zonas e controles individuais')));
       details.addEventListener('toggle', () => { if (!details.isConnected) return; if (details.open) expandedDeviceGroups.add(group.id); else expandedDeviceGroups.delete(group.id); });
       for (const device of group.items) details.append(renderComponent(device, true));
+      if (pending) {
+        const setup = el('div', 'device-setup-callout'), configure = el('button', 'button primary', T(admin ? 'Configurar portas ARGB' : 'Ver portas ARGB'));
+        setup.append(el('p', '', T('Há saídas ARGB disponíveis para configurar.')), configure);
+        configure.addEventListener('click', () => { details.open = true; expandedDeviceGroups.add(group.id); const target = details.querySelector('.device-setup-pending'); target?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); target?.querySelector('input[type=number]')?.focus({ preventScroll: true }); });
+        card.append(setup);
+      }
       card.append(details); container.append(card);
     }
   }

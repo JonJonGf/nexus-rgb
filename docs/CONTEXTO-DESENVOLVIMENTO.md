@@ -4,6 +4,13 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
+### Primeiro uso ARGB: orientação visível e configuração explícita
+
+- Usuário apontou que portas começarem com zero LEDs passa impressão de defeito. Reproduzido no navegador: orientação antiga escondida dentro do grupo de zonas. Corrigida localmente em `public/app.js`, `public/style.css`, `public/en.js`, com regressões em `tests/ui/device-groups.spec.js`.
+- Cartão principal agora oferece **Configurar portas ARGB**; saída sem quantidade mostra **Configuração pendente**, campo vazio e controles de luz ocultos até configuração. Sem quantidade padrão inventada, sem POST automático e sem modal recorrente. Portas vazias são opcionais; clientes LAN recebem orientação para configurar pelo PC. Valor técnico/diagnóstico permanece zero até o usuário informar quantidade válida.
+- **Verificado:** 15 testes Edge e 7 selecionados de zonas/redimensionamento passaram; após último ajuste visual, 4 Edge específicos PT/EN/390 px passaram. Desktop/celular inspecionados. Teste de navegador verifica envio escolhido; não confirma efeito físico. [Relatório e limites](validation/2026-10-21-argb-first-use.md).
+- Branch `codex/fan-control-dev`, base anterior `af97610`; alteração em preparação de commit local. Sem nova instalação, release, push, UAC, reinício ou comando de hardware. Alpha.40 pública/instalada permanece inalterada. Atualizar pacote candidato antes de qualquer teste real autorizado; preservar investigação GPU e ventilação como etapas separadas.
+
 ### Retomada concluída: candidata de ventilação, guias em inglês e coletor de GPU
 
 - **Esclarecimento posterior do usuário sobre GPU:** ele confirma que a interface já agrupa a placa, mas questiona os cinco controles internos. Fonte fixado confirma `RGB_FUSION_2_GPU_NUMBER_OF_ZONES 5` e `SetupZones()` cria cinco zonas de um LED para o driver genérico, sem consultar quantas áreas a RX 7600 possui fisicamente. Portanto, agrupamento visual não valida esse modelo interno. Direção de investigação: uma GPU/controle principal, áreas independentes somente quando verificadas para modelo/revisão, preservando mapeamento/perfis. Não eliminar/remapear zonas nem mudar comandos físicos por hipótese; quantidade genérica não comprova a causa do RGB apagado. Nenhum código/runtime alterado nesta explicação; apenas documentação de compatibilidade/continuidade.

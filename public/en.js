@@ -1,6 +1,15 @@
 'use strict';
 // First-party interface strings only. Device, profile and imported effect names are user content.
 window.NexusEnglish = Object.freeze({
+  "Quantidade não configurada":"LED count not configured",
+  "Configuração pendente":"Setup needed",
+  "Conectou ventoinhas ou uma fita ARGB nesta saída? Informe a quantidade de LEDs para começar. Se a porta estiver vazia, não é preciso configurar.":"Connected fans or an ARGB strip to this output? Enter the LED count to get started. Empty ports do not need configuration.",
+  "Configure esta saída pelo Nexus no PC.":"Configure this output using Nexus on the PC.",
+  "Configurar iluminação da saída":"Set up output lighting",
+  "Quantidade":"Count",
+  "Configurar portas ARGB":"Set up ARGB ports",
+  "Ver portas ARGB":"View ARGB ports",
+  "Há saídas ARGB disponíveis para configurar.":"ARGB outputs are available to set up.",
   "Controle de ventilação":"Cooling helper",
   "Ventilação encerrada.":"Cooling stopped.",
   "O limite do canal mudou. Revise a velocidade mínima antes de reativar.":"The channel limit changed. Review the minimum speed before re-enabling.",
