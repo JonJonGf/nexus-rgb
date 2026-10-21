@@ -29,7 +29,9 @@ async function main(){
   const cdp=await page.context().newCDPSession(page),system=await browser.newBrowserCDPSession();await cdp.send('Performance.enable');
   const sample=async()=>{
    const tree=await system.send('SystemInfo.getProcessInfo'),ids=tree.processInfo.map(p=>p.id);
-   const result=await run('powershell.exe',['-NoProfile','-Command','Get-Process -Id '+ids.join(',')+' -ErrorAction SilentlyContinue | Select-Object Id,CPU,WorkingSet64,PrivateMemorySize64 | ConvertTo-Json -Compress'],{windowsHide:true,timeout:10000});
+   // A short-lived Edge utility process can exit between the two snapshots.
+   // Enumerate live processes first instead of treating a missing PID as failure.
+   const result=await run('powershell.exe',['-NoProfile','-Command','$nexusBrowserIds=@('+ids.join(',')+'); Get-Process -ErrorAction Stop | Where-Object {$nexusBrowserIds -contains $_.Id} | Select-Object Id,CPU,WorkingSet64,PrivateMemorySize64 | ConvertTo-Json -Compress'],{windowsHide:true,timeout:10000});
    const processes=JSON.parse(result.stdout),metrics=Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map(m=>[m.name,m.value]));
    const backend=await new Promise(resolve=>{child.once('message',resolve);child.send('sample');});assert.equal(backend.error,null);
    return{at:performance.now(),cpu:tree.processInfo.reduce((n,p)=>n+p.cpuTime,0),rss:(Array.isArray(processes)?processes:[processes]).reduce((n,p)=>n+p.WorkingSet64,0)/1048576,private:(Array.isArray(processes)?processes:[processes]).reduce((n,p)=>n+p.PrivateMemorySize64,0)/1048576,heap:metrics.JSHeapUsedSize/1048576,nodes:metrics.Nodes,task:metrics.TaskDuration,backend};

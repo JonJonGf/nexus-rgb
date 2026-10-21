@@ -1,0 +1,92 @@
+{
+  "repository": "hello-nexus/openrgb-headless",
+  "commit": "18e2c95f5e6d5d9f45a948df1e3d0b882e605b45",
+  "license": "GPL-2.0-or-later",
+  "upstreamRun": "39457060004",
+  "upstreamArtifact": "12282550784",
+  "archiveSHA256": "4939bb367d1c43e54fdbf0de2a32142ad85e0b9606750d4409026e508e7142d6",
+  "sourceURL": "https://codeload.github.com/hello-nexus/openrgb-headless/zip/18e2c95f5e6d5d9f45a948df1e3d0b882e605b45",
+  "sourceSHA256": "390149dbb63d87da41482acbb88e459ea83fd28623076d1e79ae708633c841ee",
+  "files": [
+    {
+      "name": "hidapi-hotplug.dll",
+      "size": 45056,
+      "sha256": "263a662b014a7082871bb3e46f4d3c4790d7ed253768dcd585264fd598892dfb"
+    },
+    {
+      "name": "LedsValve.bin",
+      "size": 43796,
+      "sha256": "1c1809281ae6f3e3c5b362f1536c0e6706013e6e33bfba66cad74636e61436d6"
+    },
+    {
+      "name": "libusb-1.0.dll",
+      "size": 157696,
+      "sha256": "a8c91f0ff68fb7802a9f4416728f0eeb4d99af4ceaa4ef7dfe9374e76e375018"
+    },
+    {
+      "name": "LICENSE-OpenRGB.txt",
+      "size": 18381,
+      "sha256": "02953cd889069052ae9dd04babd3862508b06ed52531e4f383a2fde03341f594"
+    },
+    {
+      "name": "LpcIO.bin",
+      "size": 18076,
+      "sha256": "b3896a1cab0d808fca31fe2ebcae045d59dac690da87b17c858bb8da357eb45e"
+    },
+    {
+      "name": "msvcp140_codecvt_ids.dll",
+      "size": 31160,
+      "sha256": "8a65c7596ef2e6938731f5a1058e7e40145b6d97967cc649231a076b9a608d78"
+    },
+    {
+      "name": "msvcp140.dll",
+      "size": 643512,
+      "sha256": "7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca"
+    },
+    {
+      "name": "OpenRGB-headless.exe",
+      "size": 8539136,
+      "sha256": "1eddfbdd82fe48131a77017636812cdd5c769bb7822e705a276181f5c64ab370"
+    },
+    {
+      "name": "PawnIOLib.dll",
+      "size": 4096,
+      "sha256": "c6e7c2f54643ef9cb51b9a3ec7b0efc9e204803c206f33014e39f281546ea9b4"
+    },
+    {
+      "name": "README.txt",
+      "size": 158,
+      "sha256": "8178f8e473c4e2a4920a230842820b4c1c0f7a715aa4455e95c26a9285e29770"
+    },
+    {
+      "name": "SmbusI801.bin",
+      "size": 55540,
+      "sha256": "a0f7d066e7efda28c0e754c1f52dbd8dc280d388ba8575b514a80cb67490530c"
+    },
+    {
+      "name": "SmbusIntelSkylakeIMC.bin",
+      "size": 19828,
+      "sha256": "2e2d6c1e541fdfe598aa8df4d334e11c491c8a84f23e8256dd18119dd420dbd2"
+    },
+    {
+      "name": "SmbusNCT6793.bin",
+      "size": 21244,
+      "sha256": "db068c6a87c0066ebfb7f691d88422fee8af350898e7a7f0db100fd6632bab17"
+    },
+    {
+      "name": "SmbusPIIX4.bin",
+      "size": 42404,
+      "sha256": "91f9b4b1c39e3d399ce48477a89d8f6bd3e58a2241064a4daec3a1513dff56e5"
+    },
+    {
+      "name": "vcruntime140_1.dll",
+      "size": 50112,
+      "sha256": "a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e"
+    },
+    {
+      "name": "vcruntime140.dll",
+      "size": 178616,
+      "sha256": "d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7"
+    }
+  ]
+}

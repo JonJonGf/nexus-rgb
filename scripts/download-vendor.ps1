@@ -11,8 +11,8 @@ foreach($item in $manifest.files) {
   if((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256){throw "A dependência mudou ou foi corrompida: $($item.path). Não será executada."}
 }
 foreach($file in @('vendor\PawnIO_setup.exe','vendor\vc_redist.x64.exe','runtime\node.exe','tools\inno-installer.exe')) {if((Get-AuthenticodeSignature -LiteralPath $file).Status -ne 'Valid'){throw "Assinatura inválida: $file"}}
-if(-not(Test-Path -LiteralPath 'vendor\openrgb\OpenRGB Windows 64-bit\OpenRGB.exe')){Expand-Archive -LiteralPath vendor/openrgb-1.0.zip -DestinationPath vendor/openrgb -Force}
-if(-not(Test-Path -LiteralPath 'vendor\openrgb-source\openrgb\LICENSE')){Expand-Archive -LiteralPath vendor/openrgb-source-1.0.zip -DestinationPath vendor/openrgb-source -Force}
+. (Join-Path $PSScriptRoot 'openrgb-package.ps1')
+Assert-NexusHeadlessArchive (Join-Path $projectRoot 'dependencies\openrgb-headless\windows-x64-18e2c95.zip') (Join-Path $projectRoot 'dependencies\openrgb-headless\provenance.json')
 if(-not(Test-Path -LiteralPath 'tools\inno\ISCC.exe')){
   $compilerDirectory=Join-Path $projectRoot 'tools\inno'
   $installer=(Resolve-Path -LiteralPath 'tools\inno-installer.exe').Path

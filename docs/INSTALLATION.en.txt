@@ -1,6 +1,6 @@
 NEXUS RGB — FREE 0.1.0 PREVIEW FOR VALIDATION
 
-Installs Nexus, the Node.js runtime and OpenRGB 1.0 on your computer.
+Installs Nexus, the Node.js runtime and OpenRGB Headless on your computer.
 The network service runs with limited permissions; only the hardware
 controller uses elevated privileges. RGB starts automatically with Windows.
 

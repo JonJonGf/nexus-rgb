@@ -6,6 +6,35 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
+test('pacote headless valida origem e recusa arquivo Qt mesmo com manifesto de teste consistente', { skip: process.platform !== 'win32' }, t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-headless-check-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const script = String.raw`
+    $ErrorActionPreference='Stop';$env:PSModulePath=Join-Path $PSHOME 'Modules'
+    $tokens=$null;$errors=$null
+    $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $env:NEXUS_HEADLESS_ROOT 'scripts\openrgb-package.ps1'),[ref]$tokens,[ref]$errors)
+    if($errors.Count){throw 'Invalid headless validator'}
+    $definition=$ast.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-NexusHeadlessArchive'},$true)
+    . ([scriptblock]::Create($definition.Extent.Text))
+    $archive=Join-Path $env:NEXUS_HEADLESS_ROOT 'dependencies\openrgb-headless\windows-x64-18e2c95.zip'
+    $metadata=Join-Path $env:NEXUS_HEADLESS_ROOT 'dependencies\openrgb-headless\provenance.json'
+    Assert-NexusHeadlessArchive $archive $metadata
+    $copy=Join-Path $env:NEXUS_HEADLESS_TEST 'tampered.zip'; Copy-Item -LiteralPath $archive -Destination $copy
+    $zip=[IO.Compression.ZipFile]::Open($copy,[IO.Compression.ZipArchiveMode]::Update)
+    try {$zip.CreateEntry('Qt6Core.dll') | Out-Null} finally {$zip.Dispose()}
+    $record=Get-Content -LiteralPath $metadata -Raw | ConvertFrom-Json
+    $record.archiveSHA256=(Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash.ToLowerInvariant()
+    $testMetadata=Join-Path $env:NEXUS_HEADLESS_TEST 'provenance.json'
+    [IO.File]::WriteAllText($testMetadata,($record|ConvertTo-Json -Depth 8))
+    $rejected=$false
+    try {Assert-NexusHeadlessArchive $copy $testMetadata} catch {if($_.Exception.Message -notmatch 'Qt'){throw};$rejected=$true}
+    if(-not $rejected){throw 'Qt library was accepted'}
+    'headless-package-validated'
+  `;
+  const result = spawnSync('powershell.exe', ['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')], { encoding:'utf8',windowsHide:true,timeout:15000,env:{...process.env,NEXUS_HEADLESS_ROOT:path.resolve(__dirname,'..'),NEXUS_HEADLESS_TEST:directory} });
+  assert.equal(result.status,0,result.stderr+result.stdout); assert.match(result.stdout,/headless-package-validated/);
+});
+
 test('VM setup waits for installer exit without waiting for its reopened tray child', {skip:process.platform!=='win32'}, t=>{
   const directory=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-setup-wait-'));
   t.after(async()=>{await new Promise(resolve=>setTimeout(resolve,4000));if(path.dirname(path.resolve(directory))!==path.resolve(os.tmpdir())||!path.basename(directory).startsWith('nexus-setup-wait-'))throw Error('Unsafe fixture cleanup');fs.rmSync(directory,{recursive:true,force:true});});

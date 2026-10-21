@@ -1,6 +1,6 @@
 ﻿NEXUS RGB — PRÉVIA GRATUITA 0.1.0 PARA VALIDAÇÃO
 
-Instala o aplicativo, o runtime Node.js e o OpenRGB 1.0 no próprio computador.
+Instala o aplicativo, o runtime Node.js e o OpenRGB Headless no próprio computador.
 O serviço de rede roda com permissões limitadas; somente o controlador de
 hardware usa privilégios elevados. O RGB inicia automaticamente com o Windows.
 

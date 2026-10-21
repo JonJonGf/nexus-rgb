@@ -1,15 +1,15 @@
 {
-  "checkedAt": "2026-10-13",
+  "checkedAt": "2026-10-21",
   "files": [
     {
-      "path": "vendor/openrgb-1.0.zip",
-      "sha256": "182a52a3c97c4c4ae52c80286b4260c9666c51c3447dbc416ee8945f66192e90",
-      "url": "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.0/OpenRGB_1.0_Windows_64_81bbe18.zip"
+      "path": "dependencies/openrgb-headless/windows-x64-18e2c95.zip",
+      "sha256": "4939bb367d1c43e54fdbf0de2a32142ad85e0b9606750d4409026e508e7142d6",
+      "url": "https://raw.githubusercontent.com/JonJonGf/nexus-rgb/3ff3edffad94e46c37ab24471076711a3c5a64ff/dependencies/openrgb-headless/windows-x64-18e2c95.zip"
     },
     {
-      "path": "vendor/openrgb-source-1.0.zip",
-      "sha256": "9e2cc3a15f4eb19f309c9e040a6bc6f7f1dbc9d91871ce95c0de0c050b218e20",
-      "url": "https://codeberg.org/OpenRGB/OpenRGB/archive/release_1.0.zip"
+      "path": "vendor/openrgb-source-18e2c95.zip",
+      "sha256": "390149dbb63d87da41482acbb88e459ea83fd28623076d1e79ae708633c841ee",
+      "url": "https://codeload.github.com/hello-nexus/openrgb-headless/zip/18e2c95f5e6d5d9f45a948df1e3d0b882e605b45"
     },
     {
       "path": "vendor/PawnIO_setup.exe",

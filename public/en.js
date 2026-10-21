@@ -1,6 +1,10 @@
 'use strict';
 // First-party interface strings only. Device, profile and imported effect names are user content.
 window.NexusEnglish = Object.freeze({
+  "{0} zonas · {1} aparelhos":"{0} zones · {1} devices",
+  "{0} zonas · {1} LEDs":"{0} zones · {1} LEDs",
+  "Zonas e controles individuais":"Zones and individual controls",
+  "Esta saída está com zero LEDs. Configure a quantidade conectada para controlar sua iluminação.":"This output has zero LEDs. Set the connected LED count to control its lighting.",
   "Gestos, cenas e sua sala":"Gestures, scenes and your room",
   "Em Experiências, desenhe no Live e grave gestos para reproduzir. Cenas combinam etapas de efeitos, perfis e gravações. Room adiciona controladoras WLED da mesma rede; Som e contexto oferece áudio por bandas e perfis por aplicativo, ambos opcionais. Configure pelo PC; toque e reproduza pelo celular.":"In Experiences, draw in Live and record gestures to replay. Scenes combine effects, profiles and recordings. Room adds WLED controllers on the same network; Sound and context offers optional audio bands and app profiles. Configure on the PC; touch and play from your phone.",
   "As novas preferências de cenas, gestos, áudio e aplicativos entram no backup. O cadastro WLED é local ao PC e permanece separado. A bandeja atualizada precisa estar aberta para áudio e contexto; mudanças chegam em até cinco segundos.":"New scene, gesture, audio and app preferences are included in the backup. The WLED inventory is local to the PC and stays separate. The updated tray must be running for audio and context; changes arrive within five seconds.",

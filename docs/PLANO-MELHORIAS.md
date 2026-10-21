@@ -14,6 +14,8 @@ O usuário pediu primeiro publicar a alpha.39 com os perfis e, na alpha.40, ampl
 
 Estado deste registro: escopo aceito, ainda não implementado na alpha.39. A release alpha.39 está em validação no workflow `39529645241`; os códigos de produto desta ampliação devem ficar em entrega posterior.
 
+**Atualização de 21/10:** alpha.39 publicada e conferida. Alpha.40 implementada na branch `codex/gpu-capabilities`, com base headless fixada, zonas agrupadas, correções de protocolo/cor e diagnóstico; os primeiros ensaios nas duas VMs passaram. Ajustes adicionais de leitura de flags e recuperação ao retomar o Windows estão em validação final. [Resultados e limites](validation/2026-10-20-alpha40.md); publicação/instalação são estados distintos, registrados no contexto.
+
 ## Lâmpadas no Nexus Room — Steck/Smarteck 12 W
 
 **Sugestão do usuário em 19/10/2026:** controlar também a lâmpada RGB Steck de 12 W, atualmente usada pelo aplicativo Smarteck / Steck Ambiente Conectado. Endereço e demais identificadores pessoais não pertencem ao plano público. A tela Room atual é exclusivamente WLED; cadastrar um IP de outra plataforma não converte seu protocolo.

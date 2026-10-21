@@ -37,6 +37,35 @@ internal static class WorkerFixture {
             var child = System.Diagnostics.Process.GetProcessById(childId);
             string log = System.IO.File.ReadAllText(System.IO.Path.Combine(data, "service.log"));
             if (!log.Contains("código 42")) throw new System.Exception("Child failure was not recorded.");
+            string hardwareData=System.IO.Path.Combine(DataRoot,"NexusRGB","hardware");
+            System.IO.Directory.CreateDirectory(hardwareData);
+            var hardwareWorker=new Worker(true);
+            bool hardwareStarted=false;
+            try {
+                if(!hardwareWorker.CanHandlePowerEvent)throw new System.Exception("Hardware supervisor does not receive Windows power events.");
+                start.Invoke(hardwareWorker,new object[]{new string[0]});hardwareStarted=true;
+                string hardwareStable=System.IO.Path.Combine(hardwareData,"stable-pid");
+                deadline=System.DateTime.UtcNow.AddSeconds(20);
+                while(!System.IO.File.Exists(hardwareStable)&&System.DateTime.UtcNow<deadline)System.Threading.Thread.Sleep(100);
+                if(!System.IO.File.Exists(hardwareStable))throw new System.Exception("Hardware fixture did not start.");
+                int beforeResume=int.Parse(System.IO.File.ReadAllText(hardwareStable));
+                var resume=typeof(Worker).GetMethod("OnPowerEvent",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
+                resume.Invoke(hardwareWorker,new object[]{System.ServiceProcess.PowerBroadcastStatus.ResumeAutomatic});
+                resume.Invoke(hardwareWorker,new object[]{System.ServiceProcess.PowerBroadcastStatus.ResumeSuspend});
+                deadline=System.DateTime.UtcNow.AddSeconds(12);int afterResume=beforeResume;
+                while(afterResume==beforeResume&&System.DateTime.UtcNow<deadline){System.Threading.Thread.Sleep(100);afterResume=int.Parse(System.IO.File.ReadAllText(hardwareStable));}
+                if(afterResume==beforeResume)throw new System.Exception("Resume did not replace the hardware child.");
+                System.Threading.Thread.Sleep(3000);
+                if(int.Parse(System.IO.File.ReadAllText(hardwareStable))!=afterResume)throw new System.Exception("Duplicate resume events caused repeated hardware restarts.");
+                if(child.HasExited)throw new System.Exception("Hardware resume stopped the network service child.");
+                var resumedChild=System.Diagnostics.Process.GetProcessById(afterResume);
+                resume.Invoke(hardwareWorker,new object[]{System.ServiceProcess.PowerBroadcastStatus.ResumeAutomatic});
+                stop.Invoke(hardwareWorker,null);hardwareStarted=false;
+                if(!resumedChild.WaitForExit(5000))throw new System.Exception("Stopping during resume left hardware running.");
+                System.Threading.Thread.Sleep(2500);
+                if(int.Parse(System.IO.File.ReadAllText(hardwareStable))!=afterResume)throw new System.Exception("Queued resume restarted hardware after service stop.");
+                resumedChild.Dispose();
+            } finally {if(hardwareStarted)stop.Invoke(hardwareWorker,null);hardwareWorker.Dispose();}
             stop.Invoke(worker, null); started = false;
             if (!child.WaitForExit(5000)) throw new System.Exception("Graceful shutdown left a child process running.");
             if (!System.IO.File.Exists(System.IO.Path.Combine(data, "graceful-exit"))) throw new System.Exception("Child did not receive graceful shutdown signal before Job close.");
@@ -61,7 +90,7 @@ internal static class WorkerFixture {
                 hung.Dispose();
             } finally { if (started) stop.Invoke(worker2, null); worker2.Dispose(); }
 
-            System.Console.WriteLine("Supervisor restarted a failed child, stopped gracefully when responsive, and enforced Job fallback when hung.");
+            System.Console.WriteLine("Supervisor recovered failed/hung children, refreshed hardware once on resume without stopping network, and cancelled queued resume after stop.");
         } finally { if (started) stop.Invoke(worker, null); worker.Dispose(); }
     }
 }
@@ -73,7 +102,8 @@ using System.Threading;
 using System.Diagnostics;
 internal static class ChildFixture {
     private static void Main() {
-        string data = Environment.GetEnvironmentVariable("NEXUS_DATA_DIR");
+        bool hardware=System.AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\').EndsWith("openrgb",System.StringComparison.OrdinalIgnoreCase);
+        string data = hardware ? Path.GetFullPath(Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory,"..","data","NexusRGB","hardware")) : Environment.GetEnvironmentVariable("NEXUS_DATA_DIR");
         string marker = Path.Combine(data, "crashed-once");
         if (!File.Exists(marker)) { File.WriteAllText(marker, "fixture"); Thread.Sleep(600); Environment.Exit(42); }
         File.WriteAllText(Path.Combine(data, "stable-pid"), Process.GetCurrentProcess().Id.ToString());
@@ -82,7 +112,7 @@ internal static class ChildFixture {
             while (true) Thread.Sleep(1000);
         }
         string line = Console.In.ReadLine();
-        if (line == "shutdown" && Environment.GetEnvironmentVariable("NEXUS_SUPERVISED") == "1") {
+        if (line == "shutdown" && (hardware || Environment.GetEnvironmentVariable("NEXUS_SUPERVISED") == "1")) {
             File.WriteAllText(Path.Combine(data, "graceful-exit"), "0");
             Environment.Exit(0);
         }
@@ -93,10 +123,12 @@ internal static class ChildFixture {
   const nativeFile = path.join(directory, 'fixture.cs'), childFile = path.join(directory, 'child.cs');
   fs.writeFileSync(nativeFile, '\ufeff' + native + fixture); fs.writeFileSync(childFile, childSource);
   fs.mkdirSync(path.join(directory, 'runtime'));
+  fs.mkdirSync(path.join(directory, 'openrgb'));
   compile(['/target:exe', '/platform:x64', '/out:' + path.join(directory, 'runtime', 'node.exe'), childFile]);
+  fs.copyFileSync(path.join(directory,'runtime','node.exe'),path.join(directory,'openrgb','OpenRGB.exe'));
   const executable = path.join(directory, 'fixture.exe');
   compile(['/target:exe', '/platform:x64', '/main:WorkerFixture', '/out:' + executable, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.ServiceProcess.dll','/reference:System.Web.Extensions.dll', nativeFile,path.join(root,'native','ExperiencesBridge.cs'), path.join(root,'native','Locale.cs')]);
-  const result = spawnSync(executable, [], { encoding: 'utf8', timeout: 30000, windowsHide: true });
+  const result = spawnSync(executable, [], { encoding: 'utf8', timeout: 45000, windowsHide: true });
   assert.equal(result.status, 0, result.stdout + result.stderr + (result.error || ''));
   process.stdout.write(result.stdout);
 } finally {

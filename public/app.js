@@ -150,7 +150,7 @@
     document.querySelectorAll('.effect').forEach(b => { b.classList.toggle('active', b.dataset.effect === master.effect); b.setAttribute('aria-pressed', String(b.dataset.effect === master.effect)); });
     const online = state.hardware.connected, detecting = Boolean(online && state.hardware.detecting), hung = Boolean(state.hardware.controllerHung);
     $('connection').textContent = !online ? (hung ? T('● OpenRGB sem resposta') : T('● Aguardando hardware')) : detecting ? T('● Detectando componentes…') : T('● Controlador conectado'); $('connection').className = `badge ${online ? 'online' : 'offline'}`;
-    $('device-count').textContent = devices.length; $('hardware-summary').textContent = online ? `${devices.length} componentes · ${state.hardware.controllerCount ?? devices.length} controladoras` : (hung ? T('OpenRGB não respondeu ao consultar um componente') : T('Controlador RGB desconectado'));
+    $('device-count').textContent = deviceGroups(devices).length; $('hardware-summary').textContent = online ? T`${devices.length} zonas · ${deviceGroups(devices).length} aparelhos` : (hung ? T('OpenRGB não respondeu ao consultar um componente') : T('Controlador RGB desconectado'));
     const failures = devices.filter(d => d.error);
     const notice = !online
       ? (hung
@@ -196,22 +196,33 @@
     });
   });
 
+  const expandedDeviceGroups = new Set();
+  function deviceGroups(devices) {
+    const groups = new Map();
+    for (const device of devices) {
+      const id = device.controllerId || device.id;
+      if (!groups.has(id)) groups.set(id, { id, name: device.controllerName || device.name, type: device.type, items: [] });
+      groups.get(id).items.push(device);
+    }
+    return [...groups.values()];
+  }
   function renderDevices(devices) {
     if ($('devices').contains(document.activeElement) && document.activeElement.tagName !== 'BUTTON') return;
     const container = $('devices'); container.replaceChildren();
 
     const isPeripheral = d => d.type === 5 || d.type === 6 || d.type === 7 || d.type === 8;
-    const internalCount = devices.filter(d => !isPeripheral(d)).length;
-    const peripheralsCount = devices.filter(isPeripheral).length;
-    const filterAllCount = $('filter-all-count'); if (filterAllCount) filterAllCount.textContent = devices.length;
+    const groups = deviceGroups(devices);
+    const internalCount = groups.filter(d => !isPeripheral(d)).length;
+    const peripheralsCount = groups.filter(isPeripheral).length;
+    const filterAllCount = $('filter-all-count'); if (filterAllCount) filterAllCount.textContent = groups.length;
     const filterIntCount = $('filter-internal-count'); if (filterIntCount) filterIntCount.textContent = internalCount;
     const filterPeriCount = $('filter-peripherals-count'); if (filterPeriCount) filterPeriCount.textContent = peripheralsCount;
 
-    let filtered = devices;
+    let filtered = groups;
     if (activeDeviceFilter === 'internal') {
-      filtered = devices.filter(d => !isPeripheral(d));
+      filtered = groups.filter(d => !isPeripheral(d));
     } else if (activeDeviceFilter === 'peripherals') {
-      filtered = devices.filter(isPeripheral);
+      filtered = groups.filter(isPeripheral);
     }
 
     if (!filtered.length) {
@@ -224,8 +235,8 @@
         : 'Nenhum dispositivo detectado. Não mostramos componentes simulados.';
       return empty(container, T(msg));
     }
-    for (const d of filtered) {
-      const card = el('article', 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div');
+    function renderComponent(d, nested = false) {
+      const card = el('article', nested ? 'device-zone' : 'panel device-card'); const heading = el('div', 'panel-heading'); const title = el('div');
       const syncRow = el('div', 'device-sync-row');
       const isUnsyncedKb = d.type === 5 && d.settings.syncWithPc === false;
       const syncLabelText = d.mapExcluded ? T('Ajuste individual · fora do mapa') : isUnsyncedKb ? T('Desvinculado do PC') : d.customized ? T('Ajuste individual') : T('Segue o controle geral');
@@ -241,10 +252,12 @@
         syncLabel.append(syncCheck, el('span', '', T('Sincronizar com o PC')));
         syncRow.append(syncLabel);
       }
-      title.append(el('h2', '', d.name), el('span', 'muted small', [d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, deviceTypeLabel(d), `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
+      title.append(el(nested ? 'h3' : 'h2', '', nested ? d.zones[0]?.name || d.name : d.name), el('span', 'muted small', [nested ? null : d.controllerName && d.controllerName !== d.name ? d.controllerName : d.vendor, deviceTypeLabel(d), `${d.ledCount} LEDs`, d.status === 'online' ? T('Conectado') : T('Desconectado')].filter(Boolean).join(' · ')), syncRow);
       const power = el('label', 'switch'); const check = el('input'); check.type = 'checkbox'; check.checked = d.settings.power; check.setAttribute('aria-label', T`Ligar ${d.name}`); check.addEventListener('change', () => action(`/api/devices/${d.id}`, { power: check.checked })); power.append(check, el('span')); heading.append(title, power); card.append(heading);
       if (d.error) card.append(el('p', 'error', T(d.error)));
       if (d.powerTransitionFallback) card.append(el('p', 'muted small device-fallback-note', T('Modo nativo usa transição instantânea ao ligar ou desligar.')));
+      const unconfigured = d.ledCount === 0 && d.zones.some(z => z.resizable);
+      if (unconfigured) card.append(el('p', 'device-setup-note', T('Esta saída está com zero LEDs. Configure a quantidade conectada para controlar sua iluminação.')));
       const group = el('div', 'device-controls'); const colorLabel = el('label', '', T('Cor')); const color = el('input'); color.type = 'color'; color.value = d.settings.color; color.setAttribute('aria-label', T`Cor de ${d.name}`); color.addEventListener('change', () => action(`/api/devices/${d.id}`, { color: color.value, effect: 'static' })); color.disabled = !d.effects.includes('static'); colorLabel.append(color);
       const brightnessLabel = el('label', '', T`Brilho · ${d.settings.brightness}%`); const brightness = el('input'); brightness.type = 'range'; brightness.min = 0; brightness.max = 100; brightness.value = d.settings.brightness; brightness.setAttribute('aria-label', T`Brilho de ${d.name}`); brightness.addEventListener('change', () => action(`/api/devices/${d.id}`, { brightness: Number(brightness.value) })); brightnessLabel.append(brightness);
       const modeLabel = el('label', '', d.splitZone ? T('Efeito deste componente') : T('Efeito / modo do dispositivo')); const mode = el('select'); mode.setAttribute('aria-label', T`Modo de ${d.name}`);
@@ -252,8 +265,20 @@
       for (const native of d.modes) { const option = el('option', '', `Hardware: ${native.name}`); option.value = `native:${native.id}`; mode.append(option); }
       mode.value = d.settings.nativeMode !== undefined ? `native:${d.settings.nativeMode}` : d.settings.effect;
       mode.addEventListener('change', () => action(`/api/devices/${d.id}`, mode.value.startsWith('native:') ? { nativeMode: Number(mode.value.slice(7)) } : { effect: mode.value })); modeLabel.append(mode); group.append(colorLabel, brightnessLabel, modeLabel); card.append(group);
-      if (d.zones.length) { const details = el('details'); details.append(el('summary', '', T('Zonas e quantidade de LEDs'))); for (const z of d.zones) { const row = el('div', 'zone-row'); row.append(el('span', '', `${z.name} · ${z.leds} LEDs`)); if (z.resizable && admin) { const count = el('input'); count.type = 'number'; count.min = z.min; count.max = z.max; count.value = z.leds; count.setAttribute('aria-label', T`LEDs em ${z.name}`); const save = el('button', 'button subtle', T('Aplicar quantidade')); save.addEventListener('click', () => action(`/api/devices/${d.id}/resize`, { zone: z.id, count: Number(count.value) })); row.append(count, save); } details.append(row); } card.append(details); }
-      container.append(card);
+      if (d.zones.length) { const details = el('details'); details.open = unconfigured; details.append(el('summary', '', T('Zonas e quantidade de LEDs'))); for (const z of d.zones) { const row = el('div', 'zone-row'); row.append(el('span', '', `${z.name} · ${z.leds} LEDs`)); if (z.resizable && admin) { const count = el('input'); count.type = 'number'; count.min = z.min; count.max = z.max; count.value = z.leds; count.setAttribute('aria-label', T`LEDs em ${z.name}`); const save = el('button', 'button subtle', T('Aplicar quantidade')); save.addEventListener('click', () => action(`/api/devices/${d.id}/resize`, { zone: z.id, count: Number(count.value) })); row.append(count, save); } details.append(row); } card.append(details); }
+      return card;
+    }
+    for (const group of filtered) {
+      if (group.items.length === 1) { container.append(renderComponent(group.items[0])); continue; }
+      const card = el('article', 'panel device-card device-group'), heading = el('div', 'panel-heading'), title = el('div');
+      const leds = group.items.reduce((sum, d) => sum + d.ledCount, 0);
+      title.append(el('h2', '', group.name), el('span', 'muted small', T`${group.items.length} zonas · ${leds} LEDs`));
+      heading.append(title); card.append(heading);
+      const details = el('details', 'device-group-zones'); details.open = expandedDeviceGroups.has(group.id);
+      details.append(el('summary', '', T('Zonas e controles individuais')));
+      details.addEventListener('toggle', () => { if (!details.isConnected) return; if (details.open) expandedDeviceGroups.add(group.id); else expandedDeviceGroups.delete(group.id); });
+      for (const device of group.items) details.append(renderComponent(device, true));
+      card.append(details); container.append(card);
     }
   }
   function renderProfiles() {
