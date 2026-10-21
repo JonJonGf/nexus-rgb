@@ -44,6 +44,19 @@ test('sair durante a detecção encerra o monitoramento quando a resposta chega'
   await expect(page.locator('.cooling-channel')).toHaveCount(0);
 });
 
+test('curve axis labels remain readable without icon outlines on desktop and mobile',async({page})=>{
+ await page.goto('/');await page.locator('.nav[data-page=cooling]').click();
+ await page.getByRole('button',{name:'Criar perfil personalizado',exact:true}).click();
+ const graph=page.locator('#cooling-preset-editor .cooling-graph');
+ for(const width of [1280,390]){
+  await page.setViewportSize({width,height:900});await graph.scrollIntoViewIfNeeded();
+  await expect(graph.locator('text')).toHaveText(['100%','0%','20 °C','100 °C']);
+  if(process.env.NEXUS_UI_EVIDENCE_DIR){const fs=require('node:fs'),path=require('node:path');fs.mkdirSync(process.env.NEXUS_UI_EVIDENCE_DIR,{recursive:true});await graph.screenshot({path:path.join(process.env.NEXUS_UI_EVIDENCE_DIR,'curve-axis-'+width+'.png')});}
+  const labels=await graph.locator('text').evaluateAll(nodes=>nodes.map(node=>{const {x,y,width,height}=node.getBBox(),style=getComputedStyle(node),view=node.ownerSVGElement.viewBox.baseVal;return {stroke:style.stroke,screenFont:parseFloat(style.fontSize)*node.getScreenCTM().a,box:{x,y,width,height},view:{x:view.x,y:view.y,width:view.width,height:view.height}};}));
+  for(const label of labels){expect(label.stroke).toBe('none');expect(label.screenFont).toBeGreaterThanOrEqual(10);expect(label.box.x).toBeGreaterThanOrEqual(label.view.x);expect(label.box.x+label.box.width).toBeLessThanOrEqual(label.view.x+label.view.width);expect(label.box.y).toBeGreaterThanOrEqual(label.view.y);expect(label.box.y+label.box.height).toBeLessThanOrEqual(label.view.y+label.view.height);}
+ }
+});
+
 test('manual curve mode is visible, editable and retained through polling without activating control',async({page})=>{
  await page.goto('/');await page.locator('.nav[data-page=cooling]').click();await page.locator('#cooling-monitor').click();
  const row=page.locator('.cooling-channel').first();await row.getByLabel('Modo de controle',{exact:true}).selectOption('manual');

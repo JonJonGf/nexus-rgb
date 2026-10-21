@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
+### R4 em preparação: legibilidade dos eixos da curva
+
+- Usuário relatou números grossos/ilegíveis no gráfico R3. Reprodução no Edge confirmou que a regra global de ícones `svg { stroke: currentColor }` era herdada pelos textos; teste específico falhou com stroke colorido em vez de nenhum. Correção local em `public/cooling.css` remove stroke apenas das legendas e aumenta a fonte no celular; `public/cooling.js` reserva margem para não cortar letras. Coordenadas dos pontos e cálculo/controle das ventoinhas preservados.
+- Seis testes Edge de cooling passaram sem retries, incluindo regressão de texto sem contorno, tamanho mínimo e limites do desenho em 1280/390 px; capturas antes/depois inspecionadas. Não houve comando para sensor real, RPM, instalação ou serviço. Próximo passo: compilar e conferir candidata privada R4; ainda sem commit/pacote novo nesta nota.
+- Esclarecimento ao usuário sobre alcance: filtragem usa leituras de RPM, rótulos do backend, seleção e histórico de canais vistos. Não identifica universalmente conectores físicos; zero RPM pode ser fan parada/sem retorno. Sugestões CPU_FAN/CHA_FAN permanecem limitadas à placa/chip explicitamente avaliados. Nenhuma nova compatibilidade universal foi implementada ou prometida.
+
 ### R3 pronta: nomes, canais úteis, curva manual e três perfis próprios
 
 - **Candidata final gerada e conferida:** código/runtime commit `51b53886c44940c717154bd8cb44677e2d1ca37e`, `development:true`, tag nula. Instalador privado `dist/NexusRGB-Setup-0.1.0-cooling-dev-r3.exe`, **87.400.689 bytes**, SHA256 **`eed7c5cb93def184a22c0efef298929daaa8510a28079b80f466b5fb11852656`**. Nome R3 é cópia idêntica da saída cooling-dev. Teste do pacote confirmou recurso disponível/off/sem auxiliar/timer; arquivos de runtime/UI conferem byte a byte com o fonte validado. Auditoria de produção sem vulnerabilidades, mapa Graphify atualizado. Cópias anteriores preservadas.
