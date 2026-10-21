@@ -2,13 +2,21 @@
 
 [Documentation](README.md) · [Português](../VENTILACAO.md)
 
-This candidate is separate from the published/installed alpha.40. It adds fan curves using pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
+This candidate is separate from the published alpha.40. It adds fan curves using pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
 
 ## Private development installer
 
 `scripts/build.ps1 -CoolingDevelopment` creates `dist/NexusRGB-Setup-0.1.0-cooling-dev.exe`, separate from the official installer. Updating requires administrator access and restarts RGB services while preserving data; it does not start sensors or fan control. Official builds do not enable this backend. After installation, **Detect sensors** starts read-only monitoring; changing speeds requires explicit channel/sensor pairing and activation. The independent helper requests automatic control when its parent service disappears. This lifecycle was tested with simulated channels, without mechanical verification. Coordinate installation and physical testing with the owner first.
 
 ## Try the isolated simulation
+
+### Manual curves and three saved profiles
+
+Select **Control mode → Manual curve** on a channel. Drag points or enter 2–8 increasing temperature/speed pairs. **Curve shape** selects Linear (straight segments) or Smooth (monotone cubic smoothstep `3t² − 2t³` between points, without overshoot). Hardware limits, minimum speed and thermal protection still apply.
+
+Use **My custom profiles → Create custom profile** to save up to three named curves, or copy a channel with **Save as custom profile**. Editing the library never starts sensors or applies a new speed. Select a saved profile to apply it; a running version stays unchanged until explicitly reapplied. Choose another profile before deleting the selected one. Restarting keeps the library but leaves control off.
+
+Recognized outputs and channels reporting RPM are shown by default; selected channels and those previously seen spinning remain visible. **Show all channels** restores the others without losing edits. Zero RPM does not prove disconnection or failure. GPU control remains visible at zero speed. Exact board/chip profiles may suggest connector names, which must be confirmed before controlling hardware; other boards retain backend labels. Parallel fans share one channel, not one independent control per physical fan.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-cooling.ps1

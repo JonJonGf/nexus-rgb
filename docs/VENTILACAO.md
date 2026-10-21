@@ -2,7 +2,7 @@
 
 [English](en/COOLING.md) · [README](../README-pt.md)
 
-Esta candidata não faz parte da alpha.40 publicada nem foi instalada no PC. Implementa controle opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit, em auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
+Esta candidata é separada da alpha.40 publicada. Implementa controle opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit, em auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
 
 ## Instalação privada de desenvolvimento
 
@@ -19,12 +19,24 @@ Abra `http://127.0.0.1:5151/` e entre em **Ventilação**. A página mostra **Si
 
 1. **Detectar sensores** inicia somente monitoramento, sem comandar rotação.
 2. Marque um canal, escolha explicitamente o sensor de temperatura e, se souber a correspondência, a leitura de RPM. Não existe associação automática por ordem/nome.
-3. Escolha o perfil ou abra **Editar curva**, marque a curva personalizada e ajuste de 2 a 8 pontos crescentes.
+3. Escolha um perfil ou selecione **Modo de controle → Curva manual** no canal. Ajuste de 2 a 8 pontos crescentes, arrastando no gráfico ou digitando temperatura/velocidade. **Traçado da curva** escolhe Linear ou Suave.
 4. Defina uma rotação mínima em que a fan continue girando e a temperatura de proteção adequada ao componente.
 5. Ative **Ativar controle pelo Nexus**. **Aplicar curvas** salva associações/curvas; os valores exibidos são percentuais solicitados, não confirmação mecânica.
 6. **Desligar módulo** solicita retorno ao controle automático, encerra o auxiliar e para as leituras. Deixar a aba enquanto apenas monitora também encerra esse monitoramento. Controle ativo continua ao trocar de aba.
 
 ## Perfis
+
+### Três perfis personalizados
+
+Em **Meus perfis personalizados**, clique em **Criar perfil personalizado**, dê um nome e ajuste pontos/traçado. **Salvar como perfil personalizado** em um canal copia sua curva para o editor da biblioteca. Você pode salvar até três, editar ou excluir. Selecione outro perfil antes de excluir o atual. Salvar/editar a biblioteca não inicia sensores nem altera rotações: para aplicar, clique no perfil salvo e ative o controle explicitamente quando necessário. Se editar um perfil em execução, a versão aplicada continua até selecioná-lo novamente; o painel informa a alteração pendente.
+
+**Linear** liga pontos por segmentos de reta: em cada trecho, a velocidade é uma função afim da temperatura. **Suave** usa interpolação cúbica monotônica `3t² − 2t³` entre os mesmos pontos, sem ultrapassá-los. Não é uma exponencial; é uma curva contínua com transições arredondadas. Mínimo, proteção térmica e limites de hardware continuam prevalecendo.
+
+### Identificação e canais exibidos
+
+Saídas reconhecidas e canais com sinal de RPM aparecem por padrão; canais selecionados e os já vistos girando permanecem visíveis. **Mostrar todos os canais** recupera os demais sem apagar ajustes. Zero RPM pode indicar parada, ausência de retorno ou saída não utilizada, não um defeito confirmado. GPU continua visível mesmo quando parada.
+
+Quando existe perfil exato de placa/chip, o Nexus pode sugerir nomes de conectores. O perfil inicial ASUS TUF GAMING A520M-PLUS II/NCT6798D sugere CHA_FAN1, CPU_FAN e CHA_FAN2; a interface pede confirmar a correspondência antes de controlar. Nomes do HWiNFO/leituras observadas e documentação fundamentam a sugestão, sem importar código proprietário nem depender dele aberto. Não há mapeamento universal ou calibração mecânica automática. Ventoinhas em paralelo/divisor compartilham um canal; número de fans físicas não é número de controles independentes.
 
 | Perfil | Pontos de referência (°C → %) |
 | --- | --- |

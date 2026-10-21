@@ -23,6 +23,7 @@ internal interface ICoolingBackend : IDisposable {
 }
 internal sealed class CoolingHardware : ICoolingBackend {
     private readonly Computer computer;
+    private readonly object board;
     private readonly Dictionary<string, IControl> controls = new Dictionary<string, IControl>();
     // Keep the exact leased handle even if a later sample/rediscovery fails.
     private readonly Dictionary<string, IControl> owned = new Dictionary<string, IControl>();
@@ -33,6 +34,9 @@ internal sealed class CoolingHardware : ICoolingBackend {
         computer = new Computer { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true,
             IsMemoryEnabled = false, IsStorageEnabled = false, IsNetworkEnabled = false, IsControllerEnabled = false };
         try { computer.Open(); } catch { computer.Close(); throw; }
+        var motherboard=computer.Hardware.OfType<LibreHardwareMonitor.Hardware.Motherboard.Motherboard>().FirstOrDefault();
+        var info=motherboard==null?null:motherboard.SMBios.Board;
+        board=info==null?null:new {manufacturer=info.ManufacturerName??"",model=info.ProductName??""};
     }
     private IEnumerable<IHardware> All(IHardware item) {
         yield return item;
@@ -61,7 +65,7 @@ internal sealed class CoolingHardware : ICoolingBackend {
                 }
             }
         }
-        return new { at = CoolingProgram.Now(), simulated = false, sensors = sensors, controls = channels, fans = fans };
+        return new { at = CoolingProgram.Now(), simulated = false, board = board, sensors = sensors, controls = channels, fans = fans };
     }
     public void Apply(Dictionary<string, object>[] values) {
         // Validate the complete batch before any hardware write.

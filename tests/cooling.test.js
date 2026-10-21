@@ -15,6 +15,40 @@ function controller(){
 }
 const assignment={controlId:'fan-a',sensorId:'cpu',rpmId:'rpm-a',minPercent:40,critical:85};
 
+test('manual curves support linear and monotone smooth interpolation with the same endpoints',async t=>{
+ const fake=controller();fake.state.temperature=40;const {request,cookie}=await fixture(t,{cooling:{bridgeFactory:fake.factory,autoPoll:false}});
+ const post=interpolation=>request('/api/cooling',{cookie,method:'POST',body:{enabled:true,assignments:[{...assignment,minPercent:20,points:[[20,20],[100,100]],interpolation}]}});
+ const linear=await post('linear');assert.equal(linear.status,200,linear.text);assert.equal(linear.json().outputs[0].percent,40);const smooth=await post('smooth');assert.equal(smooth.status,200,smooth.text);assert.equal(smooth.json().outputs[0].percent,33);assert.equal((await post('invalid')).status,400);
+});
+
+test('three named custom profiles persist without fan commands, reject a fourth and can be applied independently',async t=>{
+ const fake=controller(),{request,cookie,app,directory}=await fixture(t,{cooling:{bridgeFactory:fake.factory,autoPoll:false}});
+ const customProfiles=[0,1,2].map(i=>({id:'custom-'+String(i).repeat(32),name:'Minha curva '+i,points:[[20,30],[60,55+i],[100,100]]}));
+ const post=body=>request('/api/cooling',{cookie,method:'POST',body});
+ const saved=await post({customProfiles});assert.equal(saved.status,200,saved.text);assert.equal(saved.json().customProfiles.length,3);assert.equal(fake.state.commands.length,0);
+ const overflow=await post({customProfiles:[...customProfiles,{...customProfiles[0],id:'custom-'+'f'.repeat(32)}]});assert.equal(overflow.status,400);assert.equal((await request('/api/cooling',{cookie})).json().customProfiles.length,3);
+ const active=await post({enabled:true,profile:customProfiles[1].id,assignments:[assignment]});assert.equal(active.status,200,active.text);assert.equal(active.json().outputs[0].percent,56);
+ const count=fake.state.commands.length;const renamed=await post({customProfiles:customProfiles.map((p,i)=>i===1?{...p,points:[[20,30],[60,80],[100,100]]}:i===2?{...p,name:'Curva editada'}:p)});assert.equal(renamed.status,200,renamed.text);assert.equal(fake.state.commands.length,count,'Saving library must not send fan commands');
+ await app.cooling.tick();assert.equal(app.cooling.snapshot().outputs[0].percent,56,'Editing a running preset must not apply it on the next sample');assert.equal(app.cooling.snapshot().profilePending,true);
+ assert.equal((await post({profile:customProfiles[1].id})).json().outputs[0].percent,80);
+ assert.equal((await post({customProfiles:[]})).status,400,'Active profile must not disappear');
+ await app.cooling.close();const restarted=await fixture(t,{directory,cooling:{bridgeFactory:fake.factory,autoPoll:false}});const restored=(await restarted.request('/api/cooling',{cookie:restarted.cookie})).json();assert.equal(restored.enabled,false);assert.equal(restored.customProfiles.length,3);assert.equal(restored.customProfiles[2].name,'Curva editada');
+});
+
+test('a manual curve overrides the previous TURBO preset instead of silently staying at 100%',async t=>{
+  const fake=controller(),{request,cookie}=await fixture(t,{cooling:{bridgeFactory:fake.factory,autoPoll:false}});
+  const response=await request('/api/cooling',{cookie,method:'POST',body:{enabled:true,profile:'turbo',assignments:[{...assignment,points:[[20,30],[60,55],[100,100]]}]}});
+  assert.equal(response.status,200,response.text);assert.equal(response.json().outputs[0].percent,55);
+});
+
+test('an exact board and SuperIO profile identifies connector labels without changing hardware IDs or enabling control',async t=>{
+  let model='TUF GAMING A520M-PLUS II';const prefix='/lpc/nct6798d/0',factory=()=>({async request(){return {at:Date.now(),board:{manufacturer:'ASUSTeK COMPUTER INC.',model},sensors:[],controls:[0,1,2,3].map(i=>({id:prefix+'/control/'+i+'/control',name:'Nuvoton NCT6798D · Fan #'+(i+1),min:0,max:100})),fans:[0,1,2,3].map(i=>({id:prefix+'/fan/'+i,name:'Nuvoton NCT6798D · Fan #'+(i+1),value:i<3?700:0}))};},async close(){}});
+  const {request,cookie,app}=await fixture(t,{cooling:{bridgeFactory:factory,autoPoll:false}});
+  const response=await request('/api/cooling/monitor',{cookie,method:'POST',body:{}});assert.equal(response.status,200,response.text);
+  const v=response.json();assert.equal(v.enabled,false);assert.equal(v.controls[1].name,'CPU · CPU_FAN');assert.equal(v.controls[1].id,prefix+'/control/1/control');assert.equal(v.controls[1].suggestedRpmId,prefix+'/fan/1');assert.equal(v.controls[1].identitySource,'board-suggestion');assert.equal(v.controls[3].useful,false);
+  model='OTHER BOARD';await app.cooling.tick();const other=(await request('/api/cooling',{cookie})).json();assert.equal(other.controls[1].name,'Nuvoton NCT6798D · Fan #2');assert.equal(other.controls[1].identitySource,'generic');
+});
+
 test('cooling starts disabled with five profiles and never opens hardware just to view settings',async t=>{
   let opened=0;
   const {request,cookie}=await fixture(t,{cooling:{bridgeFactory:()=>{opened++;throw Error('must stay off');}}});
