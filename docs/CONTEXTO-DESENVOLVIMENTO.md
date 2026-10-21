@@ -4,11 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
-### R4 em preparação: legibilidade dos eixos da curva
+### R4 pronta: legibilidade dos eixos da curva
 
 - Usuário relatou números grossos/ilegíveis no gráfico R3. Reprodução no Edge confirmou que a regra global de ícones `svg { stroke: currentColor }` era herdada pelos textos; teste específico falhou com stroke colorido em vez de nenhum. Correção local em `public/cooling.css` remove stroke apenas das legendas e aumenta a fonte no celular; `public/cooling.js` reserva margem para não cortar letras. Coordenadas dos pontos e cálculo/controle das ventoinhas preservados.
 - Seis testes Edge de cooling passaram sem retries, incluindo regressão de texto sem contorno, tamanho mínimo e limites do desenho em 1280/390 px; capturas antes/depois inspecionadas. Não houve comando para sensor real, RPM, instalação ou serviço. Próximo passo: compilar e conferir candidata privada R4; ainda sem commit/pacote novo nesta nota.
 - Esclarecimento ao usuário sobre alcance: filtragem usa leituras de RPM, rótulos do backend, seleção e histórico de canais vistos. Não identifica universalmente conectores físicos; zero RPM pode ser fan parada/sem retorno. Sugestões CPU_FAN/CHA_FAN permanecem limitadas à placa/chip explicitamente avaliados. Nenhuma nova compatibilidade universal foi implementada ou prometida.
+- Fechamento: runtime commit `234d9bb9aec676f8cb622b87d44ab7ff01539671`, instalador privado `dist/NexusRGB-Setup-0.1.0-cooling-dev-r4.exe`, **87.399.253 bytes**, SHA256 `2f57ac6813305fdf5c0a710da2dea8474c1088ec27018215c86a7f12069ffa83`. Pacote confirmou development true/tag nula/commit correto, ventilação disponível e desligada sem auxiliar/polling; JS/CSS empacotados idênticos ao fonte. Build e auditoria de produção sem falhas/vulnerabilidades; mapa atualizado. Versões anteriores preservadas. Nenhuma instalação real, UAC, comando de RPM ou reinício nesta correção. Não foi publicada nova release. A nota de fechamento é posterior ao binário; instalado não foi reconferido nesta etapa. Próximo passo: usuário atualizar pela R4 e conferir a apresentação na instalação real.
 
 ### R3 pronta: nomes, canais úteis, curva manual e três perfis próprios
 
