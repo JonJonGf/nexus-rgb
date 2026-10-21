@@ -344,6 +344,7 @@ internal sealed class Tray : ApplicationContext {
     }
 }
 internal sealed class Worker : ServiceBase {
+    private CoolingLaunchBroker coolingBroker;
     private readonly bool hardware;
     private readonly object gate = new object();
     private Process child;
@@ -360,6 +361,7 @@ internal sealed class Worker : ServiceBase {
     protected override void OnStart(string[] args) {
         data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", hardware ? "hardware" : "app");
         if (!Directory.Exists(data)) throw new DirectoryNotFoundException(L.T("Use o instalador para criar a pasta do serviço."));
+        if(hardware)coolingBroker=CoolingLaunchBroker.StartInstalled(Program.Root);
         job = Job.Create(); timer = new System.Threading.Timer(Tick, null, 0, 1000);
     }
     private void Log(string message) {
@@ -425,6 +427,7 @@ internal sealed class Worker : ServiceBase {
         return true;
     }
     protected override void OnStop() {
+        if(coolingBroker!=null){coolingBroker.Dispose();coolingBroker=null;}
         Process running; IntPtr currentJob;
         lock (gate) { stopping = true; if (timer != null) { timer.Dispose(); timer = null; } running = child; child = null; currentJob = job; job = IntPtr.Zero; }
         CloseChild(running, currentJob);

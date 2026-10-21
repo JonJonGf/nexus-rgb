@@ -8,7 +8,7 @@ test('only a matching development package enables installed cooling, without lau
  assert.deepEqual(installedCooling(root),{});
  write('build-info.json',build);write('cooling-development.json',{format:'nexus-cooling-development/1',commit});
  assert.deepEqual(installedCooling(root),{});fs.writeFileSync(path.join(root,'cooling/nexus-cooling.exe'),'fixture-not-executed');
- assert.deepEqual(installedCooling(root),{allowHardware:true,brokered:true,binaryPath:path.join(root,'cooling/nexus-cooling.exe')});
+ assert.deepEqual(installedCooling(root),{allowHardware:true,brokered:true,serviceBroker:'NexusRGB.Cooling.Launch.v1',binaryPath:path.join(root,'cooling/nexus-cooling.exe')});
  write('build-info.json',{...build,development:false,tag:'v0.1.0-alpha.40'});assert.deepEqual(installedCooling(root),{});
  write('build-info.json',build);write('cooling-development.json',{format:'nexus-cooling-development/1',commit:'b'.repeat(40)});assert.deepEqual(installedCooling(root),{});
 });

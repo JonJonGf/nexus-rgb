@@ -4,6 +4,13 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
+### Correção em preparação: permissão da Ventilação no serviço instalado
+
+- Usuário relatou mensagem de administrador na aba Ventilação ao detectar sensores; reproduzida pela API instalada. Causa confirmada: `NexusRGB` roda como LocalService, não SYSTEM; launcher WMI herdou essa conta. Validação anterior não exercitou ambas as identidades reais. Não mudar a conta do servidor HTTP nem desativar a checagem de privilégio.
+- Nova ponte local restrita em `native/CoolingLaunchBroker.cs`, hospedada no supervisor SYSTEM de hardware existente somente em build development correspondente. Valida PID real, processo Node filho do serviço registrado e caminho fixo; aceita apenas PID/pipe aleatório. Launcher fixo independente continua preservando watchdog/Job. Helper permite conexão do LocalService com verificação de PID, informa privilégio no handshake e falha antes de sensores se insuficiente. Builders/compiladores de fixtures atualizados.
+- Usuário pediu **faça aí e me envie para atualizar e testar**. Nenhuma nova instalação/UAC/reinicialização autorizada por inferência. Preparar novo artefato e entregar; pacote instalado anterior continua com falha. Não enviado comando físico de fan durante esta correção.
+- Passaram 280 gerais, 2 Edge, supervisor, protocolo/watchdog/Job e duas regressões de broker; delegação foi observada falhar antes da implementação. As contas reais SYSTEM/LocalService ainda dependem do teste instalado, sem confundir fixture com validação do hardware. [Causa, correção e limites](validation/2026-10-21-cooling-permissions.md).
+
 ### Candidata de ventilação instalada com autorização atual
 
 - Usuário respondeu **Estou conectado, pode abrir** ao pedido específico do instalador privado. Setup de desenvolvimento conferido novamente pelo SHA256 `72d43c3c8f2b3101f90e24578f04fd13a02c07b16b30e14be09f77b0b74c35c7` e iniciado pelo shell interativo com progresso visível, `/SILENT`, `/NORESTART`, PawnIO desmarcado. Nenhuma reinicialização do Windows. Log privado `data/cooling-dev/install-20261021-154742.log`: instalação bem-sucedida, bandeja iniciada e encerramento às **15:48:44 Brasília em 21/10** sem necessidade de restart. Durante a substituição os serviços ficaram brevemente parados; verificação posterior confirmou ambos Running.

@@ -146,6 +146,7 @@ internal static class CoolingProgram {
                 var acl = new PipeSecurity();
                 acl.AddAccessRule(new PipeAccessRule(WindowsIdentity.GetCurrent().User, PipeAccessRights.FullControl, AccessControlType.Allow));
                 acl.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), PipeAccessRights.FullControl, AccessControlType.Allow));
+                if(WindowsIdentity.GetCurrent().IsSystem)acl.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.LocalServiceSid,null),PipeAccessRights.ReadWrite|PipeAccessRights.CreateNewInstance|PipeAccessRights.Synchronize,AccessControlType.Allow));
                 acl.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(WellKnownSidType.NetworkSid, null), PipeAccessRights.FullControl, AccessControlType.Deny));
                 pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 65536, 65536, acl);
                 var waiting = pipe.BeginWaitForConnection(null, null);
@@ -167,7 +168,7 @@ internal static class CoolingProgram {
                     if (pipe != null) pipe.Dispose(); else Environment.Exit(0);
                 } catch { if (pipe != null) try { pipe.Dispose(); } catch {} }
             }, null, 1000, 1000);
-            writer.WriteLine(Json.Serialize(new { status = "ready", simulated = fixture, pid = Process.GetCurrentProcess().Id }));
+            writer.WriteLine(Json.Serialize(new { status = "ready", simulated = fixture, privileged = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator), pid = Process.GetCurrentProcess().Id }));
             string line;
             while (!stopping && (line = ReadLine(reader)) != null) {
                 object response; object requestId = null; bool shutdown = false;

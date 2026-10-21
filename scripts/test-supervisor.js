@@ -127,7 +127,7 @@ internal static class ChildFixture {
   compile(['/target:exe', '/platform:x64', '/out:' + path.join(directory, 'runtime', 'node.exe'), childFile]);
   fs.copyFileSync(path.join(directory,'runtime','node.exe'),path.join(directory,'openrgb','OpenRGB.exe'));
   const executable = path.join(directory, 'fixture.exe');
-  compile(['/target:exe', '/platform:x64', '/main:WorkerFixture', '/out:' + executable, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.ServiceProcess.dll','/reference:System.Web.Extensions.dll', nativeFile,path.join(root,'native','ExperiencesBridge.cs'), path.join(root,'native','Locale.cs')]);
+  compile(['/target:exe', '/platform:x64', '/main:WorkerFixture', '/out:' + executable, '/reference:System.Windows.Forms.dll', '/reference:System.Drawing.dll', '/reference:System.ServiceProcess.dll','/reference:System.Web.Extensions.dll', nativeFile,'/reference:System.Management.dll',path.join(root,'native','CoolingLaunchBroker.cs'),path.join(root,'native','ExperiencesBridge.cs'), path.join(root,'native','Locale.cs')]);
   const result = spawnSync(executable, [], { encoding: 'utf8', timeout: 45000, windowsHide: true });
   assert.equal(result.status, 0, result.stdout + result.stderr + (result.error || ''));
   process.stdout.write(result.stdout);

@@ -9,7 +9,7 @@ function installedCooling(root){
     const binaryPath=path.join(root,'cooling/nexus-cooling.exe');
     if(build.development!==true||build.tag!==null||! /^[a-f0-9]{40}$/.test(build.commit)||
       marker.format!=='nexus-cooling-development/1'||marker.commit!==build.commit||!fs.statSync(binaryPath).isFile())return {};
-    return {allowHardware:true,brokered:true,binaryPath};
+    return {allowHardware:true,brokered:true,serviceBroker:'NexusRGB.Cooling.Launch.v1',binaryPath};
   }catch{return {};}
 }
 module.exports={installedCooling};

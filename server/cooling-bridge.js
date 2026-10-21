@@ -3,8 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),net=require('node:net'),cr
 const {spawn,execFile}=require('node:child_process');
 // No RGB socket, no permanent service: the development helper exists only on demand.
 class CoolingBridge {
-  constructor({simulated=false,allowHardware=false,brokered=false,binaryPath=path.resolve(__dirname,'../dist/cooling/nexus-cooling.exe'),timeoutMs=5000}={}){
-    this.simulated=simulated;this.allowHardware=allowHardware;this.brokered=brokered;this.binaryPath=binaryPath;this.timeoutMs=timeoutMs;
+  constructor({simulated=false,allowHardware=false,brokered=false,serviceBroker=null,binaryPath=path.resolve(__dirname,'../dist/cooling/nexus-cooling.exe'),timeoutMs=5000}={}){
+    this.simulated=simulated;this.allowHardware=allowHardware;this.brokered=brokered;this.serviceBroker=serviceBroker;this.binaryPath=binaryPath;this.timeoutMs=timeoutMs;
     this.pending=new Map();this.nextId=1;this.buffer='';this.ready=false;this.closed=false;
   }
   start(){
@@ -24,6 +24,7 @@ class CoolingBridge {
             const line=this.buffer.slice(0,pos);this.buffer=this.buffer.slice(pos+1);if(!line.trim())continue;
             let value;try{value=JSON.parse(line);}catch{return this.fail(Error('Resposta de ventilação inválida.'));}
             if(value.status==='ready'&&!this.ready){
+              if(!this.simulated&&this.allowHardware&&value.privileged!==true)return this.fail(Error('O auxiliar de ventilação precisa de administrador.'));
               if(!Number.isInteger(value.pid)||value.pid<=0||this.child&&value.pid!==this.child.pid||this.expectedPid&&value.pid!==this.expectedPid)return this.fail(Error('Identidade do auxiliar de ventilação inválida.'));
               this.pid=value.pid;this.ready=true;clearTimeout(this.startTimer);this.readyReject=null;resolve();continue;
             }
@@ -48,7 +49,21 @@ class CoolingBridge {
         const literal=value=>"'"+value.replaceAll("'","''")+"'";
         // Only trusted startup options reach this command; request bodies cannot choose paths/arguments.
         const shell=path.join(process.env.SystemRoot||'C:\\Windows','System32/WindowsPowerShell/v1.0/powershell.exe');
-        if(this.brokered){
+        if(this.serviceBroker){
+          const socket=net.connect('\\\\.\\pipe\\'+this.serviceBroker);this.brokerSocket=socket;
+          let reply='';const timer=this.brokerTimer=setTimeout(()=>this.fail(Error('O serviço de hardware não autorizou o auxiliar no prazo.')),12000);
+          socket.once('connect',()=>socket.write(JSON.stringify({parent:process.pid,pipe})+'\n'));
+          socket.on('data',chunk=>{
+            reply+=chunk.toString('utf8');if(reply.length>8192)return this.fail(Error('Resposta do serviço de hardware inválida.'));
+            if(!reply.includes('\n'))return;
+            clearTimeout(timer);let value;try{value=JSON.parse(reply.trim());}catch{return this.fail(Error('Resposta do serviço de hardware inválida.'));}
+            if(value.status!=='ok')return this.fail(Error(String(value.message||'O serviço de hardware recusou o auxiliar.').slice(0,180)));
+            if(!Number.isInteger(value.pid)||value.pid<=0)return this.fail(Error('Identidade do auxiliar de ventilação inválida.'));
+            this.expectedPid=value.pid;if(this.pid&&this.pid!==value.pid)this.fail(Error('Identidade do auxiliar de ventilação inválida.'));socket.end();
+          });
+          socket.once('error',()=>{clearTimeout(timer);this.fail(Error('O serviço de hardware de ventilação não está disponível. Atualize o Nexus.'));});
+          socket.once('close',()=>{clearTimeout(timer);if(!this.expectedPid&&!this.closed)this.fail(Error('O serviço de hardware encerrou a autorização.'));});
+        }else if(this.brokered){
           const script=path.resolve(__dirname,'../scripts/start-cooling-helper.ps1');
           execFile(shell,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',script,'-Executable',this.binaryPath,'-Pipe',pipe,'-ParentPid',String(process.pid),...(this.simulated?['-Fixture']:[])],{windowsHide:true,timeout:12000,maxBuffer:8192},(error,stdout)=>{
             const pid=Number(stdout?.trim());
@@ -86,10 +101,10 @@ class CoolingBridge {
   }
   fail(error){
     if(this.closed)return;
-    this.closed=true;clearTimeout(this.startTimer);clearTimeout(this.retry);this.readyReject?.(error);this.readyReject=null;
+    this.closed=true;clearTimeout(this.startTimer);clearTimeout(this.retry);clearTimeout(this.brokerTimer);this.readyReject?.(error);this.readyReject=null;
     for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(error);}this.pending.clear();
     // EOF lets the native helper release owned channels; never force-kill a real fan controller.
-    try{this.writer?.end();}catch{}try{this.socket?.destroy();}catch{}
+    try{this.writer?.end();}catch{}try{this.socket?.destroy();}catch{}try{this.brokerSocket?.destroy();}catch{}
   }
   async close(){
     if(!this.closed&&this.ready){try{await this.request({action:'shutdown'});}catch{}}
