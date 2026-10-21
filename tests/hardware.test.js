@@ -4,6 +4,35 @@ const { Hardware, frame } = require('../server/hardware'); const { defaults } = 
 function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
 class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
 
+test('snapshot mantém a identidade da controladora em todas as zonas sem unir GPUs de mesmo nome', async t => {
+  const first = controller('GPU multizona', 'PCI:first'), second = controller('GPU multizona', 'PCI:second');
+  for (const raw of [first, second]) raw.zones = [{ id: 0, name: 'Logo', ledsCount: 2 }, { id: 1, name: 'Lateral', ledsCount: 2 }];
+  const store = { data: { master: { ...defaults }, devices: {} } }, mock = new Mock([first, second]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop());
+  hardware.stopped = false; await hardware.connect();
+  const state = hardware.snapshot(), [gpu1, gpu2] = hardware.devices;
+  assert.equal(state.devices.length, 4);
+  assert.deepEqual(state.devices.map(d => d.controllerId), [gpu1.id, gpu1.id, gpu2.id, gpu2.id]);
+  assert.equal(new Set(state.devices.map(d => d.id)).size, 4, 'IDs de zonas existentes continuam independentes.');
+  assert.ok(state.devices.every(d => d.controllerName === 'GPU multizona'));
+  mock.devices.reverse(); await hardware.discover();
+  assert.deepEqual(hardware.snapshot().devices.map(d => d.controllerId), [gpu2.id, gpu2.id, gpu1.id, gpu1.id]);
+});
+
+test('GPU com Custom e salvamento automático aceita cor estática sem anunciar streaming por LED', async t => {
+  const raw = controller('GPU Custom fixture', 'PCI:custom', false);
+  raw.modes = [{ id: 0, name: 'Off', flagList: [] }, { id: 1, name: 'Custom', flagList: ['perLedColor','brightness','automaticSave'], brightnessMin: 0, brightnessMax: 100 }];
+  const store = { data: { master: { ...defaults, effect: 'static', brightness: 50, color: '#ff0000' }, devices: {} } }, mock = new Mock([raw]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop()); hardware.stopped = false;
+  await hardware.connect(); await hardware.tick();
+  const device = hardware.snapshot().devices[0];
+  assert.ok(device.effects.includes('static'));
+  assert.equal(device.spatialCapable, false, 'Salvamento automático não deve ser anunciado como transporte espacial.');
+  assert.equal(device.error, null);
+  assert.deepEqual(mock.calls.filter(c => c[0] === 'leds').at(-1)[2], Array(4).fill({ red: 128, green: 0, blue: 0 }));
+  mock.calls = []; await hardware.tick(); await hardware.tick(); assert.equal(mock.calls.length, 0, 'Estático não grava repetidamente no controlador.');
+});
+
 test('transição de perfil é limitada, termina no alvo e desligamento não espera a mistura',async t=>{
   const store={data:{master:{...defaults,brightness:100,color:'#0000ff'},devices:{}}},mock=new Mock([controller('Alvo','transition')]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();await hardware.tick();const id=hardware.devices[0].id;
   store.data.master.color='#ff0000';hardware.transition(1000);hardware.transitionState.started-=500;await hardware.tick();const mixed=hardware.outputFor(id).colors[0];assert.ok(mixed.red>100&&mixed.red<200);assert.ok(mixed.blue>50&&mixed.blue<155);

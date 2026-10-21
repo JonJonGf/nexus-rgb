@@ -1,7 +1,7 @@
 'use strict';
 const { EventEmitter } = require('node:events');
 const crypto = require('node:crypto');
-const { Client } = require('openrgb-sdk');
+const { OpenRGBClient } = require('./openrgb-client');
 const { effects } = require('./store');
 const { ControllerRegistry } = require('./controllers');
 function identity(device, duplicate = 0) {
@@ -120,7 +120,7 @@ class Hardware extends EventEmitter {
     this.operationTimeout = options.operationTimeout || 4000;
     // SDK 0.6.0 cannot parse newer zone flag bits. Protocol 4 retains colors,
     // native modes, brightness, matrices and segments without that broken parser.
-    this.makeClient = options.makeClient || (() => new Client('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
+    this.makeClient = options.makeClient || (() => new OpenRGBClient('Nexus RGB', this.port, '127.0.0.1', { forceProtocolVersion: 4 }));
     this.devices = []; this.output = new Map(); this.client = null; this.connected = false; this.busy = false; this.stopped = true;
     this.modes = new Map(); this.applied = new Map(); this.animations = new Map(); this.powerKnown = new Map(); this.powerRamps = new Map();
     this.error = 'Aguardando o controlador RGB.'; this.nextDiscovery = 0; this.discoveryStage = 0; this.discoverySignature = ''; this.discoveryMs = 0; this.retry = 1000; this.dirty = true;
@@ -405,8 +405,8 @@ class Hardware extends EventEmitter {
         raw = await this.operation(client.getControllerData(i), this.operationTimeout, { phase: 'controller-description', controllerIndex: i, client, generation: currentGen });
         if (this.generation !== currentGen || this.stopped) return;
       }
-      const direct = raw.modes.find(m => /^direct$/i.test(m.name) && m.flagList.includes('perLedColor'));
-      const fixed = direct || raw.modes.find(m => /static|solid|fixed/i.test(m.name) && (m.flagList.includes('perLedColor') || m.flagList.includes('modeSpecificColor')));
+      const direct = raw.modes.find(m => /^direct$/i.test(m.name) && m.flagList.includes('perLedColor') && !m.flagList.includes('automaticSave'));
+      const fixed = direct || raw.modes.find(m => /^(?:direct|static|solid(?: color)?|fixed(?: color)?|custom)$/i.test(m.name) && (m.flagList.includes('perLedColor') || m.flagList.includes('modeSpecificColor')));
       const off = raw.modes.find(m => /^(off|disabled|blackout)$/i.test(m.name));
       const ledCount = raw.colors.length;
       leds += ledCount; if (ledCount > 4096 || leds > 32768) throw new Error('Quantidade de LEDs acima do limite seguro.');
@@ -562,6 +562,8 @@ class Hardware extends EventEmitter {
         return {
           ...device,
           ...component,
+          controllerId: device.id,
+          controllerName: device.name,
           ...(channels && !isSinglePiece ? { modes: [], splitZone: true } : {}),
           status: device.error ? 'error' : (device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected) ? 'online' : 'offline',
           stale: !(device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected),
