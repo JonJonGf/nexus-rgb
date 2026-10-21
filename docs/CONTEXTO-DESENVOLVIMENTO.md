@@ -4,6 +4,12 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
+### Conferência no HWiNFO, somente leitura
+
+- Usuário confirmou dois grupos de três fans e duas fans do cooler em paralelo e pediu consultar HWiNFO. Janela já aberta foi selecionada/ativada via Computer Use, sem alterar configuração ou velocidade. HWiNFO mostra três leituras com nomes **Chassis1**, **CPU**, **Chassis2**; coerente com três conectores/grupos, não oito controles independentes. Paralelo/divisor normalmente retorna rotação de uma fan do grupo. Não deduzir ligação elétrica apenas da conexão ARGB.
+- Nexus segue em monitoring real com controle desativado, três leituras positivas e canais genéricos restantes zero. A ordem/números do Nexus não foram validados fisicamente contra cada conector; comparação de RPM sugere correspondência, mas não basta para armar curvas automaticamente. Consulta no fonte LHM fixado não encontrou identificação A520M explícita nos módulos de placa-mãe/SuperIO, compatível com os rótulos genéricos observados, sem modificar biblioteca.
+- Sem código de produto, instalação, serviços, curvas ou RPM alterados. Para melhorar os nomes, usar mapeamento verificado por placa/modelo ou identificação autorizada por canal; não inventar nomes por contagem de fans. Código/runtime R2 continuam iguais; só continuidade documental mudou.
+
 ### R2 em execução e identificação dos canais de ventilação
 
 - Usuário atualizou por conta própria e pediu explicar os canais Nuvoton, informando ter seis ventoinhas. Leitura local confirmou R2 instalada (`a7aa268...`, development sem tag); API em **monitoring**, `simulated=false`, `enabled=false`, `error=null`, temperaturas/RPM reais retornados. Isso valida o fluxo instalado após a correção de privilégio para leitura; ainda não comprova controle mecânico, associação de canais ou recuperação física. Esta sessão só consultou estado; nenhum comando de detecção, escrita de curva, alteração de RPM, restart ou UAC foi enviado.
