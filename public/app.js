@@ -108,9 +108,10 @@
     currentPage = name;
     document.querySelectorAll('[data-view]').forEach(view => view.classList.toggle('active', view.dataset.view === name));
     document.querySelectorAll('.nav').forEach(button => button.classList.toggle('active', button.dataset.page === name));
-    $('page-title').textContent = { control: T('Iluminação'), devices: T('Dispositivos'), profiles: T('Perfis'), connect: T('Conexões'), studio: T('Mapa do setup'), settings: T('Configurações'),experiences:T('Experiências') }[name];
+    $('page-title').textContent = { control: T('Iluminação'), devices: T('Dispositivos'), profiles: T('Perfis'), connect: T('Conexões'), studio: T('Mapa do setup'), settings: T('Configurações'),experiences:T('Experiências'),cooling:T('Ventilação') }[name];
     window.NexusStudio?.open(name);
     window.NexusExperiences?.open(name==='experiences');
+    window.NexusCooling?.open(name==='cooling');
     if (name === 'settings') api('/api/about').then(build=>{$('settings-build').textContent=(build.tag||T('Desenvolvimento'))+' · '+(build.commit?.slice(0,12)||build.version);}).catch(error=>toast(error.message));
     if (name === 'connect' && admin) loadNetwork();
   }
@@ -176,6 +177,7 @@
     renderMini(devices); renderDevices(devices); renderProfiles(); renderPresets();
     window.NexusStudio?.update(state, admin, api, toast, currentPage);
     window.NexusExperiences?.update(state, admin, api, toast, currentPage);
+    window.NexusCooling?.update(state, admin, api, toast, currentPage);
     $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
     if (!admin) $('profile-form').hidden = true;
     $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';
@@ -495,7 +497,7 @@
     document.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-label', T`Usar cor ${b.dataset.color}`));
     for (const option of $('profile-effect').options) option.textContent = labels[option.value];
     if (state) { render(state); renderPresets(true); }
-    $('page-title').textContent = T({control:'Iluminação',devices:'Dispositivos',profiles:'Perfis',connect:'Conexões',studio:'Mapa do setup',settings:'Configurações'}[currentPage]);
+    $('page-title').textContent = T({control:'Iluminação',devices:'Dispositivos',profiles:'Perfis',connect:'Conexões',studio:'Mapa do setup',settings:'Configurações',experiences:'Experiências',cooling:'Ventilação'}[currentPage]);
     if (!$('profile-form').hidden) {
       renderProfileColors();
       profileLabels();

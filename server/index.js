@@ -21,6 +21,7 @@ const { diagnostics } = require('./diagnostics');
 const { Conflicts } = require('./conflicts');
 const { Experiences } = require('./experiences');
 const { Room } = require('./room');
+const { Cooling } = require('./cooling');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -82,7 +83,8 @@ async function createApp(options = {}) {
   const studio = new Studio(store, hardware, directory, broadcast, options.studio); hardware.studio = studio;
   const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
-  const resources = new Resources();
+  const cooling=new Cooling(directory,options.cooling);
+  const resources = new Resources({additional:()=>cooling.resourceRows()});
   const conflicts = options.conflicts || new Conflicts();
   const experiences = new Experiences(store,hardware,studio,directory,broadcast);
   hardware.experiences = experiences; studio.experiences = experiences;
@@ -96,6 +98,8 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/cooling.js',['cooling.js','application/javascript; charset=utf-8']],
+    ['/cooling.css',['cooling.css','text/css; charset=utf-8']],
     ['/experiences.js',['experiences.js','application/javascript; charset=utf-8']],
     ['/experiences.css',['experiences.css','text/css; charset=utf-8']],
     ['/live-model.js',['live-model.js','application/javascript; charset=utf-8']],
@@ -150,6 +154,9 @@ async function createApp(options = {}) {
     if (route.startsWith('/api/')) {
       if (!session) return json(res, 401, { error: 'Abra o painel neste computador para iniciar a sessão local.' });
       const admin = () => { if (!session.admin || !isLocal) throw Object.assign(new Error('Este ajuste só pode ser feito no PC.'), { status: 403 }); };
+      if(route==='/api/cooling'&&req.method==='GET'){admin();return json(res,200,cooling.snapshot());}
+      if(route==='/api/cooling'&&req.method==='POST'){admin();const value=await cooling.configure(await readBody(req,32768));resources.cache=null;return json(res,200,value);}
+      if(route==='/api/cooling/monitor'&&req.method==='POST'){admin();const body=await readBody(req);if(Object.keys(body).length)throw Error('Comando de monitoramento inválido.');const value=await cooling.monitor();resources.cache=null;return json(res,200,value);}
       if(route==='/api/experiences'&&req.method==='GET')return json(res,200,experiences.snapshot(session.admin&&isLocal));
       if(route==='/api/experiences/settings'&&req.method==='POST'){admin();return json(res,200,experiences.configure(await readBody(req)));}
       if(route==='/api/experiences/agent'&&req.method==='GET'){admin();return json(res,200,experiences.agentConfig());}
@@ -276,7 +283,7 @@ async function createApp(options = {}) {
   local.requestTimeout = 15000; local.headersTimeout = 10000; local.keepAliveTimeout = 5000; local.maxConnections = 64; local.maxRequestsPerSocket = 100;
   async function start() {
     const listen = (server, port, host) => new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, host, () => { server.removeListener('error', reject); resolve(); }); });
-    try { await listen(local, localPort, '0.0.0.0'); }
+    try { await listen(local, localPort, options.listenHost||'0.0.0.0'); }
     catch (error) { await stop(); if (['EADDRINUSE', 'EACCES'].includes(error.code)) error.message = `Não foi possível abrir a porta ${localPort} do painel (${error.code}). No ícone do Nexus perto do relógio, abra Configurar portas, escolha outra porta e aplique.`; throw error; }
     local.on('error', error => console.error('Servidor:', error.code));
     heartbeat = setInterval(() => { for (const client of clients) { if (!security.session(client.req)) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
@@ -286,11 +293,11 @@ async function createApp(options = {}) {
     return { localPort: local.address().port };
   }
   async function stop() {
-    clearInterval(heartbeat);await room.close(); experiences.close(); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
+    clearInterval(heartbeat);await cooling.close();await room.close(); experiences.close(); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
     for (const client of clients) client.res.end(); clients.clear();
     local.closeAllConnections(); if (local.listening) await new Promise(resolve => local.close(resolve));
   }
-  return { start, stop, local, store, security, hardware, alexa, studio, draftPreview, experiences, room, snapshot };
+  return { start, stop, local, store, security, hardware, alexa, studio, draftPreview, experiences, room, cooling, snapshot };
 }
 if (require.main === module) {
   let app, stopping = false;

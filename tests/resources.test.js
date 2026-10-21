@@ -14,6 +14,13 @@ test('resource totals include the owned USB bridge process',async()=>{
   const monitor=new Resources({read:async()=>({partial:false,processes:[{pid:1234,role:'hid-bridge',start:'123',cpuTicks:'0',memoryBytes:2097152}]})});
   const sample=await monitor.sample();assert.equal(sample.processes.find(p=>p.role==='hid-bridge').memoryMB,2);
 });
+test('an on-demand cooling helper is included once in resource totals and disappears after release',async()=>{
+  let enabled=true,now=0;
+  const helper={pid:12345,role:'cooling-helper',start:'123',cpuTicks:'0',memoryBytes:31457280};
+  const monitor=new Resources({now:()=>now,read:async()=>({partial:true,processes:[]}),additional:()=>enabled?[helper,helper]:[]});
+  const active=await monitor.sample();assert.equal(active.processes.filter(p=>p.role==='cooling-helper').length,1);assert.equal(active.processes.find(p=>p.role==='cooling-helper').memoryMB,30);
+  enabled=false;now=10000;assert.equal((await monitor.sample()).processes.some(p=>p.role==='cooling-helper'),false);
+});
 test('medição calcula delta, preserva PID novo, cache e indica acesso parcial',async()=>{
   let now=0,ticks=100000,calls=0,start='123';const monitor=new Resources({now:()=>now,read:async()=>{calls++;return {partial:false,processes:[{pid:2,role:'openrgb',start,cpuTicks:String(ticks),memoryBytes:10485760}]};}});
   const a=await monitor.sample();assert.equal(a.processes[0].cpuPercent,null);assert.equal(a.processes[0].memoryMB,10);now=1000;await monitor.sample();assert.equal(calls,1);now=10000;ticks+=10000000;const b=await monitor.sample();assert.ok(b.processes[0].cpuPercent>=0);assert.ok(b.processes[0].cpuPercent<=100);start='456';now=20000;assert.equal((await monitor.sample()).processes[0].cpuPercent,null);

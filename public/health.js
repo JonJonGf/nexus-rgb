@@ -1,7 +1,7 @@
 'use strict';
 window.NexusHealth={create(hooks){
   const T=window.NexusI18n,$=id=>document.getElementById(id);let timer,busy=false,admin=false,report;
-  const roles=T.map({'network-service':'Serviço de rede','hardware-service':'Serviço de hardware',server:'Servidor',openrgb:'OpenRGB','effect-worker':'Motor de efeitos','hid-bridge':'Ponte USB',tray:'Ícone da bandeja'});
+  const roles=T.map({'network-service':'Serviço de rede','hardware-service':'Serviço de hardware',server:'Servidor',openrgb:'OpenRGB','effect-worker':'Motor de efeitos','hid-bridge':'Ponte USB','cooling-helper':'Controle de ventilação',tray:'Ícone da bandeja'});
   const allowedKeys=['build','runtime','health','components','render','alexa','resources','errors'];
   function filteredReport() {
     if (!report) return null;

@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-21T13:54:34.710Z",
+  "baselineCommit": "78f273565cc42340410d03f8882ab4eb611e4cf4",
+  "scope": "Real Windows process CPU and summed working sets: Node + spatial worker + optional native C# fixture helper. Synthetic SDK: 3 controllers, 5 components, 92 LEDs, Aurora 20 FPS, no browser/preview/OpenRGB/physical sensor I/O. Two repetitions in reverse order. Cooling fixture loads library metadata but does not open hardware. RSS may double-count shared pages. No watts, temperatures or acoustics measured.",
+  "node": "v24.20.0",
+  "logicalProcessors": 12,
+  "scenarios": [
+    {
+      "scenario": "baseline",
+      "repeat": 1,
+      "durationSeconds": 10.4330471,
+      "cpuPercent": 0.3494504815696014,
+      "rssMeanMiB": 126.99001736111111,
+      "privateMeanMiB": 68.18446180555556,
+      "renderFps": 20.12834773840904,
+      "helperPresent": false,
+      "processCount": 2
+    },
+    {
+      "scenario": "off",
+      "repeat": 1,
+      "durationSeconds": 10.479536800000002,
+      "cpuPercent": 0.29820020289446375,
+      "rssMeanMiB": 131.00911458333334,
+      "privateMeanMiB": 67.98220486111111,
+      "renderFps": 19.943629569581738,
+      "helperPresent": false,
+      "processCount": 2
+    },
+    {
+      "scenario": "monitoring",
+      "repeat": 1,
+      "durationSeconds": 10.523581700000003,
+      "cpuPercent": 0.27220611907572617,
+      "rssMeanMiB": 159.88151041666666,
+      "privateMeanMiB": 90.44401041666667,
+      "renderFps": 20.050207810901487,
+      "helperPresent": true,
+      "processCount": 3
+    },
+    {
+      "scenario": "balanced",
+      "repeat": 1,
+      "durationSeconds": 10.441227,
+      "cpuPercent": 0.3990591016426199,
+      "rssMeanMiB": 160.36241319444446,
+      "privateMeanMiB": 90.83116319444444,
+      "renderFps": 20.11257872278804,
+      "helperPresent": true,
+      "processCount": 3
+    },
+    {
+      "scenario": "turbo",
+      "repeat": 1,
+      "durationSeconds": 10.490180099999998,
+      "cpuPercent": 0.38478446459973875,
+      "rssMeanMiB": 160.87239583333334,
+      "privateMeanMiB": 91.27517361111111,
+      "renderFps": 20.018722080853507,
+      "helperPresent": true,
+      "processCount": 3
+    },
+    {
+      "scenario": "turbo",
+      "repeat": 2,
+      "durationSeconds": 10.44662090000001,
+      "cpuPercent": 0.29913979170049115,
+      "rssMeanMiB": 160.5859375,
+      "privateMeanMiB": 90.69661458333333,
+      "renderFps": 20.006469268928846,
+      "helperPresent": true,
+      "processCount": 3
+    },
+    {
+      "scenario": "balanced",
+      "repeat": 2,
+      "durationSeconds": 10.461731199999996,
+      "cpuPercent": 0.3733846650542887,
+      "rssMeanMiB": 160.92057291666666,
+      "privateMeanMiB": 91.15538194444444,
+      "renderFps": 20.07315959331856,
+      "helperPresent": true,
+      "processCount": 3
+    },
+    {
+      "scenario": "monitoring",
+      "repeat": 2,
+      "durationSeconds": 10.45874089999999,
+      "cpuPercent": 0.2987931367532016,
+      "rssMeanMiB": 159.86892361111111,
+      "privateMeanMiB": 90.02126736111111,
+      "renderFps": 19.983284986054123,
+      "helperPresent": true,
+      "processCount": 3
+    },
+    {
+      "scenario": "off",
+      "repeat": 2,
+      "durationSeconds": 10.485834700000007,
+      "cpuPercent": 0.397361467720511,
+      "rssMeanMiB": 131.30946180555554,
+      "privateMeanMiB": 68.41579861111111,
+      "renderFps": 19.931651220860832,
+      "helperPresent": false,
+      "processCount": 2
+    },
+    {
+      "scenario": "baseline",
+      "repeat": 2,
+      "durationSeconds": 10.413457000000024,
+      "cpuPercent": 0.35010787804024396,
+      "rssMeanMiB": 131.12586805555554,
+      "privateMeanMiB": 68.64973958333333,
+      "renderFps": 20.07018418571273,
+      "helperPresent": false,
+      "processCount": 2
+    }
+  ]
+}

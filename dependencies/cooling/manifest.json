@@ -1,0 +1,127 @@
+{
+  "format": "nexus-cooling-dependency/1",
+  "version": "0.9.6",
+  "repository": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor",
+  "commit": "3d331e3370efb858411f19511373eff65a218701",
+  "url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases/download/v0.9.6/LibreHardwareMonitor.zip",
+  "sha256": "086d9f1b5a99e643edc2cfaaac16051685b551e4c5ac0b32a57c58c0e529c001",
+  "sourceUrl": "https://codeload.github.com/LibreHardwareMonitor/LibreHardwareMonitor/zip/3d331e3370efb858411f19511373eff65a218701",
+  "sourceSha256": "5a83ee3f504a85efb6afee4112447e60caca1b7ec2e2d71f4651570b8b9b4230",
+  "files": [
+    {
+      "name": "BlackSharp.Core.dll",
+      "size": 32768,
+      "sha256": "cafb93afcc8d8a367e21f619673d05c06887d8964867fed1371f02ded1cd3e23"
+    },
+    {
+      "name": "DiskInfoToolkit.dll",
+      "size": 903680,
+      "sha256": "1acbf51b3c10c51c986cf43021680d34a2e38d9a5ba652bcfa9a1b5f7fc09800"
+    },
+    {
+      "name": "HidSharp.dll",
+      "size": 262792,
+      "sha256": "d86690efde30ea9179f669320f39148853793b743a98b531afeaf30598e22f54"
+    },
+    {
+      "name": "LibreHardwareMonitorLib.dll",
+      "size": 1203200,
+      "sha256": "6ebc194316536ba61af5be24508ad9fcbb2ecc685e716c12e787c79530f66bf0"
+    },
+    {
+      "name": "Microsoft.Bcl.AsyncInterfaces.dll",
+      "size": 27960,
+      "sha256": "bda069b17261a50f36b3a79a88b0243d7b9f6508725598adf88d42471977720e"
+    },
+    {
+      "name": "Microsoft.Bcl.HashCode.dll",
+      "size": 26920,
+      "sha256": "3a4e851ee5fc0f6182aa5a3d65dc56fcd6979b65334b5c3b92fbdc791457c0ab"
+    },
+    {
+      "name": "RAMSPDToolkit-NDD.dll",
+      "size": 233472,
+      "sha256": "b6882354c7c8ec186617e421507743dbfae09c5c1fc24cef76a1d0c0c26651de"
+    },
+    {
+      "name": "System.Buffers.dll",
+      "size": 23816,
+      "sha256": "2d78d770c9cb997199154ae8c018b9f1d1efbc86729f7264dde6dbad2a12cac3"
+    },
+    {
+      "name": "System.CodeDom.dll",
+      "size": 34064,
+      "sha256": "e9bca8ecab5f02df389ee4b306c32a93d7822b524a6eca90e449e13d4b4283a3"
+    },
+    {
+      "name": "System.Collections.Immutable.dll",
+      "size": 253232,
+      "sha256": "8c0f09a8b1fd730da3f3d2c4c831cdd76e3fca6bc588523d8f7eacf16d5a24e9"
+    },
+    {
+      "name": "System.Formats.Nrbf.dll",
+      "size": 71472,
+      "sha256": "27514fbffb0776c37ede88ec371310844f7bec55a017627aad60180f268769e4"
+    },
+    {
+      "name": "System.IO.Pipelines.dll",
+      "size": 85768,
+      "sha256": "52a813c62932462d8f070f001acd1f264c0766a11a78c6d3c4f81ee3b1d67223"
+    },
+    {
+      "name": "System.Memory.dll",
+      "size": 145200,
+      "sha256": "d5e8e4866f9cfa66f7765660f84b210198893e55335487afe5ebda342c0e913d"
+    },
+    {
+      "name": "System.Numerics.Vectors.dll",
+      "size": 110344,
+      "sha256": "20c2fa81b8c70d651099d762954f285fd4f942e63b2d7217c145dab8d4b2f4c9"
+    },
+    {
+      "name": "System.Reflection.Metadata.dll",
+      "size": 515336,
+      "sha256": "6c1fe5d140f0f21fac0eea7b1d3e3bc2526c0027e857bcf5227af722a9b32a0d"
+    },
+    {
+      "name": "System.Resources.Extensions.dll",
+      "size": 115984,
+      "sha256": "c3748f17d2f5209cc795a88ad4946c12c3f6ef73b3015dc92c43f932a342b17c"
+    },
+    {
+      "name": "System.Runtime.CompilerServices.Unsafe.dll",
+      "size": 19256,
+      "sha256": "08cbd7278b66f1e68425a82d4b97181a4130d93e3dd91831407aba7212ccdacf"
+    },
+    {
+      "name": "System.Security.AccessControl.dll",
+      "size": 35952,
+      "sha256": "ff14c5f628b9a6798d173aefbba0a43d61e66f715108e2576ac0d3dfab9071d0"
+    },
+    {
+      "name": "System.Security.Principal.Windows.dll",
+      "size": 18312,
+      "sha256": "b4d8e15adc235d0e858e39b5133e5d00a4baa8c94f4f39e3b5e791b0f9c0c806"
+    },
+    {
+      "name": "System.Text.Encodings.Web.dll",
+      "size": 87816,
+      "sha256": "43e6dfb4aa333848be5066dcb3d490afc417d0f896aada2f17b5db5fcbb819fc"
+    },
+    {
+      "name": "System.Text.Json.dll",
+      "size": 778504,
+      "sha256": "7a7f2e0b942782739551b37546efc842f53c7fce3a8f0f56ad45a5cf78e2c214"
+    },
+    {
+      "name": "System.Threading.AccessControl.dll",
+      "size": 34568,
+      "sha256": "5e3a3902f04f840c0fc1f9c2f249f804f6cfdf7901b2e06778bc2a4603ae4694"
+    },
+    {
+      "name": "System.Threading.Tasks.Extensions.dll",
+      "size": 27960,
+      "sha256": "af4e13ef418fd89b432de20cd1dfb7fa10a7179c8dd049c9856316e50c5949ca"
+    }
+  ]
+}
