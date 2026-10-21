@@ -17,3 +17,4 @@ server/build-info.json
 *brainstorm*
 scratch/
 graphify-out/
+__pycache__/
