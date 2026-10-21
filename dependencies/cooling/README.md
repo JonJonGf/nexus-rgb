@@ -7,7 +7,7 @@ This directory pins the **unmodified LibreHardwareMonitor 0.9.6** dependency use
 - Official binary archive and SHA-256: `manifest.json`
 - Corresponding source URL/hash: `manifest.json`
 - Library license: MPL 2.0, preserved in `LICENSE`
-- Upstream notices, including PawnIO modules: `THIRD-PARTY-NOTICES.txt`, preserved verbatim
+- Upstream notices, including PawnIO modules: `THIRD-PARTY-NOTICES.txt`, text preserved; three trailing spaces normalized for repository whitespace checks
 
 `scripts/build-cooling.ps1` verifies the archive, then verifies each of 23 selected non-GUI DLLs before extracting them to ignored `dist/cooling`. The manifest records size and SHA-256 for every selected file. WinRing0, `.sys` payloads and path traversal are rejected. The native adapter is original Nexus code; no Fan Control GUI code was copied.
 

@@ -49,6 +49,8 @@ Usuário autorizou a versão de desenvolvimento com controle de fans opcional e 
 | READMEs | Links de versão dos três passaram no validador alpha.40; texto inglês espelhado, alvos dos links locais novos conferidos |
 | Integridade textual | `git diff --check` passou |
 
+Na preparação dos commits, a checagem incluindo os novos arquivos encontrou três espaços finais no aviso de terceiros copiado do upstream, que a checagem anterior de arquivos rastreados não cobria. Eles foram normalizados sem alterar o texto da licença; a checagem do diff completo foi repetida. Os dois erros de compilação intermediários do coletor (declaração `var` múltipla e nome local repetido) foram corrigidos antes da compilação/testes finais.
+
 Falhas observadas antes das correções: primeira rota inexistente 405; mínimo maior que máximo aceito; queda lenta da temperatura mantendo alvo antigo; limite do canal reduzido durante execução não causando liberação; troca de perfil apagando pareamento ainda não salvo e checkbox voltando ao estado anterior durante a requisição; sair da aba antes da resposta de detecção deixando monitoramento ativo. Os testes/ensaios foram repetidos após os ajustes correspondentes. Não foram reduzidos limites, proteção ou asserções para declarar sucesso.
 
 Compilação do coletor como aplicação gráfica inicialmente expôs falha da configuração de `Console.OutputEncoding` no modo fixture; corrigida por escrita explícita no stream redirecionado. Nenhum resultado do executável anterior foi atribuído ao binário final sem recompilar/retestar.
