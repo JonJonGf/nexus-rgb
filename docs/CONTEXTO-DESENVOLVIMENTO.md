@@ -4,7 +4,10 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
-### Em implementação: nomes, canais úteis, curva manual e três perfis próprios
+### R3 pronta: nomes, canais úteis, curva manual e três perfis próprios
+
+- **Candidata final gerada e conferida:** código/runtime commit `51b53886c44940c717154bd8cb44677e2d1ca37e`, `development:true`, tag nula. Instalador privado `dist/NexusRGB-Setup-0.1.0-cooling-dev-r3.exe`, **87.400.689 bytes**, SHA256 **`eed7c5cb93def184a22c0efef298929daaa8510a28079b80f466b5fb11852656`**. Nome R3 é cópia idêntica da saída cooling-dev. Teste do pacote confirmou recurso disponível/off/sem auxiliar/timer; arquivos de runtime/UI conferem byte a byte com o fonte validado. Auditoria de produção sem vulnerabilidades, mapa Graphify atualizado. Cópias anteriores preservadas.
+- Entrega para atualização/teste pelo usuário, sem nova UAC, instalação, reinício, abertura de sensor ou alteração de RPM nesta etapa. Leitura do arquivo real instalado ainda confirmou R2 `a7aa268...`; **não anunciar R3 instalada**. Branch `codex/fan-control-dev`, sem push/tag/release. Esta nota final e o plano são documentos posteriores ao build, sem mudança do binário. Usuário deve conferir sugestões de identificação e testar fisicamente antes de declarar canais/controlador validados.
 
 - Usuário pediu identificação semelhante ao HWiNFO, esconder canais sem utilidade, editor manual, até **três perfis personalizados** nomeados e traçados **Linear/Suave**. Autorizado desenvolvimento/pacote; sem autorização inferida para reinstalar/reiniciar ou testar rotações reais. Instalado continua R2 (`a7aa268`); mudanças abaixo ainda locais na branch `codex/fan-control-dev`.
 - Native helper passa metadados de placa já disponíveis no SMBIOS ao abrir, sem novo processo/WMI/poll. `server/cooling-identification.js` aplica sugestões de CPU_FAN/CHA_FAN1/CHA_FAN2 apenas ao modelo/chip exatos avaliados; não usa ordem universal, não muda IDs, associações ou escrita. Fonte ASUS confirma três conectores; observação HWiNFO/família Nuvoton fundamenta **sugestão**, não validação mecânica dos controles. UI explicita confirmação antes de ativar. Demais placas preservam rótulos do backend.

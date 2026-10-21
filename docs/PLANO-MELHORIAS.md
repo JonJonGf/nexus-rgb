@@ -4,6 +4,8 @@ Este registro mantém as melhorias aceitas para avaliação e implementação fu
 
 ## Ventilação, documentação internacional e GPU — 21/10/2026
 
+- **Ventilação R3, candidata privada pronta:** canais úteis com Mostrar todos, sugestões condicionadas à placa/chip sem remapear IDs, editor manual por pontos/arraste, traçados Linear/Suave monotônico e até três perfis próprios nomeados. Banco editável sem aplicar mudanças ao perfil em execução; reaplicação explícita. 286 gerais/65 Edge e verificações específicas passaram; sem novo ensaio físico. R3 não instalada automaticamente nem publicada como release. [Relatório](validation/2026-10-21-cooling-manual-profiles.md) e [guia](VENTILACAO.md).
+
 - **Primeiro uso ARGB, candidata local:** orientação de quantidade visível no cartão do aparelho, campo vazio e controles de iluminação ocultos enquanto a saída redimensionável estiver sem LEDs configurados. Zero técnico preservado; nenhuma quantidade inventada ou configuração automática. PT/EN e celular verificados. [Resultado](validation/2026-10-21-argb-first-use.md). Não faz parte do instalador alpha.40 existente.
 
 - **Candidata de desenvolvimento:** aba de ventilação opcional, cinco perfis (Silencioso, Equilibrado, Desempenho, Agressivo, TURBO), curvas e associação explícita canal/sensor. Módulo desligado não abre sensores/auxiliar; não reativa sozinho após reiniciar. Ensaios de protocolo/UI/benchmark simulados concluídos, prova física e avaliação de disputa de sensores pendentes. Sem instalação ou publicação automática. [Guia e medições](VENTILACAO.md).

@@ -27,3 +27,5 @@ Saídas reconhecidas/GPU, leituras com RPM, canais selecionados e canais previam
 ## Distribuição
 
 Código em branch `codex/fan-control-dev`; gerar candidata privada R3 após commit. Não publicar tag/release nem substituir instalação R2 automaticamente. Validar pacote e registrar hash no contexto antes de entregar. Novo teste real exige atualização pelo usuário e confirmação de quais fans respondem; nomes sugeridos não comprovam ligação física.
+
+**Fechamento posterior:** fonte/runtime commit `51b53886c44940c717154bd8cb44677e2d1ca37e`; R3 development sem tag compilada e conferida em `dist/NexusRGB-Setup-0.1.0-cooling-dev-r3.exe` (87.400.689 bytes; SHA256 `eed7c5cb93def184a22c0efef298929daaa8510a28079b80f466b5fb11852656`). Teste do pacote confirmou disponível/off/sem auxiliar e igualdade byte a byte dos fontes JS/CSS/HTML empacotados. Auditoria de produção limpa. Sem instalação, push, tag ou release desta candidata. Metadado real instalado continuava R2 ao entregar. Complementos documentais posteriores ao build não alteram esse binário.
