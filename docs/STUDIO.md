@@ -42,11 +42,11 @@ Peças com o mesmo nome, como duas memórias RAM, são identificadas pelo OpenRG
 
 Abra **Trocar efeito** para escolher um cartão na biblioteca visual. Use a busca por nome ou os filtros **Seus perfis**, **Coleção Nexus** e **Biblioteca**. Perfis, cenas e movimentos comuns compartilham o mesmo seletor. **Ajustar efeito** abre a aba de parâmetros da lateral; **Componente** mostra os ajustes da peça selecionada. Os detalhes de sequência e conexão dos LEDs ficam recolhidos até serem necessários. São as mesmas configurações das outras abas: ativar um perfil por qualquer uma delas altera as mesmas luzes e a visualização acompanha a saída.
 
-Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o efeito espacial. O mapa continua mostrando os componentes e suas cores. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, selecione o efeito espacial outra vez; editar apenas a posição não remove essa personalização.
+Escolher cor ou movimento na aba **Iluminação**, ou ativar uma cena comum, desativa o efeito espacial. O mapa continua mostrando os componentes e suas cores. Alterar cor ou modo de um dispositivo faz esse componente seguir seu controle individual. Para sincronizá-lo novamente, use **Voltar a seguir o mapa**; trocar de efeito ou editar apenas a posição preserva essa personalização.
 
 Ligar/desligar e mudar brilho preservam a seleção do efeito. A Alexa continua usando somente ligar/desligar. Ativar um componente com o controle geral desligado liga apenas aquele componente.
 
-**Perfis → Guardar ajustes atuais** salva também o efeito ativo e seus parâmetros. As posições do setup são compartilhadas entre todos os perfis. Os arquivos importados devem permanecer na biblioteca: o perfil guarda uma referência ao efeito. Editar esse perfil pelo criador de sequências substitui o efeito espacial por uma sequência comum.
+**Perfis → Guardar ajustes atuais** salva também o efeito ativo e seus parâmetros. As posições do setup são compartilhadas entre todos os perfis. Os arquivos importados devem permanecer na biblioteca: o perfil guarda uma referência ao efeito. O editor distingue **Efeito do mapa** de **Sequência de cores** e permite editar parâmetros ou código JSON/HTML. Somente escolher explicitamente Sequência de cores substitui o efeito espacial por uma sequência comum.
 
 Na aba **Efeito** da lateral, **Salvar como perfil** guarda o efeito selecionado e seus parâmetros com um nome próprio, sem mudar as luzes ao salvar. Ele aparece em **Perfis** como **Efeito no mapa**; **Ativar perfil** recupera esse efeito com os ajustes de energia/brilho e componentes guardados. O criador de efeitos também oferece **Guardar também na aba Perfis**, marcado inicialmente. Não remova o arquivo importado enquanto houver perfis que dependam dele.
 
@@ -94,7 +94,7 @@ O seletor **Formato do efeito** oferece **Nexus · JSON** e **SignalRGB · HTML 
 | Campo | Valores |
 | --- | --- |
 | `name` | Nome de até 60 caracteres |
-| `pattern` | `wave`, `comet`, `rings` ou `gradient` |
+| `pattern` | `wave`, `comet`, `rings`, `gradient`, `scanner`, `rain`, `spiral`, `plasma`, `fire`, `sparkle`, `ripples` ou `blocks` |
 | `palette` | De 1 a 8 cores `#RRGGBB`, na ordem desejada |
 | `speed` | De 0 a 100; zero mantém uma imagem imóvel |
 | `angle` | De −360 a 360 graus |

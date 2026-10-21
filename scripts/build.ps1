@@ -26,7 +26,7 @@ New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $
 Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\ports.ps1','scripts\configure-ports.ps1','scripts\restart-services.ps1','scripts\install-path.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\measure-resources.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
-Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','LEIA-ME.txt','LICENSE.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
+Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','README-pt.md','README-en.md','LEIA-ME.txt','LICENSE.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
 Copy-Item -LiteralPath 'native\app.ico' -Destination (Join-Path $buildRoot 'app.ico') -Force
 Copy-Item -LiteralPath 'runtime\node.exe' -Destination (Join-Path $buildRoot 'runtime\node.exe') -Force
 foreach($dependency in @('vendor\PawnIO_setup.exe','vendor\vc_redist.x64.exe','runtime\node.exe')) {

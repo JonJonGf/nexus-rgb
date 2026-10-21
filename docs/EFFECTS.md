@@ -1,6 +1,6 @@
 # Create JSON effects
 
-[Português](EFEITOS.md) · [Setup map documentation (Portuguese)](STUDIO.md)
+[Português](EFEITOS.md) · [Setup map documentation](en/SETUP-MAP.md) · [English documentation](en/README.md)
 
 `nexus-effect/1` describes a color image that Nexus samples at each LED's map position. It is declarative data: it does not execute JavaScript, expressions, audio or integrations.
 

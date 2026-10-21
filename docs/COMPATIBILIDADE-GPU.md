@@ -1,5 +1,9 @@
 # Placas de vídeo no Nexus RGB
 
+[English](en/GPU-COMPATIBILITY.md)
+
+**Retorno físico de 21/10/2026:** a Gigabyte Radeon RX 7600 GAMING OC 8G do teste externo continua com RGB apagado na alpha.40, embora dê imagem. Portanto, a migração não resolveu esse caso. Próximo passo: [coletor portátil de diagnóstico](DIAGNOSTICO-GPU.md), sem novos comandos físicos automáticos.
+
 A alpha.40 incorpora o catálogo de controladores do [OpenRGB Headless no commit 18e2c95](https://github.com/hello-nexus/openrgb-headless/tree/18e2c95f5e6d5d9f45a948df1e3d0b882e605b45), sem uma lista de marcas permitidas no Nexus. O motor enumera as GPUs encontradas e lê seus modos, zonas e quantidades reais. Ter uma GPU detectada não comprova que seu firmware aceitou fisicamente a última cor: o SDK não fornece essa confirmação.
 
 ## Famílias presentes na base

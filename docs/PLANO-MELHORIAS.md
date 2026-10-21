@@ -2,6 +2,12 @@
 
 Este registro mantém as melhorias aceitas para avaliação e implementação futura. Ele não anuncia recursos disponíveis nem uma data de entrega. A revisão do código identificou diferenças em relação às hipóteses do relatório externo; cada alteração precisa de reprodução e testes próprios.
 
+## Ventilação, documentação internacional e GPU — 21/10/2026
+
+- **Candidata de desenvolvimento:** aba de ventilação opcional, cinco perfis (Silencioso, Equilibrado, Desempenho, Agressivo, TURBO), curvas e associação explícita canal/sensor. Módulo desligado não abre sensores/auxiliar; não reativa sozinho após reiniciar. Ensaios de protocolo/UI/benchmark simulados concluídos, prova física e avaliação de disputa de sensores pendentes. Sem instalação ou publicação automática. [Guia e medições](VENTILACAO.md).
+- **Documentação:** README principal em inglês, README-pt.md completo e README-en.md espelhado; guias de uso/desenvolvimento em docs/en. Histórico técnico e licenças originais preservados. Sem alegar que tradução ou presença do código atualiza binários publicados.
+- **GPU Gigabyte RX 7600:** usuário confirmou falha física também na alpha.40. Coletor portátil revisável implementado para obter evidência no PC afetado, sem comandos de cor, instalação de driver, reinício ou upload. [Procedimento](DIAGNOSTICO-GPU.md). Próximo passo: amigo gerar relatório e confirmar comportamento observado; não anunciar correção sem essa evidência.
+
 ## Alpha.40 — GPUs e organização dos aparelhos, autorizadas em 20/10/2026
 
 O usuário pediu primeiro publicar a alpha.39 com os perfis e, na alpha.40, ampliar a compatibilidade das famílias de GPU disponíveis no OpenRGB/fork headless indicado e corrigir a apresentação de muitas zonas como aparelhos independentes. A autorização foi ampliada para aproveitar outros recursos relevantes dessa base, mantendo a eficiência. Não equivale a prova física de suporte universal nem autoriza instalar firmware ou alterar o PC de terceiros.
