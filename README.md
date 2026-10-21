@@ -1,6 +1,6 @@
 # ⚡ Nexus RGB Studio
 
-> **Novidade na alpha.38:** a aba Experiências reúne gestos pelo celular, cenas temporizadas, WLED local, áudio por bandas e perfis por aplicativo. Consulte o [guia e os limites](docs/EXPERIENCIAS.md).
+> **Novidade na alpha.39:** edite efeitos JSON/HTML e seus parâmetros diretamente em Perfis, com prévia e ativação explícita no mapa. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.39.md).
 
 <p align="center">
   <img src="docs/assets/nexus-banner.svg" alt="Nexus RGB Studio — Seu RGB. Sua rede. Seu controle. Windows, OpenRGB incluído, controle local e Alexa para ligar e desligar." width="100%">
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.38/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.38">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.39/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.39">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **Gratuito, aberto e experimental.** Versão **v0.1.0-alpha.38**: Experiências e correções de estabilidade, recuperação e controle RGB. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.38.md) e a [validação](docs/validation/2026-10-19-alpha38.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo e do suporte do OpenRGB.
+> **Gratuito, aberto e experimental.** Versão **v0.1.0-alpha.39**: correção dos cartões e da edição de perfis do mapa, com editor JSON/HTML e prévia. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.39.md) e a [validação](docs/validation/2026-10-20-alpha39.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo e do suporte do OpenRGB.
 
 O controle de componentes e controladoras de outras marcas utiliza o OpenRGB incluído. A integração USB própria está limitada ao descritor do Royal Kludge RK61 já exercitado, usando os efeitos internos do teclado e comandos quando o estado muda. Os encoders de outras controladoras são experimentais e não equivalem a suporte físico validado. Não há medição que comprove latência zero ou uma taxa universal de animação dos teclados.
 
@@ -82,7 +82,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.38/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.38) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.39/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.39) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -278,7 +278,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.38/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.39/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 

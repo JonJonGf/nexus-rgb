@@ -1,5 +1,7 @@
 # Arquitetura OpenRGB Headless e Integração ao Nexus RGB
 
+> **Estado conferido em 20/10/2026:** este documento é um estudo e contém propostas; **o fork headless não está integrado ao instalador Nexus RGB**. `vendor-manifest.json`, o build e a alpha.38 continuam usando o OpenRGB oficial 1.0. Houve implementação de classificação de dispositivos/barramentos e controles no Nexus, sem substituir o executável C++. Não interpretar a seção de compilação como procedimento validado nesta entrega, nem os valores abaixo como benchmark comparável do Nexus: faltam método/artefatos que comprovem essas estimativas. A descrição de deadlock é uma hipótese de engenharia, não causa demonstrada de todo travamento de DRAM ou do relato atual de GPU. Esta nota corrige explicitamente a impressão de implantação/validação deixada pelo texto anterior, que foi preservado para histórico.
+
 Este documento consolida o estudo de engenharia sobre a execução do OpenRGB em modo *headless* (sem interface gráfica Qt), a resolução de deadlocks em barramentos SMBus/DRAM e o mapeamento de periféricos e controladoras no **Nexus RGB Studio**.
 
 ---
