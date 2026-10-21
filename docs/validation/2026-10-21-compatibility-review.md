@@ -55,6 +55,10 @@ CPU real de processos Windows e soma de working sets, duas rodadas em ordem inve
 
 Somente as duas linhas off são comparação equivalente antes/depois; as ativas medem cenários da candidata. Memória privada off ficou praticamente igual; RSS variou +2,47 MiB. Duas repetições não sustentam alegar ganho de CPU. Não extrapolar para custo de driver/sensores, consumo completo instalado, watts ou ruído. Nenhum auxiliar presente nos cenários off.
 
+## Pacote privado entregue
+
+Runtime `d12d98c19b2036126499a65fc4fb5dae371e9a95`, development true/sem tag. `dist/NexusRGB-Setup-0.1.0-cooling-dev-r5.exe`: 87.409.194 bytes, SHA256 `6d8396caf69bd6664afa21164765a8a7dec20b5ca87377b12caf1a68c508c399`. Validação do app empacotado confirmou ventilação disponível/off/sem auxiliar ou timer, caminho fixo e arquivos de runtime/UI idênticos ao fonte. Build e auditoria de produção passaram, sem vulnerabilidades reportadas. Sem execução do instalador nesta etapa. Leitura do build-info real instalado confirmou R4 `234d9bb...`; pacote R5 e documentos posteriores não alteram essa instalação. Sem push/tag/release nova.
+
 ## Limites e próximos adaptadores
 
 O backend de fan atual habilita CPU/GPU/placa-mãe e oferece escrita SuperIO/AMD/NVIDIA. Hubs USB/AIOs, Intel GPU e protocolos de notebooks ainda exigem adaptadores auditados; não habilitar todas as classes nem carregar bibliotecas de terceiros para aparentar suporte universal. Novos adaptadores devem preservar desligamento sem custo, validação de identidade/faixa, saída ao firmware e comprovação física por modelo/revisão.
