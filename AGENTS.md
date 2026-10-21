@@ -50,3 +50,9 @@ Contexto único: glossário em `GLOSSARY.md` e decisões em `docs/adr/`, quando 
 - Testes de interface devem exercitar o navegador quando o problema for visual/interativo; testes do instalador devem cobrir seu ciclo real em VM quando necessário. Mocks não comprovam comportamento físico.
 - Compare desempenho em condições equivalentes e declare o escopo da medição. Quantidade de testes aprovados não substitui reprodução do defeito relatado.
 - As instruções atuais do usuário e os cuidados com hardware, dados e publicação acima continuam prevalecendo. O setup das skills não autoriza operações externas ou alterações na instalação real.
+
+### Mapa do código (Graphify)
+
+A skill local está em [.agents/skills/graphify/SKILL.md](.agents/skills/graphify/SKILL.md). Consulte [o guia de uso e limites](docs/agents/graphify.md). Quando existir um mapa atual em `graphify-out/graph.json`, use consultas focadas para se orientar em relações entre módulos; confirme os trechos no código antes de concluir ou editar. Um mapa desatualizado ou uma ligação inferida não é evidência de defeito. Preserve os comandos locais sem API de IA, as exclusões de dados privados e a ausência de hooks/serviços automáticos.
+
+Neste projeto, regenere o mapa com `scripts/update-code-map.ps1`, que preserva a extração original e aplica a camada conservadora de qualidade. Não substitua o mapa principal por uma extração/update direto do Graphify: isso reintroduz inferências por homônimos. Relações não confirmadas ficam em `graphify-out/MAP_AUDIT.json`, e os hashes dos arquivos nesse relatório ajudam a detectar mudanças locais além do commit. O marcador EXTRACTED continua sendo evidência estática, não prova de execução.

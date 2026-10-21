@@ -1,0 +1,23 @@
+# Development map: application code and delivery scripts, never private runtime data.
+.agents/
+.codex/
+.codex-remote-attachments/
+.github/
+data/
+dependencies/
+dist/
+docs/
+node_modules/
+runtime/
+scratch/
+test-results/
+tests/
+tools/
+vendor/
+graphify-out/
+package-lock.json
+# Keep the main map focused on application/delivery, not synthetic test harnesses.
+scripts/test-*
+scripts/benchmark*
+scripts/refine-code-map.py
+scripts/update-code-map.ps1

@@ -16,3 +16,4 @@ native/*.pdb
 server/build-info.json
 *brainstorm*
 scratch/
+graphify-out/
