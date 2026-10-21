@@ -2,6 +2,18 @@
 
 Este registro mantém as melhorias aceitas para avaliação e implementação futura. Ele não anuncia recursos disponíveis nem uma data de entrega. A revisão do código identificou diferenças em relação às hipóteses do relatório externo; cada alteração precisa de reprodução e testes próprios.
 
+## Alpha.40 — GPUs e organização dos aparelhos, autorizadas em 20/10/2026
+
+O usuário pediu primeiro publicar a alpha.39 com os perfis e, na alpha.40, ampliar a compatibilidade das famílias de GPU disponíveis no OpenRGB/fork headless indicado e corrigir a apresentação de muitas zonas como aparelhos independentes. A autorização foi ampliada para aproveitar outros recursos relevantes dessa base, mantendo a eficiência. Não equivale a prova física de suporte universal nem autoriza instalar firmware ou alterar o PC de terceiros.
+
+- **Organização por aparelho:** agrupar as zonas pela identidade da controladora na aba Dispositivos, com controles individuais acessíveis, contadores claros de aparelhos/zonas e filtros coerentes. Preservar IDs, perfis, exclusões, calibração e mapa. Explicar e permitir configurar portas ARGB com zero LEDs, sem inventar uma quantidade física.
+- **Capacidades de GPU:** inventariar famílias e modos reais no controlador empacotado e no commit do fork; tratar controle por LED, por zona, cor única e modos internos conforme o descritor. Avaliar lacunas do adaptador SDK e testes no protocolo, inclusive parâmetros zero e múltiplas zonas. Não anunciar adição de driver quando o ID já era detectado.
+- **Motor e origem:** avaliar atualização/compilação de base fixada e verificável quando necessária para incorporar detectores/recursos ausentes, incluindo licença/fontes correspondentes, gates e ciclo real de instalação. O estudo headless anterior não comprova integração. Preservar limitação segura de 20 FPS da RAM, filas limitadas e independência entre transportes.
+- **Diagnóstico e recuperação:** distinguir conexão SDK de comando aplicado fisicamente; melhorar dados revisáveis de energia, brilho e modos sem expor identificadores privados. O caso da GPU Gigabyte apagada ainda não tem reprodução física local: teste estático e reinício já falharam no PC externo, e RGB Fusion foi desinstalado. Não repetir esses passos como se fossem evidência nova.
+- **Validação:** regressões nas interfaces públicas SDK/HTTP e no navegador para os defeitos reproduzíveis, comparação de desempenho em condições equivalentes e declaração explícita de cobertura simulada versus hardware testado. Sem novas sondagens/escritas especulativas em hardware desconhecido.
+
+Estado deste registro: escopo aceito, ainda não implementado na alpha.39. A release alpha.39 está em validação no workflow `39529645241`; os códigos de produto desta ampliação devem ficar em entrega posterior.
+
 ## Lâmpadas no Nexus Room — Steck/Smarteck 12 W
 
 **Sugestão do usuário em 19/10/2026:** controlar também a lâmpada RGB Steck de 12 W, atualmente usada pelo aplicativo Smarteck / Steck Ambiente Conectado. Endereço e demais identificadores pessoais não pertencem ao plano público. A tela Room atual é exclusivamente WLED; cadastrar um IP de outra plataforma não converte seu protocolo.
