@@ -3,6 +3,9 @@
 [Setup]
 AppId={{BEFFBF04-40A0-4E59-87C0-223B51E92B84}
 AppName=Nexus RGB
+#ifdef CoolingDevelopment
+AppVerName=Nexus RGB 0.1.0 - Cooling Development
+#endif
 AppVersion={#AppVersion}
 AppPublisher=JonJonGf
 AppPublisherURL=https://github.com/JonJonGf/nexus-rgb
@@ -18,7 +21,11 @@ DisableDirPage=no
 UsePreviousAppDir=yes
 DisableProgramGroupPage=yes
 OutputDir=..\dist
+#ifdef CoolingDevelopment
+OutputBaseFilename=NexusRGB-Setup-{#AppVersion}-cooling-dev
+#else
 OutputBaseFilename=NexusRGB-Setup-{#AppVersion}
+#endif
 SetupIconFile=..\native\app.ico
 UninstallDisplayIcon={app}\NexusRGB.exe
 ArchitecturesAllowed=x64compatible

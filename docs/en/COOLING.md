@@ -4,6 +4,10 @@
 
 This candidate is separate from the published/installed alpha.40. It adds fan curves using pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
 
+## Private development installer
+
+`scripts/build.ps1 -CoolingDevelopment` creates `dist/NexusRGB-Setup-0.1.0-cooling-dev.exe`, separate from the official installer. Updating requires administrator access and restarts RGB services while preserving data; it does not start sensors or fan control. Official builds do not enable this backend. After installation, **Detect sensors** starts read-only monitoring; changing speeds requires explicit channel/sensor pairing and activation. The independent helper requests automatic control when its parent service disappears. This lifecycle was tested with simulated channels, without mechanical verification. Coordinate installation and physical testing with the owner first.
+
 ## Try the isolated simulation
 
 ```powershell

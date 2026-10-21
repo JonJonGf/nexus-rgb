@@ -1,3 +1,4 @@
+param([switch]$CoolingDevelopment)
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -22,10 +23,18 @@ New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-Path $projectRoot $folder) -Destination $buildRoot -Recurse -Force }
 & node scripts/build-info.cjs $buildRoot
 if($LASTEXITCODE -ne 0){throw 'Falha ao identificar a versão do pacote.'}
+if($CoolingDevelopment){
+  $buildInfo=Get-Content -LiteralPath (Join-Path $buildRoot 'server\build-info.json') -Raw | ConvertFrom-Json
+  if(-not $buildInfo.development -or $buildInfo.tag){throw 'Ventilação experimental exige um build de desenvolvimento sem tag.'}
+  & (Join-Path $PSScriptRoot 'build-cooling.ps1') -OutputDirectory (Join-Path $buildRoot 'cooling')
+  if($LASTEXITCODE -ne 0){throw 'Falha ao compilar ventilação experimental.'}
+  @{format='nexus-cooling-development/1';commit=$buildInfo.commit} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $buildRoot 'server\cooling-development.json') -Encoding ASCII
+}
 New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $buildRoot 'runtime'),(Join-Path $buildRoot 'licenses'),(Join-Path $buildRoot 'sources') -Force | Out-Null
 Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\ports.ps1','scripts\configure-ports.ps1','scripts\restart-services.ps1','scripts\install-path.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\measure-resources.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
+if($CoolingDevelopment){Copy-Item -LiteralPath 'scripts\start-cooling-helper.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force}
 Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','README-pt.md','README-en.md','LEIA-ME.txt','LICENSE.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
 Copy-Item -LiteralPath 'native\app.ico' -Destination (Join-Path $buildRoot 'app.ico') -Force
 Copy-Item -LiteralPath 'runtime\node.exe' -Destination (Join-Path $buildRoot 'runtime\node.exe') -Force
@@ -57,15 +66,20 @@ Push-Location -LiteralPath $buildRoot
 try { & npm.cmd ci --omit=dev --ignore-scripts; if($LASTEXITCODE -ne 0){throw 'Falha ao preparar dependências de produção.'}; & npm.cmd audit --omit=dev --audit-level=moderate; if($LASTEXITCODE -ne 0){throw 'Auditoria de dependências falhou.'} }
 finally { Pop-Location }
 & (Join-Path $PSScriptRoot 'build-native.ps1') -OutputDirectory $buildRoot
-Copy-Item -LiteralPath (Join-Path $buildRoot 'NexusRGB-Uninstall.exe') -Destination (Join-Path $projectRoot 'dist\NexusRGB-Uninstall-0.1.0.exe') -Force
+$uninstallName='NexusRGB-Uninstall-0.1.0'+$(if($CoolingDevelopment){'-cooling-dev'}else{''})+'.exe'
+Copy-Item -LiteralPath (Join-Path $buildRoot 'NexusRGB-Uninstall.exe') -Destination (Join-Path $projectRoot ('dist\'+$uninstallName)) -Force
 $testProcess=Start-Process -FilePath (Join-Path $buildRoot 'NexusRGB.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
 if($testProcess.ExitCode -ne 0){throw 'Instalação de teste incompleta.'}
 # Include each third-party license shipped in node_modules, without developer dependencies.
 & node scripts/licenses.js $buildRoot
 if($LASTEXITCODE -ne 0){throw 'Falha ao coletar licenças.'}
-& (Join-Path $projectRoot 'tools\inno\ISCC.exe') /Qp installer/NexusRGB.iss
+$setupName='NexusRGB-Setup-0.1.0'
+$compilerOptions=@('/Qp')
+if($CoolingDevelopment){$setupName+='-cooling-dev';$compilerOptions+='/DCoolingDevelopment'}
+& (Join-Path $projectRoot 'tools\inno\ISCC.exe') @compilerOptions installer/NexusRGB.iss
 if($LASTEXITCODE -ne 0){throw 'Falha ao gerar instalador.'}
-$releaseFiles=@('dist\NexusRGB-Setup-0.1.0.exe','dist\NexusRGB-Uninstall-0.1.0.exe')
+$releaseFiles=@(('dist\'+$setupName+'.exe'),('dist\'+$uninstallName))
 $checksums=@(foreach($releaseFile in $releaseFiles){ ((Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256).Hash.ToLowerInvariant())+'  '+[IO.Path]::GetFileName($releaseFile) })
-[IO.File]::WriteAllLines((Join-Path $projectRoot 'dist\SHA256SUMS.txt'),$checksums,[Text.UTF8Encoding]::new($false))
+$checksumName=if($CoolingDevelopment){'SHA256SUMS-cooling-dev.txt'}else{'SHA256SUMS.txt'}
+[IO.File]::WriteAllLines((Join-Path $projectRoot ('dist\'+$checksumName)),$checksums,[Text.UTF8Encoding]::new($false))
 Get-FileHash -LiteralPath $releaseFiles -Algorithm SHA256 | Format-List

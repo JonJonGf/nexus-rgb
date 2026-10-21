@@ -22,6 +22,7 @@ const { Conflicts } = require('./conflicts');
 const { Experiences } = require('./experiences');
 const { Room } = require('./room');
 const { Cooling } = require('./cooling');
+const { installedCooling } = require('./cooling-installation');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -83,7 +84,7 @@ async function createApp(options = {}) {
   const studio = new Studio(store, hardware, directory, broadcast, options.studio); hardware.studio = studio;
   const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
-  const cooling=new Cooling(directory,options.cooling);
+  const cooling=new Cooling(directory,options.cooling ?? installedCooling(path.resolve(__dirname,'..')));
   const resources = new Resources({additional:()=>cooling.resourceRows()});
   const conflicts = options.conflicts || new Conflicts();
   const experiences = new Experiences(store,hardware,studio,directory,broadcast);

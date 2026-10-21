@@ -23,6 +23,10 @@ try {
     }
 } finally {$archive.Dispose()}
 Copy-Item -LiteralPath (Join-Path $projectRoot 'dependencies\cooling\LICENSE'),(Join-Path $projectRoot 'dependencies\cooling\THIRD-PARTY-NOTICES.txt'),(Join-Path $projectRoot 'dependencies\cooling\manifest.json') -Destination $output -Force
+$sourceArchive=Join-Path $projectRoot 'vendor\LibreHardwareMonitor-0.9.6-source.zip'
+if(-not (Test-Path -LiteralPath $sourceArchive)){Invoke-WebRequest -Uri $manifest.sourceUrl -OutFile $sourceArchive -UseBasicParsing}
+if((Get-FileHash -LiteralPath $sourceArchive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.sourceSha256){throw 'Integridade do fonte de ventilação divergente.'}
+Copy-Item -LiteralPath $sourceArchive -Destination $output -Force
 $compiler=Join-Path ([Environment]::GetFolderPath('Windows')) 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 & $compiler /nologo /codepage:65001 /target:exe /platform:x64 /optimize+ /reference:System.Web.Extensions.dll ('/reference:'+(Join-Path $output 'LibreHardwareMonitorLib.dll')) ('/out:'+(Join-Path $output 'nexus-cooling.exe')) (Join-Path $projectRoot 'native\NexusCoolingBridge.cs')
 if($LASTEXITCODE -ne 0){throw 'Falha ao compilar o auxiliar de ventilação.'}

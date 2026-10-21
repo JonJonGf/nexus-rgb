@@ -4,6 +4,10 @@
 
 Esta candidata não faz parte da alpha.40 publicada nem foi instalada no PC. Implementa controle opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit, em auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
 
+## Instalação privada de desenvolvimento
+
+`scripts/build.ps1 -CoolingDevelopment` gera `dist/NexusRGB-Setup-0.1.0-cooling-dev.exe`, separado do instalador oficial. A atualização exige administrador e reinicia os serviços RGB, preservando dados; não inicia sensores nem controle de ventoinhas. Builds oficiais não habilitam esse backend. Após instalar, **Detectar sensores** inicia leitura; alterar rotações exige associação canal/sensor e ativação explícita. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Esse ciclo foi verificado com canais simulados, ainda sem prova mecânica. Combinar instalação/ensaio com o proprietário antes de executar.
+
 ## Experimentar sem tocar nas ventoinhas
 
 ```powershell
