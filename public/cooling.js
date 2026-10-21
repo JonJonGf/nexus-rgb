@@ -2,7 +2,7 @@
 (() => {
   const $=id=>document.getElementById(id),T=window.NexusI18n;
   const make=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
-  let api,admin=false,current=false,data,busy=false,timer,signature='',rows=new Map(),seenUseful=new Set(),profileSignature='',librarySignature='',pendingPreset=null;
+  let api,admin=false,current=false,data,busy=false,timer,signature='',rows=new Map(),profileSignature='',librarySignature='',pendingPreset=null;
   function problem(error){$('cooling-error').textContent=T(error.message||error);$('cooling-error').hidden=false;}
   async function change(route,body){
     if(busy)return;busy=true;drawStatus();$('cooling-error').hidden=true;
@@ -49,16 +49,23 @@
   }
   function channel(control){
     const saved=data.assignments.find(a=>a.controlId===control.id),article=make('article',undefined,'panel cooling-channel');
-    const title=make('h3',T(control.name)),enabled=input('checkbox');enabled.checked=Boolean(saved);enabled.setAttribute('aria-label',T('Controlar este canal'));article.dataset.control=control.id;
+    const title=make('h3',control.name),enabled=input('checkbox');enabled.checked=Boolean(saved);enabled.setAttribute('aria-label',T('Controlar este canal'));article.dataset.control=control.id;
     const enable=make('label',undefined,'cooling-check');enable.append(enabled,make('span',T('Controlar este canal')));article.append(title,enable);
-    if(control.originalName&&control.originalName!==control.name)article.append(make('p',control.originalName,'muted small'));
+    const original=make('p',control.originalName||control.name,'muted small');article.append(original);
+    const identity=make('p',undefined,'muted small');article.append(identity);
     enabled.addEventListener('change',filterChannels);
     const output=make('p','', 'cooling-output');article.append(output);
     const sensor=select('Sensor de temperatura',data.sensors,saved?.sensorId),rpm=select('Leitura de RPM',data.fans,saved?.rpmId);
-    const minimum=input('number',saved?.minPercent??40,20,100),critical=input('number',saved?.critical??85,60,100);
+    const minimum=input('number',saved?.minPercent??Math.max(control.limits.minimum,Math.min(control.limits.maximum,40)),control.limits.minimum,control.limits.maximum),critical=input('number',saved?.critical??85,60,100);
     const fields=make('div',undefined,'cooling-fields');fields.append(field('Sensor de temperatura',sensor),field('Leitura de RPM',rpm),field('Mínimo (%)',minimum),field('Proteção térmica (°C)',critical));article.append(fields);
-    const selected=data.profiles.find(p=>p.id===data.profile),row=Object.assign(createCurve(saved?.points||selected.points,Boolean(saved?.points),saved?.points?saved.interpolation||'linear':selected.interpolation||'linear'),{control,article,enabled,sensor,rpm,minimum,critical,output});article.append(row.container);
+    const selected=data.profiles.find(p=>p.id===data.profile),row=Object.assign(createCurve(saved?.points||selected.points,Boolean(saved?.points),saved?.points?saved.interpolation||'linear':selected.interpolation||'linear'),{control,article,title,original,identity,enabled,sensor,rpm,minimum,critical,output});article.append(row.container);
     const save=make('button',T('Salvar como perfil personalizado'),'button subtle');save.type='button';save.addEventListener('click',()=>editPreset(null,row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]),row.interpolation.value));article.append(save);
+    const identification=make('details'),summary=make('summary',T('Identificar canal')),name=input('text'),hidden=input('checkbox');name.maxLength=48;name.setAttribute('aria-label',T('Nome deste canal'));hidden.setAttribute('aria-label',T('Ocultar este canal'));
+    const visibility=make('label',undefined,'cooling-check');visibility.append(hidden,make('span',T('Ocultar este canal')));
+    const saveIdentity=make('button',T('Salvar identificação'),'button subtle');saveIdentity.type='button';
+    saveIdentity.addEventListener('click',async()=>{const preference={key:row.control.identityKey,name:name.value.trim(),hidden:hidden.checked},preferences=(data.channelPreferences||[]).filter(p=>p.key!==preference.key);preferences.push(preference);if(await change('/api/cooling',{channelPreferences:preferences}))row.presentationDirty=false;});
+    for(const e of [name,hidden])e.addEventListener('input',()=>{row.presentationDirty=true;});
+    identification.append(summary,field('Nome deste canal',name),visibility,make('p',T('Salvar identificação não altera as rotações. Canais selecionados continuam visíveis.'),'muted small'),saveIdentity);article.append(identification);Object.assign(row,{channelName:name,channelHidden:hidden,saveIdentity});
     rows.set(control.id,row);return article;
   }
   function assignments(){return [...rows.values()].filter(r=>r.enabled.checked).map(r=>{
@@ -66,7 +73,7 @@
     return {controlId:r.control.id,sensorId:r.sensor.value,rpmId:r.rpm.value||null,minPercent:Number(r.minimum.value),critical:Number(r.critical.value),
       ...(r.custom.value==='manual'?{points:r.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]).sort((a,b)=>a[0]-b[0]),interpolation:r.interpolation.value}:{})};
   });}
-  function filterChannels(){let shown=0;for(const [id,row] of rows){if(row.control.useful)seenUseful.add(id);row.article.hidden=!$('cooling-show-all').checked&&!seenUseful.has(id)&&!row.enabled.checked;if(!row.article.hidden)shown++;}$('cooling-channel-count').textContent=shown+' / '+rows.size+' '+T('canais exibidos');}
+  function filterChannels(){let shown=0;for(const row of rows.values()){row.article.hidden=!$('cooling-show-all').checked&&row.control.hidden&&!row.enabled.checked;if(!row.article.hidden)shown++;}$('cooling-channel-count').textContent=shown+' / '+rows.size+' '+T('canais exibidos');}
   function editPreset(profile,points,interpolation){
     if(!profile&&(data.customProfiles||[]).length>=3)return problem(T('Você pode salvar até três perfis personalizados.'));
     const selected=data.profiles.find(p=>p.id===data.profile),curve=createCurve(points||profile?.points||selected.points,true,interpolation||profile?.interpolation||selected.interpolation||'linear');curve.custom.closest('label').hidden=true;
@@ -83,7 +90,7 @@
     const mode={off:'Desligado',starting:'Iniciando…',monitoring:'Somente monitoramento',controlling:'Controle ativo',fault:'Verifique a ventilação'}[data?.mode||'off'];
     $('cooling-mode').textContent=(data?.simulated?T('Simulação')+' · ':'')+T(mode);
     if(data?.profilePending)$('cooling-mode').textContent+=' · '+T('Perfil alterado; selecione novamente para aplicar.');
-    if(!busy)$('cooling-enabled').checked=Boolean(data?.enabled);$('cooling-enabled').disabled=!admin||busy||!data?.available;
+    if(!busy)$('cooling-enabled').checked=Boolean(data?.enabled);$('cooling-enabled').disabled=!admin||busy||!data?.available||!data.controls.some(c=>c.controllable)&&!data?.enabled;
     $('cooling-monitor').disabled=!admin||busy||!data?.available||Boolean(data?.enabled);
     $('cooling-stop').disabled=!admin||busy||!data||data.mode==='off';
     $('cooling-save').disabled=!admin||busy||!data?.controls.length;
@@ -92,17 +99,18 @@
     for(const button of $('cooling-profiles').children){button.disabled=!admin||busy;button.setAttribute('aria-pressed',String(button.dataset.profile===data?.profile));}
     $('cooling-custom-new').disabled=!admin||busy||(data?.customProfiles||[]).length>=3;$('cooling-preset-save').disabled=!admin||busy;
     for(const button of $('cooling-custom-list').querySelectorAll('button')){button.disabled=!admin||busy||button.dataset.delete==='true'&&button.dataset.profile===data?.profile;if(button.dataset.delete==='true')button.title=button.dataset.profile===data?.profile?T('Selecione outro perfil antes de excluir o atual.') : '';}
+    for(const row of rows.values()){row.saveIdentity.disabled=!admin||busy;row.enabled.disabled=!admin||busy||!row.control.controllable;row.minimum.disabled=!row.control.controllable;}
   }
   function draw(){
     if(!data)return;
     const presetSignature=JSON.stringify(data.profiles);if(presetSignature!==profileSignature){profileSignature=presetSignature;$('cooling-profiles').replaceChildren();for(const preset of data.profiles){const button=make('button',preset.custom?preset.name:T(preset.name),'button subtle');button.type='button';button.dataset.profile=preset.id;button.addEventListener('click',()=>{
       try{change('/api/cooling',{profile:preset.id,assignments:assignments().map(({points,interpolation,...value})=>value)});}catch(error){problem(error);}
     });$('cooling-profiles').append(button);}}drawLibrary();
-    const next=JSON.stringify([data.controls.map(c=>[c.id,c.name]),data.sensors.map(s=>s.id),data.fans.map(f=>f.id),data.profile,data.assignments]);
+    const next=JSON.stringify([data.controls.map(c=>[c.id,c.identityKey]),data.sensors.map(s=>s.id),data.fans.map(f=>f.id),data.profile,data.assignments]);
     if(next!==signature){signature=next;rows=new Map();$('cooling-channels').replaceChildren(...data.controls.map(channel));}
-    for(const [id,row] of rows){row.control=data.controls.find(c=>c.id===id)||row.control;const output=data.outputs.find(o=>o.id===id),temperature=data.sensors.find(s=>s.id===row.sensor.value)?.value,rpm=data.fans.find(f=>f.id===(row.rpm.value||row.control.suggestedRpmId))?.value;
-      row.output.textContent=(output?`${output.percent}% ${T('solicitado')}`:T('Sem comando de rotação'))+(Number.isFinite(temperature)?` · ${Math.round(temperature)} °C`:'')+(Number.isFinite(rpm)?` · ${Math.round(rpm)} RPM`:'')+(output?.failsafe?' · '+T('Sensor inválido: saída de proteção'):'');}
-    if(!data.controls.length)seenUseful.clear();filterChannels();$('cooling-identification').hidden=!data.controls.some(c=>c.identitySource==='board-suggestion');$('cooling-empty').hidden=Boolean(data.controls.length);drawStatus();
+    for(const [id,row] of rows){row.control=data.controls.find(c=>c.id===id)||row.control;const control=row.control;row.title.textContent=control.name;row.original.textContent=control.originalName||control.name;row.original.hidden=row.original.textContent===row.title.textContent;row.identity.textContent=T(control.identitySource==='user'?'Identificado por você':control.identitySource==='backend'?'Nome informado pelo sensor':'Conector não identificado')+(control.connectorHint?' · '+T('Sugestão não confirmada: {0}',control.connectorHint):'')+(!control.controllable?' · '+T('Somente leitura: sem faixa segura de controle'):T(' · Faixa de controle: {0}–{1}%',control.limits.minimum,control.limits.maximum));row.minimum.min=control.limits.minimum;row.minimum.max=control.limits.maximum;if(!row.presentationDirty){row.channelName.value=control.identitySource==='user'?control.name:'';row.channelHidden.checked=Boolean(control.hidden);}const output=data.outputs.find(o=>o.id===id),temperature=data.sensors.find(s=>s.id===row.sensor.value)?.value,rpm=data.fans.find(f=>f.id===row.rpm.value)?.value;
+      row.output.textContent=(output?`${output.percent}% ${T('solicitado')}`:T('Sem comando de rotação'))+(Number.isFinite(temperature)?` · ${Math.round(temperature)} °C`:'')+(Number.isFinite(rpm)?` · ${Math.round(rpm)} RPM`:' · '+T('RPM não associado'))+(output?.failsafe?' · '+T('Sensor inválido: saída de proteção'):'');}
+    filterChannels();$('cooling-identification').hidden=!data.controls.length;$('cooling-empty').hidden=Boolean(data.controls.length);$('cooling-empty').textContent=T(data.mode==='off'?'Inicie a detecção para ver os canais compatíveis. Detectar sensores não altera a rotação.':'A biblioteca não informou canais de controle. A detecção não altera rotações nem garante suporte de escrita.');$('cooling-capabilities').hidden=data.mode==='off';$('cooling-capabilities').textContent=T('{0} sensores de temperatura · {1} leituras de RPM · {2} canais informados · {3} com faixa segura',data.sensors.length,data.fans.length,data.controls.length,data.controls.filter(c=>c.controllable).length);drawStatus();
   }
   $('cooling-show-all').addEventListener('change',filterChannels);
   $('cooling-custom-new').addEventListener('click',()=>editPreset(null));

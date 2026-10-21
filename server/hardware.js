@@ -406,7 +406,8 @@ class Hardware extends EventEmitter {
         if (this.generation !== currentGen || this.stopped) return;
       }
       const direct = raw.modes.find(m => /^direct$/i.test(m.name) && m.flagList.includes('perLedColor') && !m.flagList.includes('automaticSave'));
-      const fixed = direct || raw.modes.find(m => /^(?:direct|static|solid(?: color)?|fixed(?: color)?|custom)$/i.test(m.name) && (m.flagList.includes('perLedColor') || m.flagList.includes('modeSpecificColor')));
+      const fixedModes = raw.modes.filter(m => /^(?:direct|static|solid(?: color)?|fixed(?: color)?|custom)$/i.test(m.name) && (m.flagList.includes('perLedColor') || m.flagList.includes('modeSpecificColor')));
+      const fixed = direct || fixedModes.find(m => !m.flagList.includes('automaticSave')) || fixedModes[0];
       const off = raw.modes.find(m => /^(off|disabled|blackout)$/i.test(m.name));
       const ledCount = raw.colors.length;
       leds += ledCount; if (ledCount > 4096 || leds > 32768) throw new Error('Quantidade de LEDs acima do limite seguro.');

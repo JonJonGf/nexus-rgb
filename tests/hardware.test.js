@@ -4,6 +4,12 @@ const { Hardware, frame } = require('../server/hardware'); const { defaults } = 
 function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
 class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
 
+test('static control prefers a non-saving compatible mode regardless of descriptor order',async t=>{
+ const raw=controller('Generic controller','USB:capabilities',false);raw.modes=[{id:1,name:'Custom',flagList:['perLedColor','automaticSave']},{id:3,name:'Static',flagList:['perLedColor']}];
+ const store={data:{master:{...defaults,effect:'static'},devices:{}}},mock=new Mock([raw]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();await hardware.tick();
+ assert.equal(mock.calls.find(c=>c[0]==='mode')[2],3,'A descriptor ordering difference must not choose automatic saving when a safe alternative exists');
+});
+
 test('snapshot mantém a identidade da controladora em todas as zonas sem unir GPUs de mesmo nome', async t => {
   const first = controller('GPU multizona', 'PCI:first'), second = controller('GPU multizona', 'PCI:second');
   for (const raw of [first, second]) raw.zones = [{ id: 0, name: 'Logo', ledsCount: 2 }, { id: 1, name: 'Lateral', ledsCount: 2 }];

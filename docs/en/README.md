@@ -6,6 +6,7 @@ These guides describe the published alpha.40 unless a section explicitly says **
 
 | Guide | Contents |
 | --- | --- |
+| [Hardware compatibility](COMPATIBILITY.md) | Detection versus control, supported backends, identification and current limits |
 | [Setup map and calibration](SETUP-MAP.md) | Geometry, LED order, profiles, overrides, JSON/HTML editing |
 | [Effect format](../EFFECTS.md) | Twelve JSON patterns, example code, Canvas compatibility and limits |
 | [Experiences](EXPERIENCES.md) | Live gestures, scenes, WLED, Windows audio and application context |

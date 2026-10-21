@@ -34,9 +34,9 @@ Em **Meus perfis personalizados**, clique em **Criar perfil personalizado**, dê
 
 ### Identificação e canais exibidos
 
-Saídas reconhecidas e canais com sinal de RPM aparecem por padrão; canais selecionados e os já vistos girando permanecem visíveis. **Mostrar todos os canais** recupera os demais sem apagar ajustes. Zero RPM pode indicar parada, ausência de retorno ou saída não utilizada, não um defeito confirmado. GPU continua visível mesmo quando parada.
+Todos os canais informados pela biblioteca aparecem inicialmente, inclusive em zero RPM. Uma leitura zero pode indicar parada, falta de retorno ou saída não utilizada; não comprova porta vazia. Em **Identificar canal**, salve um nome e oculte apenas saídas que você conferiu. **Mostrar todos os canais** recupera as ocultas; canais selecionados para controle permanecem visíveis. Salvar identificação não muda rotações, não inicia sensores e não aplica o rascunho de curva. Preferências ficam no arquivo privado `cooling.json`, associadas à identidade informada da placa/canal para evitar reaproveitamento automático em outra placa.
 
-Quando existe perfil exato de placa/chip, o Nexus pode sugerir nomes de conectores. O perfil inicial ASUS TUF GAMING A520M-PLUS II/NCT6798D sugere CHA_FAN1, CPU_FAN e CHA_FAN2; a interface pede confirmar a correspondência antes de controlar. Nomes do HWiNFO/leituras observadas e documentação fundamentam a sugestão, sem importar código proprietário nem depender dele aberto. Não há mapeamento universal ou calibração mecânica automática. Ventoinhas em paralelo/divisor compartilham um canal; número de fans físicas não é número de controles independentes.
+Os nomes originais da biblioteca são preservados. Sugestões disponíveis para um modelo exato aparecem separadas como **não confirmadas** e não substituem a identidade, não selecionam RPM nem comandam saídas. A associação de RPM continua explícita: índices iguais de sensores e controles não comprovam correspondência elétrica. Ventoinhas em paralelo/divisor compartilham um canal; número de fans físicas não é número de controles independentes. Veja [compatibilidade e limites](COMPATIBILIDADE.md).
 
 | Perfil | Pontos de referência (°C → %) |
 | --- | --- |
@@ -53,6 +53,7 @@ Trocar de perfil substitui curvas personalizadas salvas; editar pontos preserva 
 ## Proteções e limites
 
 - Um ciclo sequencial por segundo; saída idêntica não é reenviada. Histerese de cerca de 2 °C e redução limitada a 12 pontos percentuais por segundo evitam oscilações; aumento térmico e TURBO respondem sem essa espera.
+- Ativar/aplicar consulta uma nova amostra antes de enviar a curva. Limites fracionários são respeitados sem arredondar acima do máximo; canais sem um valor inteiro dentro do piso de segurança ficam somente para leitura. Falha ao liberar canais durante reassociação desarma o controle em vez de continuar com estado divergente.
 - Temperatura inválida solicita a saída de proteção máxima. Leitura atrasada, canal removido ou falha de comunicação desativa o módulo e solicita liberação. Não há reconexão/rearme automático.
 - O auxiliar tem watchdog de cinco segundos sem comunicação e observa o processo pai; EOF/encerramento também solicita `SetDefault` nos canais que assumiu.
 - Isso não garante retorno físico ao firmware em um travamento de driver, bloqueio de chamada ou morte abrupta do auxiliar. Simulação não comprova segurança térmica. Não substitui as proteções do firmware/CPU/GPU.

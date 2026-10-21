@@ -48,6 +48,12 @@ Choosing another preset replaces saved custom curves. Configuration is stored se
 
 ## Failure behavior and compatibility
 
+All library-reported channels are initially visible, including zero RPM. Zero does not prove an empty connector. Use **Identify channel** to save a name and explicitly hide channels you have checked. **Show all channels** restores hidden entries; selected channels remain visible. Saving identification never applies fan curves or starts sensors, and preserves unsaved curve edits. Preferences in private `cooling.json` are scoped to the reported board/channel identity rather than list position.
+
+Backend names remain intact. Board-specific hints are marked unconfirmed, do not replace identities and never pair RPM sensors or write outputs. Pairing is explicit: equal indices do not prove an electrical association. See [compatibility and limits](COMPATIBILITY.md).
+
+Activation and curve changes sample current temperatures before writing. Fractional hardware limits are respected without rounding above the maximum. Channels without a safe integer output stay read-only. A failed release during reassignment disables control rather than continuing with mismatched state.
+
 The module samples sequentially once per second, deduplicates identical writes, uses about 2 °C hysteresis and limits downward changes to 12 percentage points per second. Temperature rises and TURBO can increase output immediately.
 
 Invalid temperatures request maximum protective output. Stale readings, missing channels and communication failures stop control and request release. A separate native watchdog detects five seconds without communication or a lost parent; shutdown/EOF also requests `SetDefault` on owned channels. There is no automatic reconnect/re-arm.

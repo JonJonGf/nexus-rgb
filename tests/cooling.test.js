@@ -41,12 +41,38 @@ test('a manual curve overrides the previous TURBO preset instead of silently sta
   assert.equal(response.status,200,response.text);assert.equal(response.json().outputs[0].percent,55);
 });
 
-test('an exact board and SuperIO profile identifies connector labels without changing hardware IDs or enabling control',async t=>{
+test('board hints never replace backend channel identities or declare zero RPM ports unused',async t=>{
   let model='TUF GAMING A520M-PLUS II';const prefix='/lpc/nct6798d/0',factory=()=>({async request(){return {at:Date.now(),board:{manufacturer:'ASUSTeK COMPUTER INC.',model},sensors:[],controls:[0,1,2,3].map(i=>({id:prefix+'/control/'+i+'/control',name:'Nuvoton NCT6798D · Fan #'+(i+1),min:0,max:100})),fans:[0,1,2,3].map(i=>({id:prefix+'/fan/'+i,name:'Nuvoton NCT6798D · Fan #'+(i+1),value:i<3?700:0}))};},async close(){}});
   const {request,cookie,app}=await fixture(t,{cooling:{bridgeFactory:factory,autoPoll:false}});
   const response=await request('/api/cooling/monitor',{cookie,method:'POST',body:{}});assert.equal(response.status,200,response.text);
-  const v=response.json();assert.equal(v.enabled,false);assert.equal(v.controls[1].name,'CPU · CPU_FAN');assert.equal(v.controls[1].id,prefix+'/control/1/control');assert.equal(v.controls[1].suggestedRpmId,prefix+'/fan/1');assert.equal(v.controls[1].identitySource,'board-suggestion');assert.equal(v.controls[3].useful,false);
+  const v=response.json();assert.equal(v.enabled,false);assert.equal(v.controls[1].name,'Nuvoton NCT6798D · Fan #2');assert.equal(v.controls[1].id,prefix+'/control/1/control');assert.equal(v.controls[1].connectorHint,'CPU · CPU_FAN');assert.equal(v.controls[1].identitySource,'generic');assert.equal(v.controls[3].connection,'unconfirmed');assert.equal(v.controls[3].hidden,false);
   model='OTHER BOARD';await app.cooling.tick();const other=(await request('/api/cooling',{cookie})).json();assert.equal(other.controls[1].name,'Nuvoton NCT6798D · Fan #2');assert.equal(other.controls[1].identitySource,'generic');
+});
+
+test('channel names and visibility persist independently of control and do not migrate to a different board',async t=>{
+ const fake=controller();let board='BOARD A';const factory=()=>{const bridge=fake.factory(),read=bridge.request;bridge.request=async body=>{const value=await read(body);if(value.controls)value.board={manufacturer:'Other Vendor',model:board};return value;};return bridge;};
+ const first=await fixture(t,{cooling:{bridgeFactory:factory,autoPoll:false}}),post=body=>first.request('/api/cooling',{cookie:first.cookie,method:'POST',body});
+ const initial=(await first.request('/api/cooling/monitor',{cookie:first.cookie,method:'POST',body:{}})).json();const key=initial.controls[0].identityKey;assert.match(key,/^[a-f0-9]{64}$/);
+ const preferences=[{key,name:'Fans do gabinete',hidden:true}];const count=fake.state.commands.length;
+ const saved=await post({channelPreferences:preferences});assert.equal(saved.status,200,saved.text);assert.equal(fake.state.commands.length,count);assert.equal(saved.json().controls[0].name,'Fans do gabinete');assert.equal(saved.json().controls[0].hidden,true);assert.equal(saved.json().controls[0].id,'fan-a');
+ assert.equal((await post({enabled:true,assignments:[assignment]})).status,200);const activeCount=fake.state.commands.length;const activeSaved=await post({channelPreferences:preferences});assert.equal(activeSaved.status,200);assert.equal(activeSaved.json().enabled,true);assert.equal(fake.state.commands.length,activeCount,'Presentation changes must not release or reapply a running curve');
+ assert.equal((await post({channelPreferences:[{...preferences[0],name:'<img src=x>'}]})).status,200,'Names are rendered as text, never markup');
+ assert.equal((await post({channelPreferences:[{...preferences[0],key:'../escape'}]})).status,400);assert.equal((await post({channelPreferences:preferences,enabled:true})).status,400);
+ await post({channelPreferences:preferences});await first.app.cooling.close();
+ const restarted=await fixture(t,{directory:first.directory,cooling:{bridgeFactory:factory,autoPoll:false}});assert.equal((await restarted.request('/api/cooling',{cookie:restarted.cookie})).json().enabled,false);
+ let value=(await restarted.request('/api/cooling/monitor',{cookie:restarted.cookie,method:'POST',body:{}})).json();assert.equal(value.controls[0].name,'Fans do gabinete');
+ board='BOARD B';await restarted.app.cooling.tick();value=(await restarted.request('/api/cooling',{cookie:restarted.cookie})).json();assert.equal(value.controls[0].name,'CPU fan');assert.equal(value.controls[0].hidden,false);
+});
+
+test('generic backend channels work by identity across vendors and reorder without guessing RPM pairing',async t=>{
+ let board={manufacturer:'Gigabyte',model:'Generic board'},reverse=false;const ids=['/lpc/it8688e/0/control/4/control','/gpu-nvidia/0/control/1/control','/gpu-amd/0/control/0/control'],commands=[];
+ const factory=()=>({async request(body){commands.push(body);return {at:Date.now(),board,sensors:[{id:'cpu',name:'CPU',value:60}],controls:(reverse?[...ids].reverse():ids).map(id=>({id,name:'Backend control',min:0,max:100})),fans:[{id:'/lpc/it8688e/0/fan/4',name:'Zero RPM sensor',value:0}]};},async close(){}});
+ const {app,request,cookie}=await fixture(t,{cooling:{bridgeFactory:factory,autoPoll:false}});
+ for(const manufacturer of ['Gigabyte','MSI','ASRock','Unknown vendor']){
+  board={...board,manufacturer};await app.cooling.monitor();reverse=!reverse;await app.cooling.tick();
+  const state=(await request('/api/cooling',{cookie})).json();assert.equal(state.controls.length,3);assert.ok(state.controls.every(c=>c.name==='Backend control'&&!c.hidden&&c.controllable&&c.suggestedRpmId===undefined));
+ }
+ const active=await request('/api/cooling',{cookie,method:'POST',body:{enabled:true,assignments:[{...assignment,controlId:ids[1],rpmId:null}]}});assert.equal(active.status,200,active.text);assert.deepEqual(commands.filter(c=>c.action==='apply').at(-1).values,[{id:ids[1],percent:58}]);
 });
 
 test('cooling starts disabled with five profiles and never opens hardware just to view settings',async t=>{
@@ -90,6 +116,28 @@ test('an assignment cannot request a minimum above the hardware maximum',async t
   const {request,cookie}=await fixture(t,{cooling:{bridgeFactory:fake.factory,autoPoll:false}});
   const response=await request('/api/cooling',{cookie,method:'POST',body:{enabled:true,assignments:[{...assignment,minPercent:80}]}});
   assert.equal(response.status,400,response.text);assert.equal(fake.state.commands.some(c=>c.action==='apply'),false);
+});
+
+test('different hardware limits are respected and channels below the safety floor stay read-only',async t=>{
+ const fake=controller();let limits={min:20.6,max:60.6};const factory=()=>{const bridge=fake.factory(),read=bridge.request;bridge.request=async body=>{const value=await read(body);if(value.controls)Object.assign(value.controls[0],limits);return value;};return bridge;};
+ const {request,cookie,app}=await fixture(t,{cooling:{bridgeFactory:factory,autoPoll:false}}),post=body=>request('/api/cooling',{cookie,method:'POST',body});
+ const active=await post({enabled:true,profile:'turbo',assignments:[{...assignment,minPercent:20}]});assert.equal(active.status,200,active.text);assert.equal(active.json().outputs[0].percent,60,'Do not round above the actual maximum');assert.equal(active.json().controls[0].controllable,true);
+ await post({enabled:false});limits={min:0,max:10};const detected=await request('/api/cooling/monitor',{cookie,method:'POST',body:{}});assert.equal(detected.status,200);assert.equal(detected.json().controls[0].controllable,false);
+ const count=fake.state.commands.filter(c=>c.action==='apply').length;assert.equal((await post({enabled:true,assignments:[assignment]})).status,400);assert.equal(fake.state.commands.filter(c=>c.action==='apply').length,count);assert.equal(app.cooling.snapshot().enabled,false);
+});
+
+test('activating or changing a running curve samples current temperatures before writing',async t=>{
+ const fake=controller(),{request,cookie}=await fixture(t,{cooling:{bridgeFactory:fake.factory,autoPoll:false}}),post=body=>request('/api/cooling',{cookie,method:'POST',body});
+ await request('/api/cooling/monitor',{cookie,method:'POST',body:{}});fake.state.temperature=95;
+ const active=await post({enabled:true,assignments:[assignment]});assert.equal(active.status,200,active.text);assert.equal(active.json().outputs[0].percent,100);
+ fake.state.temperature=50;const count=fake.state.commands.filter(c=>c.action==='sample').length;const changed=await post({profile:'silent'});assert.equal(changed.status,200,changed.text);assert.ok(fake.state.commands.filter(c=>c.action==='sample').length>count);
+});
+
+test('a failed release during reassignment disables control instead of continuing with mismatched settings',async t=>{
+ const fake=controller();let rejectRelease=false;const factory=()=>{const bridge=fake.factory(),read=bridge.request;bridge.request=async body=>{if(body.action==='release'&&rejectRelease)throw Error('release failed');return read(body);};return bridge;};
+ const {request,cookie,app}=await fixture(t,{cooling:{bridgeFactory:factory,autoPoll:false}}),post=body=>request('/api/cooling',{cookie,method:'POST',body});
+ assert.equal((await post({enabled:true,assignments:[assignment]})).status,200);rejectRelease=true;
+ assert.equal((await post({assignments:[{...assignment,minPercent:50}]})).status,400);assert.equal(app.cooling.snapshot().enabled,false);assert.equal(app.cooling.snapshot().mode,'fault');assert.equal(fake.state.open,false);
 });
 
 test('a live channel whose limit shrinks below its minimum releases control instead of exceeding the new limit',async t=>{

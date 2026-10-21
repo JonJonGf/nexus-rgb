@@ -12,7 +12,7 @@ const profiles = [
 class Cooling {
   constructor(directory,options={}){
     this.options=options;this.now=options.now||Date.now;this.file=path.join(directory,'cooling.json');
-    this.config={profile:'balanced',assignments:[],customProfiles:[]};this.enabled=false;this.mode='off';this.bridge=null;this.activeProfile=null;
+    this.config={profile:'balanced',assignments:[],customProfiles:[],channelPreferences:[]};this.enabled=false;this.mode='off';this.bridge=null;this.activeProfile=null;
     this.data={sensors:[],controls:[],fans:[],simulated:false};this.outputs=[];this.previous=new Map();
     this.queue=Promise.resolve();this.pending=0;this.error=null;this.lastSent='';this.timer=null;
     try{this.config=validate(readJson(this.file,this.config));}catch(error){this.error=error.message;}
@@ -49,11 +49,16 @@ class Cooling {
     if(r&&r.pid===this.bridge?.pid&&Number.isInteger(r.pid)&&/^\d+$/.test(String(r.start))&&/^\d+$/.test(String(r.cpuTicks))&&Number.isSafeInteger(r.memoryBytes)&&r.memoryBytes>=0)
       next.resources={pid:r.pid,role:'cooling-helper',start:String(r.start),cpuTicks:String(r.cpuTicks),memoryBytes:r.memoryBytes};
     if(value.board&&typeof value.board.manufacturer==='string'&&typeof value.board.model==='string')next.board={manufacturer:value.board.manufacturer.slice(0,160),model:value.board.model.slice(0,160)};
-    this.data=identify(next);
+    this.data=identify(next,this.config.channelPreferences);
   }
   monitor(){return this.serial(async()=>{await this.open();return this.snapshot();});}
   configure(body){return this.serial(async()=>{
-    if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['enabled','profile','assignments','customProfiles'].includes(k)))throw Error('Configuração de ventilação inválida.');
+    if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['enabled','profile','assignments','customProfiles','channelPreferences'].includes(k)))throw Error('Configuração de ventilação inválida.');
+    if(body.channelPreferences!==undefined){
+      if(Object.keys(body).length!==1)throw Error('Salve a identificação separadamente da ativação.');
+      const config=validate({...this.config,channelPreferences:body.channelPreferences});
+      writeJson(this.file,config);this.config=config;this.data=identify(this.data,config.channelPreferences);return this.snapshot();
+    }
     if(body.customProfiles!==undefined){
       if(Object.keys(body).length!==1)throw Error('Salve os perfis separadamente da ativação.');
       const config=validate({...this.config,customProfiles:body.customProfiles});
@@ -64,12 +69,14 @@ class Cooling {
     if(body.profile&&!body.assignments)next.assignments=next.assignments.map(({points,interpolation,...a})=>a);
     const config=validate(next);const enabled=body.enabled??this.enabled;
     if(enabled&&!config.assignments.length)throw Error('Selecione ao menos um canal e seu sensor.');
-    if(enabled){await this.open();for(const a of config.assignments){const channel=this.data.controls.find(c=>c.id===a.controlId);if(!channel||!this.data.sensors.some(s=>s.id===a.sensorId))throw Error('Canal ou sensor indisponível. Confira a associação.');if(a.minPercent>channel.max)throw Error('O mínimo escolhido excede o limite do canal.');}}
-    writeJson(this.file,config);
-    if(body.assignments&&this.enabled)await this.bridge.request({action:'release'});
+    if(enabled){await this.open();for(const a of config.assignments){const channel=this.data.controls.find(c=>c.id===a.controlId);if(!channel||!this.data.sensors.some(s=>s.id===a.sensorId))throw Error('Canal ou sensor indisponível. Confira a associação.');if(!channel.controllable)throw Error('Este canal não oferece uma faixa segura de controle.');if(a.minPercent>channel.limits.maximum)throw Error('O mínimo escolhido excede o limite do canal.');}}
+    try{
+      if(body.assignments&&this.enabled)await this.bridge.request({action:'release'});
+      writeJson(this.file,config);
+    }catch(error){if(this.enabled){await this.off();this.mode='fault';this.error=error.message;}throw error;}
     this.config=config;this.previous.clear();this.lastSent='';
     if(!enabled){if(body.enabled===false)await this.off();return this.snapshot();}
-    this.activeProfile=structuredClone(this.allProfiles().find(p=>p.id===config.profile));this.enabled=true;this.mode='controlling';await this.step(false);return this.snapshot();
+    this.activeProfile=structuredClone(this.allProfiles().find(p=>p.id===config.profile));this.enabled=true;this.mode='controlling';await this.step();return this.snapshot();
   });}
   async step(sample=true){
     if(!this.bridge)return;
@@ -80,7 +87,7 @@ class Cooling {
         const outputs=this.config.assignments.map(a=>{
           const control=this.data.controls.find(c=>c.id===a.controlId);
           if(!control)throw Error('Um canal de ventilação foi desconectado.');
-          if(a.minPercent>control.max)throw Error('O limite do canal mudou. Revise a velocidade mínima antes de reativar.');
+          if(!control.controllable||a.minPercent>control.limits.maximum)throw Error('O limite do canal mudou. Revise a velocidade mínima antes de reativar.');
           const temperature=this.data.sensors.find(s=>s.id===a.sensorId)?.value;
           const failsafe=!Number.isFinite(temperature)||temperature< -20||temperature>150;
           const emergency=failsafe||temperature>=a.critical||preset.id==='turbo'&&!a.points;
@@ -92,7 +99,7 @@ class Cooling {
             if(percent<old.percent&&Math.abs(temperature-old.temperature)<2){percent=old.percent;referenceTemperature=old.temperature;}
             percent=Math.max(percent,old.percent-Math.max(0,now-old.at)/1000*12);
           }
-          percent=Math.round(Math.max(a.minPercent,control.min,Math.min(control.max,percent)));
+          percent=Math.max(a.minPercent,control.limits.minimum,Math.min(control.limits.maximum,Math.round(percent)));
           this.previous.set(a.controlId,{percent,temperature:referenceTemperature,at:now});
           return {id:a.controlId,percent,temperature,failsafe,emergency,rpm:this.data.fans.find(f=>f.id===a.rpmId)?.value??null};
         });
@@ -121,6 +128,8 @@ function curve(points,value,interpolation='linear'){
 }
 function validate(value){
   if(!value||typeof value!=='object'||!Array.isArray(value.assignments)||value.assignments.length>32)throw Error('Configuração de ventilação inválida.');
+  const channelPreferences=value.channelPreferences??[];
+  if(!Array.isArray(channelPreferences)||channelPreferences.length>128||channelPreferences.some(p=>!p||Object.keys(p).some(k=>!['key','name','hidden'].includes(k))||typeof p.key!=='string'||!/^[a-f0-9]{64}$/.test(p.key)||typeof p.name!=='string'||p.name.length>48||/[\u0000-\u001f]/.test(p.name)||typeof p.hidden!=='boolean')||new Set(channelPreferences.map(p=>p.key)).size!==channelPreferences.length)throw Error('Identificação de canal inválida.');
   const customProfiles=value.customProfiles??[];
   if(!Array.isArray(customProfiles)||customProfiles.length>3)throw Error('Você pode salvar até três perfis personalizados.');
   for(const p of customProfiles){if(!p||Object.keys(p).some(k=>!['id','name','points','interpolation'].includes(k))||p.interpolation!==undefined&&!['linear','smooth'].includes(p.interpolation)||typeof p.id!=='string'||!/^custom-[a-f0-9]{32}$/.test(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>40||/[\u0000-\u001f]/.test(p.name))throw Error('Perfil personalizado inválido.');validatePoints(p.points);}
@@ -137,7 +146,7 @@ function validate(value){
     return structuredClone(a);
   });
   if(new Set(assignments.map(a=>a.controlId)).size!==assignments.length)throw Error('Canal de ventilação repetido.');
-  return {profile:value.profile,assignments,customProfiles:customProfiles.map(p=>({id:p.id,name:p.name.trim(),points:structuredClone(p.points),interpolation:p.interpolation||'linear'}))};
+  return {profile:value.profile,assignments,channelPreferences:channelPreferences.map(p=>({key:p.key,name:p.name.trim(),hidden:p.hidden})),customProfiles:customProfiles.map(p=>({id:p.id,name:p.name.trim(),points:structuredClone(p.points),interpolation:p.interpolation||'linear'}))};
 }
 function validatePoints(points){if(!Array.isArray(points)||points.length<2||points.length>8||points.some((p,i)=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||p[0]<20||p[0]>100||p[1]<20||p[1]>100||i>0&&(p[0]<=points[i-1][0]||p[1]<points[i-1][1])))throw Error('A curva deve subir com a temperatura, entre 20 e 100%.');}
 module.exports={Cooling};

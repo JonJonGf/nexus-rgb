@@ -2,6 +2,8 @@
 
 [English](README-en.md) · [Português](README-pt.md) · [Documentation](docs/en/README.md)
 
+[Hardware compatibility and current limits](docs/en/COMPATIBILITY.md): detection, RGB control, sensor monitoring and fan curves have different requirements.
+
 <p align="center"><img src="docs/assets/nexus-banner-en.svg" alt="Nexus RGB Studio — local lighting control for Windows" width="100%"></p>
 
 **Your RGB, your network, your control.** Arrange your PC components on a 2D map, create or import lighting effects, and control your setup from a PC, phone or compatible Alexa Echo.

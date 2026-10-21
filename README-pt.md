@@ -2,6 +2,8 @@
 
 [Português](README-pt.md) · [English](README-en.md) · [Documentation in English](docs/en/README.md)
 
+[Compatibilidade e limites atuais](docs/COMPATIBILIDADE.md): detectar, controlar RGB, monitorar sensores e aplicar curvas de fan têm requisitos diferentes.
+
 > **Em desenvolvimento, fora da alpha.40:** ventilação opcional e diagnóstico portátil de GPU. Consulte [ventilação](docs/VENTILACAO.md) e [coletor de GPU](docs/DIAGNOSTICO-GPU.md). A GPU Gigabyte RX 7600 de um teste externo continua apagada na alpha.40; a investigação está aberta.
 
 > **Novidade na alpha.40:** base OpenRGB Headless, correções no controle de GPUs e zonas organizadas por aparelho. O editor JSON/HTML de Perfis da alpha.39 continua disponível. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.40.md).
