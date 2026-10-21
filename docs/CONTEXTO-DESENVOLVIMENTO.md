@@ -4,6 +4,14 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 21/10/2026
 
+### Candidata de ventilação instalada com autorização atual
+
+- Usuário respondeu **Estou conectado, pode abrir** ao pedido específico do instalador privado. Setup de desenvolvimento conferido novamente pelo SHA256 `72d43c3c8f2b3101f90e24578f04fd13a02c07b16b30e14be09f77b0b74c35c7` e iniciado pelo shell interativo com progresso visível, `/SILENT`, `/NORESTART`, PawnIO desmarcado. Nenhuma reinicialização do Windows. Log privado `data/cooling-dev/install-20261021-154742.log`: instalação bem-sucedida, bandeja iniciada e encerramento às **15:48:44 Brasília em 21/10** sem necessidade de restart. Durante a substituição os serviços ficaram brevemente parados; verificação posterior confirmou ambos Running.
+- Instalado agora é **development sem tag**, versão base 0.1.0, carimbo `9e4da6e96fd135edaa58f842c651687e2b02410e` mais mudanças locais da candidata, conforme explicado abaixo; **não é alpha.41 nem a alpha.40 oficial**. Arquivos instalados de servidor/política/bridge/launcher/helper conferem byte a byte com `dist/app`. Alpha.40 publicada permanece intacta no GitHub.
+- API real confirmou hardware conectado com seis componentes e `/api/cooling` disponível, `enabled=false`, `mode=off`, cinco perfis. Nenhum processo `nexus-cooling` ativo. Não enviado comando de detecção/sensor ou alteração de RPM; validação mecânica/compatibilidade real continua pendente. Backup privado foi criado antes da instalação. Log protegido geral não foi lido por falta de acesso; sucesso observado pelo log do setup, serviços, arquivos e API, sem afirmar evidências protegidas não consultadas.
+- Código permanece salvo em `993bc22`, continuidade anterior em `ce4ed80`, branch `codex/fan-control-dev`; sem push/tag/release nova. Esta atualização é documental posterior à compilação/instalação.
+- **Retorno físico externo da GPU:** após repetir a pergunta a pedido do usuário, ele confirmou que o amigo desligou o PC **e retirou da tomada**, mas o RGB da RX 7600 continuou apagado. Ciclo sem alimentação não recuperou o caso; não insistir nele nem apresentar soft-lock como diagnóstico confirmado. Próximo passo é relatório portátil revisável no PC afetado e comparação de retorno/protocolo se necessária. Não anunciar causa elétrica, GPU danificada, driver ausente ou correção sem evidência. GPU continua dando vídeo; teste anterior estático/restart também falhou.
+
 ### Instalador privado de desenvolvimento com ventilação
 
 - Usuário pediu concluir pacote instalável e solicitar confirmação para UAC; também reiterou pesquisa da RX 7600. Esclarecimento: a etapa anterior tinha helper/runner simulado, **ainda não a integração ao serviço Windows instalado**. Integração agora implementada, sem anunciar teste físico concluído.
