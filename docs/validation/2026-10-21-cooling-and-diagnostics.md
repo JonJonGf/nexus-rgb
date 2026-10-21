@@ -65,8 +65,8 @@ Resultados e método em [VENTILACAO.md](../VENTILACAO.md) e [JSON público](../b
 
 ## Artefatos e próximo passo
 
-- `dist/diagnostics/NexusRGB-Diagnostic.exe`, 254.976 bytes, SHA-256 `7ca006dbc92972da6ac8fe25edac98da8f6b6da9318dd0b731b00f625b998fd6`.
-- `dist/diagnostics/NexusRGB-GPU-Diagnostic-dev.zip`, 239.664 bytes, SHA-256 `a7121bf4dcf1828aa12e0032281bba0d5897046380bac0e2f97e10abd38628ec`. Inclui EXE, instruções PT/EN, licença e soma do EXE. Não é instalador nem asset de release pública.
+- `dist/diagnostics/NexusRGB-Diagnostic.exe`, **256.000 bytes**, SHA-256 `69ac650f1b7658a059fe0b1e52546618a9f8d1ef64967f91ec466299ab8af94d`.
+- `dist/diagnostics/NexusRGB-GPU-Diagnostic-dev.zip`, **239.850 bytes**, SHA-256 `4e994eee0f078468ad75093510b4790c90fd562ca8e9949ef151e562e88c707e`. Inclui EXE, instruções PT/EN, licença e soma do EXE. Não é instalador nem asset de release pública. Estes hashes substituem a compilação intermediária após incluir contagens Fusion2/ADL motivadas pela pesquisa adicional; o executável final foi recompilado e os testes de fixture/HTTP repetidos com sucesso.
 - Dados/screenshots/logs privados em `data/cooling-dev/` e `data/gpu-report-tests/`, não versionados. Sem processos de diagnóstico/ventilação deixados em execução após os ensaios.
 - Próxima evidência GPU: amigo executar a ferramenta no PC afetado, revisar e enviar JSON + relato físico. Não repetir como novos os testes estático/reinício já negativos.
 - Próxima etapa cooling: combinar leitura real e ensaio de canal/RPM com o dono do PC; verificar backend, partida mínima, liberação, sensores inválidos e concorrência de barramento. Antes de distribuição oficial, concluir inventário de licenças/fontes transitivas e plumbing de privilégios/instalação. Não chamar a simulação de validação térmica.
