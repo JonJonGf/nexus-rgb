@@ -8,6 +8,8 @@ The pinned source includes GPU controller families for ASUS Aura, ASRock, Colorf
 
 ## Capabilities Nexus can use
 
+The generic Gigabyte Fusion 2 GPU driver creates five fixed one-LED zones in `SetupZones()`. It does not discover five physical regions on the RX 7600. Grouping them under one controller in the UI does not validate independent physical control. A GPU should have one primary control; independently exposed areas require model/revision-specific evidence. The generic zone count alone does not establish why the RGB stays dark.
+
 | Reported capability | Behavior |
 | --- | --- |
 | Direct per-LED control | Spatial output and software effects; one composed frame preserves independent zones |

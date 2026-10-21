@@ -8,6 +8,8 @@ A alpha.40 incorpora o catálogo de controladores do [OpenRGB Headless no commit
 
 ## Famílias presentes na base
 
+**Zonas genéricas da Gigabyte Fusion 2 GPU:** esse driver cria cinco zonas fixas de um LED em `SetupZones()`. Essa quantidade não vem de uma descoberta das áreas físicas da RX 7600. A interface agrupa pelo ID da controladora, mas isso não comprova cinco regiões independentes no aparelho. Um controle principal por GPU e mapeamento específico das áreas realmente verificadas precisam ser distinguidos; a contagem genérica não estabelece a causa do RGB apagado.
+
 Os fontes dessa revisão incluem controladores de GPU para ASUS Aura, ASRock, Colorful, EVGA (Pascal/GP102/Turing/Ampere), Galax/KFA2, Gigabyte RGB Fusion (incluindo Fusion 2 e Blackwell), Intel Arc A770 LE, Manli, MSI, NVIDIA Illumination, Palit, PNY, PowerColor Red Devil, Sapphire Nitro Glow e Zotac. **Isso não significa todos os modelos dessas marcas**: IDs, revisão da placa, sistema operacional, driver e firmware determinam a detecção. A [lista upstream](https://openrgb.org/devices.html) pode mudar e não substitui a revisão efetivamente distribuída no instalador.
 
 ## O que fica disponível
