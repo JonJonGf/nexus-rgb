@@ -25,4 +25,4 @@ O uso do termo ARGB preserva o escopo anterior: saídas redimensionáveis sem LE
 - Desktop/celular 390 px inspecionados, sem overflow horizontal. Evidência privada em `data/argb-setup/`; snapshots e logs não entram no Git.
 - Apenas interface/documentação/testes mudaram. Sem dependências de runtime novas, timers, trabalho por quadro, alteração de cadência ou benchmark novo desnecessário para estes controles. Sem nova instalação/VM, reinício, UAC, release ou teste físico.
 
-Branch `codex/fan-control-dev`, base anterior `af97610`. Commit final será conferido no Git; esta candidata não altera o instalador alpha.40 já publicado.
+Branch `codex/fan-control-dev`, base anterior `af97610`, commit de código **`075207f`**. Esta atualização documental posterior não modifica os binários. A candidata não altera o instalador alpha.40 já publicado.
