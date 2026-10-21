@@ -35,15 +35,21 @@ foreach($dependency in @('vendor\PawnIO_setup.exe','vendor\vc_redist.x64.exe','r
 }
 $expected=(Get-Content -LiteralPath 'vendor-manifest.json' -Raw | ConvertFrom-Json)
 foreach($item in $expected.files){if((Get-FileHash -LiteralPath $item.path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $item.sha256){throw "Integridade inválida: $($item.path)"}}
-Assert-NexusOpenRGBArchive (Join-Path $projectRoot 'vendor\openrgb-1.0.zip')
-Expand-Archive -LiteralPath 'vendor\openrgb-1.0.zip' -DestinationPath (Join-Path $buildRoot 'openrgb') -Force
-$unpackedRoot=[IO.Path]::GetFullPath((Join-Path $buildRoot 'openrgb\OpenRGB Windows 64-bit'))
-if(-not $unpackedRoot.StartsWith([IO.Path]::GetFullPath($buildRoot)+'\openrgb\',[StringComparison]::OrdinalIgnoreCase)){throw 'Diretório OpenRGB fora do pacote.'}
-Get-ChildItem -LiteralPath $unpackedRoot -Force | Move-Item -Destination (Join-Path $buildRoot 'openrgb') -Force
-Remove-Item -LiteralPath $unpackedRoot
+. (Join-Path $PSScriptRoot 'openrgb-package.ps1')
+$headlessArchive=Join-Path $projectRoot 'dependencies\openrgb-headless\windows-x64-18e2c95.zip'
+$headlessOrigin=Join-Path $projectRoot 'dependencies\openrgb-headless\provenance.json'
+Assert-NexusOpenRGBArchive $headlessArchive
+Assert-NexusHeadlessArchive $headlessArchive $headlessOrigin
+Expand-Archive -LiteralPath $headlessArchive -DestinationPath (Join-Path $buildRoot 'openrgb') -Force
+Rename-Item -LiteralPath (Join-Path $buildRoot 'openrgb\OpenRGB-headless.exe') -NewName 'OpenRGB.exe'
+foreach($runtimeFile in @('msvcp140.dll','msvcp140_codecvt_ids.dll','vcruntime140.dll','vcruntime140_1.dll')) {
+  if((Get-AuthenticodeSignature -LiteralPath (Join-Path $buildRoot ('openrgb\'+$runtimeFile))).Status -ne 'Valid'){throw ('Assinatura MSVC invalida: '+$runtimeFile)}
+}
 if(Test-Path -LiteralPath (Join-Path $buildRoot 'openrgb\WinRing0x64.sys')){throw 'Driver WinRing0 não é permitido.'}
-Copy-Item -LiteralPath 'vendor\openrgb-source-1.0.zip' -Destination (Join-Path $buildRoot 'sources') -Force
-Copy-Item -LiteralPath 'vendor\openrgb-source\openrgb\LICENSE' -Destination (Join-Path $buildRoot 'licenses\OpenRGB-GPL-2.0.txt') -Force
+Copy-Item -LiteralPath 'vendor\openrgb-source-18e2c95.zip' -Destination (Join-Path $buildRoot 'sources') -Force
+Copy-Item -LiteralPath $headlessOrigin -Destination (Join-Path $buildRoot 'sources\OpenRGB-BUILD-INFO.json') -Force
+Copy-Item -LiteralPath 'dependencies\openrgb-headless\README.md' -Destination (Join-Path $buildRoot 'sources\OpenRGB-BUILD.md') -Force
+Copy-Item -LiteralPath 'dependencies\openrgb-headless\LICENSE.txt' -Destination (Join-Path $buildRoot 'licenses\OpenRGB-GPL-2.0.txt') -Force
 Copy-Item -LiteralPath 'tools\inno\License.txt' -Destination (Join-Path $buildRoot 'licenses\Inno-Setup.txt') -Force
 Copy-Item -LiteralPath 'vendor\Node-LICENSE.txt' -Destination (Join-Path $buildRoot 'licenses\Node.txt') -Force
 Copy-Item -LiteralPath 'vendor-manifest.json' -Destination $buildRoot -Force

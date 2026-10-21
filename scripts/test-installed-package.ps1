@@ -149,7 +149,12 @@ try {
   $trayBefore=Start-Process -FilePath (Join-Path $root 'NexusRGB.exe') -ArgumentList '--tray' -WindowStyle Hidden -PassThru
   Start-Sleep -Seconds 2
   Check (-not $trayBefore.HasExited) 'Own tray process is open before upgrade'
+  $obsoleteQt=Join-Path $root 'openrgb\Qt6NexusUpgradeFixture.dll'
+  [IO.File]::WriteAllText($obsoleteQt,'obsolete runtime fixture')
   Setup 'upgrade'; VerifyServices
+  Check (-not(Test-Path -LiteralPath $obsoleteQt)) 'Upgrade removes obsolete Qt runtime files from the previous distribution'
+  Check (@(Get-ChildItem -LiteralPath (Join-Path $root 'openrgb') -Filter 'Qt*.dll').Count -eq 0) 'Headless installation has no Qt runtime DLLs'
+  Check (Test-Path -LiteralPath (Join-Path $root 'sources\openrgb-source-18e2c95.zip')) 'Headless installation includes the corresponding pinned source archive'
   $trayBefore.Refresh()
   Check $trayBefore.HasExited 'Upgrade closes the previous tray process automatically'
   Check (-not $welcome) 'Upgrade does not repeat the welcome guide'

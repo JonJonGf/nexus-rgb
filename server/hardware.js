@@ -858,8 +858,11 @@ class Hardware extends EventEmitter {
           const modeSettings = fading && !settings.power ? { ...settings, power: true } : settings;
           await this.applyMode(d, mode, modeSettings, mode.flagList.includes('perLedColor') && (!activePower || settings.nativeMode === undefined));
           let colors = null;
-          if ((!activePower || settings.nativeMode === undefined) && mode.flagList.includes('perLedColor')) {
-            colors = this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow);
+          const nativePerLed = activePower && settings.nativeMode !== undefined && mode.colorMode === 1;
+          if ((!activePower || settings.nativeMode === undefined || nativePerLed) && mode.flagList.includes('perLedColor')) {
+            colors = nativePerLed
+              ? frame({ ...settings, effect: 'static', brightness: mode.flagList.includes('brightness') ? 100 : settings.brightness }, d.ledCount, 0)
+              : this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow);
             await this.sendLeds(d, colors, !activePower, forceSend);
           } else {
             // A confirmed hardware mode replaces the deferred software frame.

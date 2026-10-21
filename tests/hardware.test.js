@@ -33,6 +33,18 @@ test('GPU com Custom e salvamento automático aceita cor estática sem anunciar 
   mock.calls = []; await hardware.tick(); await hardware.tick(); assert.equal(mock.calls.length, 0, 'Estático não grava repetidamente no controlador.');
 });
 
+test('modo nativo de GPU com cor por LED recebe a nova cor sem animação por software ou brilho duplicado', async t => {
+  const raw = controller('GPU native-color fixture', 'PCI:native-color');
+  raw.modes.push({ id: 2, name: 'Breathing', flagList: ['perLedColor','brightness'], colorMode: 1, brightnessMin: 0, brightnessMax: 100 });
+  raw.modes[1].id = 1;
+  const store = { data: { master: { ...defaults, effect: 'static', brightness: 100, color: '#ff0000' }, devices: {} } }, mock = new Mock([raw]);
+  const hardware = new Hardware(store, { makeClient: () => mock }); t.after(() => hardware.stop()); hardware.stopped = false;
+  await hardware.connect(); await hardware.tick(); const id = hardware.devices[0].id;
+  mock.calls = []; store.data.devices[id] = { nativeMode: 2, color: '#00ff00', brightness: 50 }; hardware.changed(); await hardware.tick();
+  assert.deepEqual(mock.calls.find(c => c[0] === 'leds')?.[2], Array(4).fill({ red: 0, green: 255, blue: 0 }), 'Brilho fica no modo nativo; o quadro deve conter a nova cor integral.');
+  mock.calls = []; await hardware.tick(); await hardware.tick(); assert.equal(mock.calls.length, 0);
+});
+
 test('transição de perfil é limitada, termina no alvo e desligamento não espera a mistura',async t=>{
   const store={data:{master:{...defaults,brightness:100,color:'#0000ff'},devices:{}}},mock=new Mock([controller('Alvo','transition')]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();await hardware.tick();const id=hardware.devices[0].id;
   store.data.master.color='#ff0000';hardware.transition(1000);hardware.transitionState.started-=500;await hardware.tick();const mixed=hardware.outputFor(id).colors[0];assert.ok(mixed.red>100&&mixed.red<200);assert.ok(mixed.blue>50&&mixed.blue<155);

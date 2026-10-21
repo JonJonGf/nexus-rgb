@@ -2,7 +2,16 @@
 
 Este é o registro público de continuidade entre sessões e ferramentas. Leia também [AGENTS.md](../AGENTS.md), o [plano de melhorias](PLANO-MELHORIAS.md) e o [guia de desenvolvimento](DESENVOLVIMENTO.md). Confirme o estado atual no Git e no ambiente antes de agir; versões instaladas em outros computadores podem ser diferentes.
 
-## Situação atual — 20/10/2026
+## Situação atual — 21/10/2026
+
+### Retomada de 21/10 — base headless incorporada à candidata alpha.40
+
+- Usuário pediu continuar a entrega. Branch `codex/gpu-capabilities`; primeiro bloco de código `29ddcb6` e dependência fixada/proveniência `3ff3edf` enviados ao GitHub. Main ainda `216a76e` e Release pública alpha.39 (`30e4ab3`). Instalação real não foi atualizada por este agente; não houve UAC, reinício de serviço ou teste físico de GPU nesta retomada.
+- Bundle upstream preservado em `dependencies/openrgb-headless/windows-x64-18e2c95.zip` (3,5 MB) para eliminar dependência do artefato temporário. Manifesto aponta ao ZIP no commit Nexus imutável `3ff3edf` e ao fonte do commit upstream exato; hashes, inventário e licença conferidos. `scripts/openrgb-package.ps1` valida origem, cada arquivo, módulos PawnIO/MSVC, PE x64, limites e ausência de Qt/WinRing. Download/build usam esse bundle, renomeando só o executável no payload para o nome esperado pelo supervisor. Fonte correspondente/proveniência/licença acompanham o instalador. Atualização remove apenas DLLs Qt antigas sob runtime gerenciado; teste em VM ganhou três verificações desse ciclo. Nada do PC instalado foi removido.
+- Build local de desenvolvimento **concluiu**, sem executar instalador: setup 81.755.072 bytes, SHA `a230113e0bfe02fbbf27d4c2315307903777f250e7ca43218251b7f33f6b0282`; desinstalador SHA `3136ba9835d982b026b8ee172fa03d2a4f65bc19fb3bb0faf7f6899af8c6fe34`. Esses são artefatos privados de desenvolvimento, não a Release alpha.40. Auditoria de produção zero vulnerabilidades; quatro DLLs MSVC app-local com assinatura Microsoft válida. Menor tamanho do setup não equivale a nova medição de RSS.
+- Outra falha reproduzida/corrigida: mudar cor em modo nativo GPU com `perLedColor` não enviava a cor nova. Agora envia uma vez em intensidade integral quando o brilho fica no hardware, sem multiplicar brilho duas vezes ou iniciar streaming de software. Teste vermelho antes (nenhum quadro), verde depois; regressão de retorno mapa/nativo passou.
+- Diagnóstico agora inclui agrupamento anônimo de zonas e `control` com energia/brilho/modo solicitados e capacidade espacial. Cores, nomes e IDs reais continuam omitidos; valores ausentes ficam nulos. Regressão vermelha antes, **23/23** testes direcionados após, incluindo privacidade. Não representa confirmação física de aplicação.
+- Validação: suíte Edge completa **58/58 sem retries** antes desses últimos ajustes backend; após ampliar QA de agrupamento, **8/8 Edge** de dispositivos/diagnóstico passaram (PT/EN, celular sem overflow). Capturas desktop/celular inspecionadas em `data/alpha40-devices-*.png`. Testes de inventário headless e WinRing **2/2** passaram. Suíte geral final, benchmark equivalente e ciclo do instalador em VMs ainda pendentes para esta integração. Próximo: commit desta integração, CI/CodeQL/VM e conclusão dos controles por aparelho; só publicar alpha.40 após gates e conferir artefatos, entregando download ao usuário.
 
 ### Alpha.40 — implementação em andamento após publicação da alpha.39
 

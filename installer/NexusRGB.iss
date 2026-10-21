@@ -54,6 +54,10 @@ brazilianportuguese.OpenNexus=Abrir Nexus RGB
 Name: "desktopicon"; Description: "{cm:DesktopIcon}"
 Name: "traystartup"; Description: "{cm:TrayStartup}"
 Name: "pawnio"; Description: "{cm:PawnIO}"
+[InstallDelete]
+; Obsolete managed runtime DLLs from the Qt distribution; user data lives elsewhere.
+Type: files; Name: "{app}\openrgb\Qt5*.dll"
+Type: files; Name: "{app}\openrgb\Qt6*.dll"
 [Files]
 Source: "{#Payload}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\vendor\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall

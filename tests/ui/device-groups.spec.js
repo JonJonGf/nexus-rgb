@@ -32,10 +32,25 @@ test('doze zonas aparecem em três aparelhos com ajustes individuais acessíveis
   await gpu.getByLabel('Cor de Zona 2', { exact: true }).fill('#00ff00');
   await gpu.getByLabel('Cor de Zona 2', { exact: true }).dispatchEvent('change');
   expect((await request).postDataJSON()).toEqual({ color: '#00ff00', effect: 'static' });
+  await page.screenshot({ path: 'data/alpha40-devices-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(gpu.getByLabel('Cor de Zona 2', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'data/alpha40-devices-mobile.png' });
   await page.getByRole('button', { name: /Periféricos/ }).click();
   await expect(page.locator('#devices > .device-card')).toHaveCount(1);
   await expect(page.locator('#devices > .device-card').getByRole('heading', { name: 'Mouse de teste', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('agrupamento mantém nomes de aparelhos e traduz controles e contagens em inglês', async ({ page }) => {
+  await page.goto('/'); await page.locator('.nav[data-page=settings]').click();
+  await page.locator('#settings-language').selectOption('en'); await page.locator('.nav[data-page=devices]').click();
+  await expect(page.locator('#devices > .device-card')).toHaveCount(3);
+  await expect(page.getByRole('heading', { name: 'GPU de teste', exact: true })).toBeVisible();
+  await expect(page.getByText('5 zones · 5 LEDs', { exact: true })).toBeVisible();
+  await page.getByText('Zones and individual controls', { exact: true }).first().click();
+  await expect(page.getByLabel('Color of Zona 2', { exact: true }).first()).toBeVisible();
 });
 
 test.describe('saída ARGB não configurada', () => {

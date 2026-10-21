@@ -1,5 +1,15 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),{Resources}=require('../server/resources'),{diagnostics}=require('../server/diagnostics');
+
+test('diagnóstico agrupa zonas com IDs anônimos e registra energia e brilho solicitados sem exportar cores',()=>{
+  const first={id:'a'.repeat(24),controllerId:'b'.repeat(24),type:2,ledCount:1,status:'online',settings:{power:false,brightness:0,nativeMode:3,color:'#a1b2c3'},spatialCapable:true,effects:['static']};
+  const devices=[first,{...first,id:'c'.repeat(24),settings:{power:true,brightness:50}},{...first,id:'d'.repeat(24),controllerId:'e'.repeat(24),settings:{power:true,brightness:100}}];
+  const report=diagnostics({snapshot:()=>({connected:true,controllerCount:2,devices})},{config:{}},{data:{}},null);
+  assert.deepEqual(report.components.map(d=>d.controller),['controller-1','controller-1','controller-2']);
+  assert.deepEqual(report.components[0].control,{power:false,brightness:0,nativeMode:3,spatialCapable:true});
+  assert.deepEqual(report.components[1].control,{power:true,brightness:50,nativeMode:null,spatialCapable:true});
+  const text=JSON.stringify(report);for(const privateValue of ['a'.repeat(24),'b'.repeat(24),'#a1b2c3'])assert.equal(text.includes(privateValue),false);
+});
 test('resource totals include the owned USB bridge process',async()=>{
   const monitor=new Resources({read:async()=>({partial:false,processes:[{pid:1234,role:'hid-bridge',start:'123',cpuTicks:'0',memoryBytes:2097152}]})});
   const sample=await monitor.sample();assert.equal(sample.processes.find(p=>p.role==='hid-bridge').memoryMB,2);
@@ -72,7 +82,7 @@ test('diagnóstico permite só resumo por allowlist, anonimiza componentes e exc
   assert.equal(serialized.includes('9999'),false);
   assert.equal(report.health.state,'partial');
   assert.equal(report.health.totalLEDs,12);
-  assert.deepEqual(report.components,[{id:'device-1',kind:'argb',type:2,ledCount:12,status:'error',mapExcluded:true,hasError:true}]);
+  assert.deepEqual(report.components,[{id:'device-1',controller:'controller-1',kind:'argb',type:2,ledCount:12,status:'error',mapExcluded:true,hasError:true,control:{power:null,brightness:null,nativeMode:null,spatialCapable:false}}]);
   assert.equal(report.errors.studioKind,'effect');
   assert.equal(report.errors.studioQuarantined,true);
   assert.equal(report.errors.hardwareErrorCode,'controller-error');
