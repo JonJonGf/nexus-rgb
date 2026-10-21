@@ -1,6 +1,6 @@
 # ⚡ Nexus RGB Studio
 
-> **Novidade na alpha.39:** edite efeitos JSON/HTML e seus parâmetros diretamente em Perfis, com prévia e ativação explícita no mapa. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.39.md).
+> **Novidade na alpha.40:** base OpenRGB Headless, correções no controle de GPUs e zonas organizadas por aparelho. O editor JSON/HTML de Perfis da alpha.39 continua disponível. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.40.md).
 
 <p align="center">
   <img src="docs/assets/nexus-banner.svg" alt="Nexus RGB Studio — Seu RGB. Sua rede. Seu controle. Windows, OpenRGB incluído, controle local e Alexa para ligar e desligar." width="100%">
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.39/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.39">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.40/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.40">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **Gratuito, aberto e experimental.** Versão **v0.1.0-alpha.39**: correção dos cartões e da edição de perfis do mapa, com editor JSON/HTML e prévia. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.39.md) e a [validação](docs/validation/2026-10-20-alpha39.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo e do suporte do OpenRGB.
+> **Gratuito, aberto e experimental.** Versão **v0.1.0-alpha.40**: OpenRGB Headless, ajustes de protocolo/cores de GPU e agrupamento das zonas por aparelho. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.40.md), a [compatibilidade de GPUs](docs/COMPATIBILIDADE-GPU.md) e a [validação](docs/validation/2026-10-20-alpha40.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo, revisão e suporte do controlador incorporado.
 
 O controle de componentes e controladoras de outras marcas utiliza o OpenRGB incluído. A integração USB própria está limitada ao descritor do Royal Kludge RK61 já exercitado, usando os efeitos internos do teclado e comandos quando o estado muda. Os encoders de outras controladoras são experimentais e não equivalem a suporte físico validado. Não há medição que comprove latência zero ou uma taxa universal de animação dos teclados.
 
@@ -69,7 +69,7 @@ A apresentação inicial aparece somente no primeiro acesso de uma instalação 
 | Requisito | Para que serve |
 | :--- | :--- |
 | Windows 10 ou 11, em um PC x64 | Executar o aplicativo e seus serviços. |
-| Hardware RGB compatível com OpenRGB 1.0 | Detectar e controlar os LEDs. Confira a [lista oficial de dispositivos](https://openrgb.org/devices_1.0.html). |
+| Hardware RGB compatível com a base OpenRGB incorporada | Detectar e controlar os LEDs. Confira a [lista oficial de dispositivos](https://openrgb.org/devices_1.0.html). |
 | Permissão de administrador durante a instalação | Instalar os serviços, preparar o driver e criar as regras locais do Nexus. |
 | PC e celular na mesma rede local | Acessar o painel pelo telefone. O PC pode estar no cabo e o celular no Wi-Fi. |
 | Echo compatível na mesma rede, se quiser Alexa | Usar os comandos de ligar e desligar. |
@@ -82,7 +82,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.39/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.39) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.40/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.40) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -103,7 +103,7 @@ Se você prefere instalar a partir do código, clone o repositório e siga [como
 5. Para controlar RAM e placas-mãe que precisam do driver, mantenha selecionada a opção **Abrir instalador do driver assinado PawnIO** e conclua a janela do instalador oficial.
 6. Aguarde a conclusão e selecione **Abrir Nexus RGB**.
 
-O pacote já inclui **Node.js, OpenRGB 1.0, Microsoft Visual C++ e o instalador oficial do PawnIO**. Essas dependências são preparadas pelo instalador; não é necessário baixá-las separadamente. O Nexus não pede que você desative o antivírus ou as proteções do Windows.
+O pacote já inclui **Node.js, OpenRGB Headless, Microsoft Visual C++ e o instalador oficial do PawnIO**. Essas dependências são preparadas pelo instalador; não é necessário baixá-las separadamente. O Nexus não pede que você desative o antivírus ou as proteções do Windows.
 
 ### 5. Faça o primeiro ajuste
 
@@ -278,7 +278,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.39/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.40/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 
@@ -349,7 +349,7 @@ O painel usa HTTP local e permite que aparelhos da mesma sub-rede privada contro
 
 O instalador cria regras específicas do Nexus para a LAN. Não há telemetria, túnel externo ou atualização automática, e o aplicativo não precisa se conectar ao GitHub para funcionar. **Não abra portas do Nexus no roteador.** A Alexa pode precisar de internet para o próprio funcionamento, mesmo com a ponte Nexus na LAN.
 
-O pacote usa OpenRGB 1.0 e o instalador oficial assinado do **PawnIO**; não inclui WinRing0. A geração do executável recusa drivers ou bibliotecas WinRing encontrados dentro do ZIP do OpenRGB, antes de extrair arquivos. Se o Defender apontar `VulnerableDriver:WinNT/Winring0`, mantenha o arquivo bloqueado e siga a remoção indicada pelo Windows, incluindo reinício quando solicitado. A [Microsoft confirma que essa detecção é válida](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/microsoft-defender-antivirus-alert-vulnerabledriver-winnt-winring0). Não crie exclusões no antivírus para conseguir controlar o RGB.
+O pacote usa OpenRGB Headless fixado em uma revisão verificada e o instalador oficial assinado do **PawnIO**; não inclui WinRing0. A geração do executável recusa drivers ou bibliotecas WinRing encontrados dentro do ZIP do OpenRGB, antes de extrair arquivos. Se o Defender apontar `VulnerableDriver:WinNT/Winring0`, mantenha o arquivo bloqueado e siga a remoção indicada pelo Windows, incluindo reinício quando solicitado. A [Microsoft confirma que essa detecção é válida](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/microsoft-defender-antivirus-alert-vulnerabledriver-winnt-winring0). Não crie exclusões no antivírus para conseguir controlar o RGB.
 
 O suporte depende do dispositivo, e não apenas da marca. Fans ligados à mesma porta ARGB podem aparecer como uma única zona. O Nexus separa componentes quando o controlador fornece as informações necessárias; a instalação automática não garante compatibilidade com todo hardware RGB existente.
 

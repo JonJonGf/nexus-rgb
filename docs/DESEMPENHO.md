@@ -1,5 +1,20 @@
 # Desempenho do Nexus RGB
 
+## Alpha.40 — interface e agrupamento, 21/10/2026
+
+Comparação da interface da tag `v0.1.0-alpha.39` com a candidata, usando o mesmo backend atual e SDK sintético. Duas rodadas em ordem inversa, Edge novo por cenário, três segundos de aquecimento e cinco amostras por rodada. Fixture: três controladoras, cinco zonas, 92 LEDs, quatro perfis e 32 efeitos, mapa a 20 FPS. [Resultados e escopo completos](benchmarks/2026-10-21-alpha40-ui.json).
+
+| Mapa PT-BR, média de duas rodadas | Alpha.39 | Candidata alpha.40 |
+| --- | --- | --- |
+| CPU da árvore Edge (% da máquina) | 0,610 | 0,613 |
+| Working set somado Edge (MiB) | 525,52 | 525,40 |
+| Heap V8 da página (MiB) | 4,15 | 4,12 |
+| FPS do renderer sintético | 20 | 20 |
+
+Oito cenários/rodadas concluíram sem erros da página. A variação é pequena e as amostras são curtas; não demonstra ganho significativo nem mede o consumo total do aplicativo. O working set soma vários processos Edge e pode contar páginas compartilhadas mais de uma vez. Exclui instalação real, OpenRGB, supervisor, bandeja, driver e o próprio harness. Não é benchmark de GPU física ou comparação de memória dos dois binários OpenRGB.
+
+A primeira tentativa foi descartada: coincidiu com a suíte geral e foi interrompida pela saída de um processo auxiliar Edge entre as consultas de PID. O sampler foi corrigido para enumerar somente os processos ainda vivos, preservando o escopo da árvore Edge; a execução acima foi repetida sem a suíte concorrente. Resultados parciais da tentativa descartada não entram na tabela.
+
 ## Experiências opcionais — candidata de 19/10/2026
 
 Comparação de `1a5026b` com a implementação local de Live/cenas/WLED/áudio/contexto. Duas rodadas em ordens opostas, processo novo por cenário, dois segundos de aquecimento e cerca de dez segundos medidos. Servidor real e `Hardware` com SDK sintético: três controladoras e 92 LEDs, incluindo duas RAMs com a proteção de cadência existente. Sem hardware/USB, navegador, OpenRGB, bandeja ou captura de som real neste benchmark. Chamadas HTTP de gestos/bandas estão incluídas no servidor. [Condições e resultados sanitizados](benchmarks/2026-10-19-experiences.json); script `scripts/benchmark-experiences.cjs`.

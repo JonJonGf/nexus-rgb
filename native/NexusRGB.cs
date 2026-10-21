@@ -350,10 +350,13 @@ internal sealed class Worker : ServiceBase {
     private System.Threading.Timer timer;
     private IntPtr job;
     private bool stopping;
+    private bool restarting;
+    private bool resumeScheduled;
+    private DateTime lastResumeRequest = DateTime.MinValue;
     private DateTime nextStart = DateTime.MinValue;
     private int failures;
     private string data;
-    internal Worker(bool hardware) { this.hardware = hardware; ServiceName = hardware ? "NexusRGBHardware" : "NexusRGB"; CanStop = true; CanShutdown = true; AutoLog = true; }
+    internal Worker(bool hardware) { this.hardware = hardware; ServiceName = hardware ? "NexusRGBHardware" : "NexusRGB"; CanStop = true; CanShutdown = true; CanHandlePowerEvent = hardware; AutoLog = true; }
     protected override void OnStart(string[] args) {
         data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", hardware ? "hardware" : "app");
         if (!Directory.Exists(data)) throw new DirectoryNotFoundException(L.T("Use o instalador para criar a pasta do serviço."));
@@ -367,11 +370,12 @@ internal sealed class Worker : ServiceBase {
     }
     private void Tick(object unused) {
         lock (gate) {
-            if (stopping) return;
+            if (stopping || restarting) return;
             if (child != null && !child.HasExited) return;
             if (child != null) { Log("Processo encerrou com código " + child.ExitCode); if ((DateTime.UtcNow - child.StartTime.ToUniversalTime()).TotalMinutes > 5) failures = 0; child.Dispose(); child = null; failures++; nextStart = DateTime.UtcNow.AddSeconds(Math.Min(30, Math.Pow(2, Math.Min(failures, 5)))); }
             if (DateTime.UtcNow < nextStart) return;
             try {
+                if (job == IntPtr.Zero) job = Job.Create();
                 var ports = PortSettings.Load();
                 string exe = Path.Combine(Program.Root, hardware ? "openrgb\\OpenRGB.exe" : "runtime\\node.exe");
                 string arguments = hardware ? "--server --server-host 127.0.0.1 --server-port " + ports.SDK + " --noautoconnect --config \"" + data + "\"" : "\"" + Path.Combine(Program.Root, "server", "index.js") + "\"";
@@ -383,9 +387,7 @@ internal sealed class Worker : ServiceBase {
             } catch (Exception error) { Log("Falha ao iniciar: " + error.Message); if (child != null) { child.Dispose(); child = null; } nextStart = DateTime.UtcNow.AddSeconds(15); }
         }
     }
-    protected override void OnStop() {
-        Process running; IntPtr currentJob;
-        lock (gate) { stopping = true; if (timer != null) { timer.Dispose(); timer = null; } running = child; child = null; currentJob = job; job = IntPtr.Zero; }
+    private void CloseChild(Process running, IntPtr currentJob) {
         if (running != null) {
             try {
                 if (!running.HasExited) {
@@ -398,6 +400,34 @@ internal sealed class Worker : ServiceBase {
             finally { try { running.Dispose(); } catch {} }
         }
         if (currentJob != IntPtr.Zero) Job.Close(currentJob);
+    }
+    protected override bool OnPowerEvent(PowerBroadcastStatus powerStatus) {
+        if (!hardware || (powerStatus != PowerBroadcastStatus.ResumeAutomatic && powerStatus != PowerBroadcastStatus.ResumeSuspend && powerStatus != PowerBroadcastStatus.ResumeCritical)) return true;
+        lock (gate) {
+            if (stopping || resumeScheduled || (DateTime.UtcNow - lastResumeRequest).TotalSeconds < 5) return true;
+            resumeScheduled = true; lastResumeRequest = DateTime.UtcNow;
+        }
+        ThreadPool.QueueUserWorkItem(delegate {
+            // Let Windows restore the device stack; duplicate resume notifications
+            // share this single refresh. The network worker is left running.
+            Thread.Sleep(2000);
+            Process running; IntPtr currentJob;
+            lock (gate) {
+                if (stopping) { resumeScheduled = false; return; }
+                restarting = true; running = child; child = null; currentJob = job; job = IntPtr.Zero;
+            }
+            try { CloseChild(running, currentJob); }
+            finally {
+                lock (gate) { restarting = false; resumeScheduled = false; failures = 0; nextStart = DateTime.MinValue; if (!stopping) Log("Retomada do Windows: renovando o processo de hardware."); }
+            }
+            Tick(null);
+        });
+        return true;
+    }
+    protected override void OnStop() {
+        Process running; IntPtr currentJob;
+        lock (gate) { stopping = true; if (timer != null) { timer.Dispose(); timer = null; } running = child; child = null; currentJob = job; job = IntPtr.Zero; }
+        CloseChild(running, currentJob);
     }
     protected override void OnShutdown() { OnStop(); base.OnShutdown(); }
 }
