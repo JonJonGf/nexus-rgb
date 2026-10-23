@@ -280,3 +280,5 @@ Preservar dados existentes, testar o comportamento anterior e a recuperação, d
 ## Entrega alpha.41 autorizada em 22/10
 
 Publicar ventilação opcional com curvas e identificação manual, incorporando as revisões R3–R5, e diagnóstico portátil v2. Pacote inicia com módulo desligado. Caso RX 7600 continua em investigação: falso negativo dos logs corrigido, confirmação física e retorno ADL/I2C pendentes. Estado exato da publicação e testes no [contexto](CONTEXTO-DESENVOLVIMENTO.md).
+
+**Fechamento alpha.41:** publicada e verificada; ventilação opcional e coletor v2 entregues. Caso físico RX 7600 e intermitência de timeout na validação do worker continuam pendentes, sem correção anunciada. [Validação e limitações](validation/2026-10-22-alpha41.md).
