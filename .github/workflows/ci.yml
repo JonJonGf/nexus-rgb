@@ -13,6 +13,9 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm audit --audit-level=moderate
+      - name: Compilar auxiliar usado nas fixtures sem abrir sensores
+        shell: powershell
+        run: ./scripts/build-cooling.ps1
       - run: npm test
       - run: npm run test:ui
       - run: npm run test:supervisor

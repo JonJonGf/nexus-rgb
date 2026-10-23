@@ -25,6 +25,9 @@ jobs:
         if: github.ref_type == 'tag'
         run: node scripts/check-release.cjs
       - run: npm audit --audit-level=moderate
+      - name: Compilar auxiliar usado nas fixtures sem abrir sensores
+        shell: powershell
+        run: ./scripts/build-cooling.ps1
       - run: npm test
       - run: npm run test:ui
       - run: npm run test:supervisor
@@ -36,8 +39,6 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          ./scripts/build-cooling.ps1
-          if($LASTEXITCODE -ne 0){throw 'Cooling helper build failed'}
           foreach($script in @('test-cooling-native.cjs','test-cooling-broker.cjs','test-cooling-launch-service.cjs','test-cooling-privilege.cjs','test-cooling-package.cjs')) {
             & node ('scripts/'+$script)
             if($LASTEXITCODE -ne 0){throw ('Cooling validation failed: '+$script)}
