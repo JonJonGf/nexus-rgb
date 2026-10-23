@@ -2,7 +2,15 @@
 
 Este é o registro público de continuidade entre sessões e ferramentas. Leia também [AGENTS.md](../AGENTS.md), o [plano de melhorias](PLANO-MELHORIAS.md) e o [guia de desenvolvimento](DESENVOLVIMENTO.md). Confirme o estado atual no Git e no ambiente antes de agir; versões instaladas em outros computadores podem ser diferentes.
 
-## Situação atual — 21/10/2026
+## Situação atual — 22/10/2026
+
+### Relatório do PC externo recebido: RX 7600 na alpha.40
+
+- Usuário enviou saída do coletor portátil, analisada sem executar comandos no PC afetado ou neste hardware. O relatório registra energia geral **false** e todas as cinco zonas GPU **false**, brilho positivo, mapa inativo, SDK ready/connected, sem hang/erro de componentes. Isso explica o pedido de apagar naquele instante; **não resolve nem invalida o relato anterior de falha com estático ligado**. Falta capturar o estado solicitado durante esse teste, junto da observação física.
+- Três hashes conferidos: `server/hardware.js` e `server/openrgb-client.js` coincidem exatamente com os blobs da tag alpha.40; `openrgb/OpenRGB.exe` coincide com `OpenRGB-headless.exe` do ZIP fixado, renomeado pelo build. Identificação PCI do modelo corresponde à segunda variante cadastrada da RX 7600 GAMING OC 8G no fonte fixado. Driver gráfico AMD e serviço PawnIO aparecem presentes; isso não confirma escritas RGB/ADL.
+- `modes: []` nas zonas divididas é apresentação do adaptador, não ausência de driver. `hardwareErrorCode: unavailable` é fallback do sanitizador `Token` no coletor para valor ausente/nulo/não reconhecido; não classificar como falha detectada do motor. O descritor secundário não reconhecido também pode resultar do filtro de nomes; não inferir aparelho defeituoso ou malicioso.
+- Relatório não contém resumo opcional de logs nem retornos das escritas ADL/I2C. Fonte fixado continua ignorando esses retornos no controlador Fusion2, logo SDK conectado não comprova resposta física. Nenhuma causa nova comprovada nem correção de GPU aplicada. Próximo passo: coletar durante pedido ligado/estático visível, confirmando energia geral e zonas true; incluir resumo opcional de logs se disponível e informar aparência física. Se pedido ligado persistir sem luz, preparar instrumentação dos retornos em candidata isolada. Não repetir desligamento/tomada já malsucedido nem recomendar firmware.
+- Git permaneceu na branch `codex/fan-control-dev`, HEAD de código R5 `d12d98c`, documentação anterior `251fa0f`; esta investigação altera somente continuidade. Sem testes automatizados novos (nenhum código de produto alterado), instalação, reinício, comando RGB, push, tag ou release. R5 privada continua sem solução física anunciada para essa RX 7600. Dados crus externos não foram copiados para arquivos versionados.
 
 ### R5 pronta: revisão de compatibilidade e segurança
 
