@@ -565,6 +565,13 @@ class Hardware extends EventEmitter {
           ...component,
           controllerId: device.id,
           controllerName: device.name,
+          ...(device.type === 2 && !device.nativeController ? {delivery: (() => {
+            const queued = this.lastSentColors.get(device.id);
+            const mode = this.modes.has(device.id) ? JSON.parse(this.modes.get(device.id)) : null;
+            return {modeConfigured: Boolean(mode), modeId: mode?.id ?? null, modeBrightness: mode?.brightness ?? null,
+              frameQueued: Boolean(queued), frameBlack: queued ? queued.every(c => c.red === 0 && c.green === 0 && c.blue === 0) : null,
+              physicalConfirmation: 'not-measured'};
+          })()} : {}),
           ...(channels && !isSinglePiece ? { modes: [], splitZone: true } : {}),
           status: device.error ? 'error' : (device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected) ? 'online' : 'offline',
           stale: !(device.nativeController ? this.controllerRegistry.isConnected(device.id) : this.connected),

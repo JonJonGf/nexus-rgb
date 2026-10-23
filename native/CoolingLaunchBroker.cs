@@ -13,7 +13,7 @@ using System.Threading;
 using System.Web.Script.Serialization;
 
 // Lives in the existing SYSTEM hardware supervisor, never in the HTTP service.
-// Only a matching development payload enables it. No sensor is opened here.
+// Only a matching development/alpha payload enables it. No sensor is opened here.
 internal sealed class CoolingLaunchBroker : IDisposable {
     private readonly string root, name;
     private readonly Func<int,bool> validate;
@@ -28,16 +28,26 @@ internal sealed class CoolingLaunchBroker : IDisposable {
     internal static CoolingLaunchBroker StartInstalled(string root) {
         try {
             if(!WindowsIdentity.GetCurrent().IsSystem)return null;
-            var serializer=new JavaScriptSerializer();
-            var build=serializer.DeserializeObject(File.ReadAllText(Path.Combine(root,@"server\build-info.json"))) as Dictionary<string,object>;
-            var marker=serializer.DeserializeObject(File.ReadAllText(Path.Combine(root,@"server\cooling-development.json"))) as Dictionary<string,object>;
-            if(build==null||marker==null||!build.ContainsKey("development")||!true.Equals(build["development"])||!build.ContainsKey("tag")||build["tag"]!=null||
-               !build.ContainsKey("commit")||!(build["commit"] is string)||!Regex.IsMatch((string)build["commit"],"^[a-f0-9]{40}$")||
-               !marker.ContainsKey("format")||!"nexus-cooling-development/1".Equals(marker["format"])||!marker.ContainsKey("commit")||!build["commit"].Equals(marker["commit"])||
-               !File.Exists(Path.Combine(root,@"cooling\nexus-cooling.exe")))return null;
+            if(!PackageEligible(root))return null;
             var broker=new CoolingLaunchBroker(root,"NexusRGB.Cooling.Launch.v1",null,null,new SecurityIdentifier(WellKnownSidType.LocalServiceSid,null));
             broker.Start();return broker;
         }catch{return null;}
+    }
+    internal static bool PackageEligible(string root) {
+        try {
+            var serializer=new JavaScriptSerializer();
+            var build=serializer.DeserializeObject(File.ReadAllText(Path.Combine(root,@"server\build-info.json"))) as Dictionary<string,object>;
+            if(build==null||!build.ContainsKey("development")||!build.ContainsKey("tag"))return false;
+            bool development=true.Equals(build["development"])&&build["tag"]==null;
+            bool alpha=false.Equals(build["development"])&&build["tag"] is string&&Regex.IsMatch((string)build["tag"],@"^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$");
+            bool legacy=development&&!File.Exists(Path.Combine(root,@"server\cooling-package.json"));
+            var marker=serializer.DeserializeObject(File.ReadAllText(Path.Combine(root,legacy?@"server\cooling-development.json":@"server\cooling-package.json"))) as Dictionary<string,object>;
+            if((!development&&!alpha)||marker==null||
+               !build.ContainsKey("commit")||!(build["commit"] is string)||!Regex.IsMatch((string)build["commit"],"^[a-f0-9]{40}$")||
+               !marker.ContainsKey("format")||!(legacy?"nexus-cooling-development/1":"nexus-cooling-package/1").Equals(marker["format"])||!marker.ContainsKey("commit")||!build["commit"].Equals(marker["commit"])||
+               !File.Exists(Path.Combine(root,@"cooling\nexus-cooling.exe")))return false;
+            return true;
+        }catch{return false;}
     }
     // Trusted adapters are used by the native IPC fixture, never by request data.
     internal CoolingLaunchBroker(string root,string name,Func<int,bool> validate,Func<int,string,int> launch,SecurityIdentifier clientSid){

@@ -276,3 +276,7 @@ Implementação local em validação: Nexus Live (gestos/gravação), cenas/foco
 Antes da instalação/publicação: fechar regressões, conferir build/payload e registrar medições comparáveis. Testes físicos pendentes de WLED, novos dispositivos Hue no Echo, reação musical visual e contexto em múltiplas sessões. Não declarar essas confirmações por testes sintéticos. Atualização no PC real exige disponibilidade para aceitar UAC; publicação não está autorizada automaticamente neste pedido.
 
 Preservar dados existentes, testar o comportamento anterior e a recuperação, documentar limites e publicar executáveis correspondentes à versão do código. Instalações que pedem administrador exigem a confirmação do usuário. Problemas sem reprodução permanecem identificados como hipóteses.
+
+## Entrega alpha.41 autorizada em 22/10
+
+Publicar ventilação opcional com curvas e identificação manual, incorporando as revisões R3–R5, e diagnóstico portátil v2. Pacote inicia com módulo desligado. Caso RX 7600 continua em investigação: falso negativo dos logs corrigido, confirmação física e retorno ADL/I2C pendentes. Estado exato da publicação e testes no [contexto](CONTEXTO-DESENVOLVIMENTO.md).

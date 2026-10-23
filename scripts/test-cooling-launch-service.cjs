@@ -7,6 +7,7 @@ const source=String.raw`
 using System;using System.Security.Principal;using System.Threading;
 class LaunchFixture {
  static void Main(string[] args){
+  if(args.Length==1){Console.WriteLine(CoolingLaunchBroker.PackageEligible(args[0])?"eligible":"disabled");return;}
   int expected=int.Parse(args[1]);
   using(var broker=new CoolingLaunchBroker(AppDomain.CurrentDomain.BaseDirectory,args[0],pid=>pid==expected,(pid,name)=>12345,WindowsIdentity.GetCurrent().User)){
    broker.Start();Console.WriteLine("ready");Console.In.ReadLine();
@@ -18,6 +19,14 @@ class LaunchFixture {
  try{
   const input=path.join(temp,'test.cs'),exe=path.join(temp,'test.exe');fs.writeFileSync(input,source);
   const result=spawnSync(path.join(process.env.SystemRoot,'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),['/nologo','/reference:System.Management.dll','/reference:System.Web.Extensions.dll','/out:'+exe,input,path.join(root,'native/CoolingLaunchBroker.cs')],{encoding:'utf8',windowsHide:true});assert.equal(result.status,0,result.stdout+result.stderr);
+  const packageRoot=path.join(temp,'package'),commit='a'.repeat(40);fs.mkdirSync(path.join(packageRoot,'server'),{recursive:true});fs.mkdirSync(path.join(packageRoot,'cooling'));fs.writeFileSync(path.join(packageRoot,'cooling/nexus-cooling.exe'),'fixture-not-executed');
+  const write=(name,value)=>fs.writeFileSync(path.join(packageRoot,'server',name),JSON.stringify(value));
+  const build={commit,tag:'v0.1.0-alpha.41',development:false};write('cooling-package.json',{format:'nexus-cooling-package/1',commit});
+  const policy=expected=>{const r=spawnSync(exe,[packageRoot],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(r.status,0,r.stderr);assert.equal(r.stdout.trim(),expected);};
+  write('build-info.json',build);policy('eligible');
+  for(const change of [{tag:'v0.1.0'},{tag:'v0.1.0-beta.1'},{development:true},{tag:null},{commit:'b'.repeat(40)}]){write('build-info.json',{...build,...change});policy('disabled');}
+  write('build-info.json',{commit,tag:null,development:true});policy('eligible');
+  console.log('Native package policy: matching alpha/development only; stable, malformed and mismatched payloads disabled. No hardware launched.');
   child=spawn(exe,[pipe,String(process.pid)],{windowsHide:true,stdio:['pipe','pipe','pipe']});
   await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);});
   const request=body=>new Promise((resolve,reject)=>{

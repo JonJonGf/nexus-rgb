@@ -38,3 +38,9 @@ node scripts/test-gpu-report.cjs
 ```
 
 Output: `dist/diagnostics/NexusRGB-Diagnostic.exe` and `NexusRGB-GPU-Diagnostic-dev.zip`, including PT/EN instructions, license and executable SHA-256. It uses Windows .NET Framework libraries only. Tests exercise the actual executable with fixtures, privacy canaries and an isolated loopback HTTP server. The review window is rendered with fixture data. These checks do not test the affected RX 7600; that remains the next physical evidence step.
+
+## Collector v2 in alpha.41
+
+The portable ZIP is attached to the release. The log summary now recognizes coded PawnIO initialization aborts and the decimal form of 0x80070490. Counts represent matches in the last 256 KiB, not separate incidents. A module probe may fail for absent hardware without invalidating all other modules. AMD GPU RGB uses ADL; a PawnIO abort alone does not establish the cause.
+
+On alpha.41, `delivery` distinguishes configured mode/brightness from an SDK frame submission; `frameBlack` describes the entire controller. It exports no colors and measures no ADL/I2C acknowledgement or physical LED result. Older builds return null fields. The external GPU failure still has no confirmed physical fix.

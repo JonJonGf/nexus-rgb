@@ -38,3 +38,9 @@ node scripts/test-gpu-report.cjs
 ```
 
 Saída: `dist/diagnostics/NexusRGB-Diagnostic.exe` e pacote `NexusRGB-GPU-Diagnostic-dev.zip`, com instruções PT/EN, licença e SHA-256 do executável. Usa apenas bibliotecas do .NET Framework do Windows. Os ensaios exercitam o executável com fixture, filtragem de segredos e servidor HTTP loopback isolado, sem escrever LEDs. A tela também é renderizada com fixture para inspeção. Isso não é teste na RX 7600 afetada, que continua pendente.
+
+## Coletor v2 na alpha.41
+
+O ZIP portátil está nos arquivos da release. O resumo reconhece o aborto com código do PawnIO e 0x80070490 também em decimal. Contagens são correspondências nas últimas 256 KiB, não número de incidentes. Um módulo pode falhar ao sondar hardware ausente sem invalidar todos os outros. A GPU AMD usa outro caminho, ADL; o aborto isolado não comprova sua causa.
+
+Em builds alpha.41, `delivery` diferencia modo/brilho configurados e quadro submetido ao SDK, com `frameBlack` para a controladora inteira. Não inclui cores e não mede retorno ADL/I2C ou LED físico. Em versões antigas esses campos são nulos. O teste externo continua sem correção física confirmada.

@@ -1,12 +1,14 @@
-# Optional cooling — development
+# Optional cooling — experimental
 
 [Documentation](README.md) · [Português](../VENTILACAO.md)
 
-This candidate is separate from the published alpha.40. It adds fan curves using pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
+Alpha.41 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
 
-## Private development installer
+## Installation and activation
 
-`scripts/build.ps1 -CoolingDevelopment` creates `dist/NexusRGB-Setup-0.1.0-cooling-dev.exe`, separate from the official installer. Updating requires administrator access and restarts RGB services while preserving data; it does not start sensors or fan control. Official builds do not enable this backend. After installation, **Detect sensors** starts read-only monitoring; changing speeds requires explicit channel/sensor pairing and activation. The independent helper requests automatic control when its parent service disappears. This lifecycle was tested with simulated channels, without mechanical verification. Coordinate installation and physical testing with the owner first.
+Update with the official alpha.41 installer without uninstalling the previous version. Cooling starts off and does not resume control automatically after a restart. **Detect sensors** starts monitoring; speed control requires explicit channel/sensor pairing and activation. Zero RPM does not prove an unused channel; parallel fans share the connector's output. The helper requests automatic control when its parent service disappears. Physical compatibility and response require confirmation on each machine; automated tests use simulated channels.
+
+Only alpha/development packages with a matching commit marker enable this experimental backend. Stable packages keep it disabled. `scripts/build.ps1 -CoolingDevelopment` remains available for private candidates and does not install or start sensors.
 
 ## Try the isolated simulation
 

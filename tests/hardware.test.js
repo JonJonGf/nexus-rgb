@@ -177,6 +177,16 @@ function zonedController() {
     { id: 2, name: 'Addressable RGB Header 2', ledsCount: 1, ledsMin: 0, ledsMax: 120, resizable: true }
   ]; return raw;
 }
+
+test('GPU diagnostic distinguishes queued nonblack/black frames from physical confirmation across split zones', async t => {
+  const raw=controller('GPU fixture','PCI:diagnostic');raw.zones=Array.from({length:4},(_,id)=>({id,name:'GPU zone '+(id+1),ledsCount:1}));
+  raw.modes[1]={...raw.modes[1],flagList:['perLedColor','brightness'],brightnessMin:0,brightnessMax:99};
+  const store={data:{master:{...defaults,effect:'static',color:'#ff0000',brightness:50},devices:{}}},mock=new Mock([raw]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();
+  assert.equal(hardware.snapshot().devices[0].delivery.frameQueued,false);
+  await hardware.tick();
+  for(const d of hardware.snapshot().devices){assert.equal(d.delivery.frameQueued,true);assert.equal(d.delivery.frameBlack,false);assert.equal(d.delivery.modeBrightness,99);assert.equal(d.delivery.physicalConfirmation,'not-measured');}
+  store.data.master.power=false;hardware.changed();await hardware.tick();assert.equal(hardware.snapshot().devices[0].delivery.frameBlack,true);
+});
 test('separa zonas de qualquer fabricante e compõe cores sem sobrescrever outra porta', async () => {
   const store = { data: { master: { ...defaults, color: '#ff0000', brightness: 100 }, devices: {} } };
   const mock = new Mock([zonedController()]); const hardware = new Hardware(store, { makeClient: () => mock }); hardware.stopped = false; await hardware.connect();

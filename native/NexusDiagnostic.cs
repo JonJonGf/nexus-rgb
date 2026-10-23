@@ -42,17 +42,19 @@ internal static class Diagnostic {
         var devices=Rows(Get(hw,"devices")).Where(d=>Convert.ToString(Get(d,"type"))=="2").Take(64).Select((device,index)=>{
             string key=Text(Get(device,"controllerId"));if(key=="")key="unknown-"+index;
             if(!aliases.ContainsKey(key))aliases[key]="gpu-"+(aliases.Count+1);
-            var settings=Get(device,"settings");
+            var settings=Get(device,"settings");var delivery=Get(device,"delivery");
             return D("alias",aliases[key],"zone",index+1,"model",PublicLabel(Get(device,"controllerName")??Get(device,"name")),"ledCount",Number(Get(device,"ledCount"),0,4096),
                 "status",Token(Get(device,"status"),"online|offline|error",12),"spatialCapable",Bool(Get(device,"spatialCapable")),
                 "mapExcluded",Bool(Get(device,"mapExcluded")),"requested",D("power",Bool(Get(settings,"power")),"brightness",Number(Get(settings,"brightness"),0,100),"nativeMode",Number(Get(settings,"nativeMode"))),
+                "delivery",D("modeConfigured",Bool(Get(delivery,"modeConfigured")),"modeId",Number(Get(delivery,"modeId")),"modeBrightness",Number(Get(delivery,"modeBrightness")),"frameQueued",Bool(Get(delivery,"frameQueued")),"frameBlack",Bool(Get(delivery,"frameBlack")),"physicalConfirmation","not-measured"),
                 "modes",Rows(Get(device,"modes")).Take(64).Select(m=>D("id",Number(Get(m,"id")),"name",PublicLabel(Get(m,"name")))).ToArray());
         }).ToArray();
         var findings=new List<string>{"SDK connection and requested values are not proof that physical LEDs accepted a command.","This collector does not change lighting, install drivers, restart services or upload files.","A missing mode list on a split zone is not evidence of a missing GPU driver."};
+        findings.Add("Delivery reports only the last SDK submission, not an ADL/I2C acknowledgement. Null values mean unavailable on this build; frameBlack is for the entire controller.");
         if(devices.Length==0)findings.Add("No GPU zones in the captured Nexus state. Check collection availability before inferring unsupported hardware.");
         else if(Get(hw,"connected") is bool && (bool)Get(hw,"connected"))findings.Add("SDK reports connected. Physical GPU color remains unverified; compare the saved requested state with the observed LED behavior.");
         if(devices.Any(d=>Get(Get(d,"requested"),"power") is bool && !(bool)Get(Get(d,"requested"),"power")))findings.Add("At least one GPU zone is requested off.");
-        return D("format","nexus-gpu-report/1","createdAt",DateTime.UtcNow.ToString("o"),"collector",D("development",true,"version",1),
+        return D("format","nexus-gpu-report/1","createdAt",DateTime.UtcNow.ToString("o"),"collector",D("development",true,"version",2),
             "build",D("version",Token(Get(build,"version"),@"[0-9]+\.[0-9]+\.[0-9]+",32),"tag",Token(Get(build,"tag"),@"v[0-9]+\.[0-9]+\.[0-9]+(?:-alpha\.[0-9]+)?",50),"commit",Token(Get(build,"commit"),"[a-f0-9]{40}",40),"development",Bool(Get(build,"development"))),
             "controller",D("connected",Bool(Get(hw,"connected")),"hung",Bool(Get(hw,"controllerHung")),"detecting",Bool(Get(hw,"detecting")),"hasError",!string.IsNullOrEmpty(Text(Get(hw,"error"))),"devices",devices,"physicalConfirmation","not-measured"),
             "requestedMaster",D("power",Bool(Get(Get(source,"master"),"power")),"brightness",Number(Get(Get(source,"master"),"brightness"),0,100)),"findings",findings);
@@ -92,7 +94,7 @@ internal static class Diagnostic {
             try {
                 byte[] data;using(var stream=new FileStream(file,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete)){stream.Seek(Math.Max(0,stream.Length-262144),SeekOrigin.Begin);data=new byte[(int)(stream.Length-stream.Position)];int offset=0,n;while(offset<data.Length&&(n=stream.Read(data,offset,data.Length-offset))>0)offset+=n;}
                 var text=Encoding.UTF8.GetString(data);var counts=new Dictionary<string,object>();
-                foreach(var pair in new[]{new[]{"pawnio-module-load-failed",@"(?i)pawnio_load.*failed|PawnIO.*module.*(?:fail|error)"},new[]{"hresult-80070490",@"(?i)0x80070490"},new[]{"sdk-timeout",@"(?i)ETIMEDOUT|timed out|timeout"},new[]{"sdk-disconnected",@"(?i)ECONNRESET|ECONNREFUSED|recv_select"},new[]{"gigabyte-detector",@"(?i)Gigabyte.*(?:GPU|Fusion)"},new[]{"fusion2-invalid-response",@"(?i)Gigabyte RGB Fusion2 GPU.*invalid.*Expected 0xAB"},new[]{"fusion2-mirrored-response",@"(?i)received:\s*0xAB\s+0xAB\s+0xAB\s+0xAB"},new[]{"amd-adl-registration",@"(?i)ADL GPU Device|Registering I2C interface:.*AMD ADL"}})counts[pair[0]]=Regex.Matches(text,pair[1]).Count;
+                foreach(var pair in new[]{new[]{"pawnio-module-load-failed",@"(?i)pawnio_load.*failed|PawnIO.*module.*(?:fail|error|initialization aborted\s*\(code=)"},new[]{"hresult-80070490",@"(?i)0x80070490|(?<![0-9])-2147023728(?![0-9])"},new[]{"sdk-timeout",@"(?i)ETIMEDOUT|timed out|timeout"},new[]{"sdk-disconnected",@"(?i)ECONNRESET|ECONNREFUSED|recv_select"},new[]{"gigabyte-detector",@"(?i)Gigabyte.*(?:GPU|Fusion)"},new[]{"fusion2-invalid-response",@"(?i)Gigabyte RGB Fusion2 GPU.*invalid.*Expected 0xAB"},new[]{"fusion2-mirrored-response",@"(?i)received:\s*0xAB\s+0xAB\s+0xAB\s+0xAB"},new[]{"amd-adl-registration",@"(?i)ADL GPU Device|Registering I2C interface:.*AMD ADL"}})counts[pair[0]]=Regex.Matches(text,pair[1]).Count;
                 result.Add(D("source",part,"state","read-tail","tailLimitBytes",262144,"signatures",counts));
             }catch(UnauthorizedAccessException){result.Add(D("source",part,"state","access-denied"));}catch{result.Add(D("source",part,"state","unavailable"));}
         }
@@ -128,11 +130,12 @@ internal static class Diagnostic {
             report["rgbApplicationNames"]=names.Distinct().ToArray();
             ((List<string>)report["findings"]).Add("An RGB process name alone does not prove contention; the expected Nexus OpenRGB process may be listed.");
         }
-        if(logs)report["logSummary"]=LogSummary(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"NexusRGB"));
+        if(logs){report["logSummary"]=LogSummary(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"NexusRGB"));((List<string>)report["findings"]).Add("Log signatures count matches in a bounded tail, not distinct failures. An aborted PawnIO module does not by itself establish global driver failure or explain a GPU using AMD ADL.");}
         return report;
     }
     internal static int PanelPort() { try{using(var key=Registry.LocalMachine.OpenSubKey(@"SOFTWARE\NexusRGB")){object n=key==null?null:key.GetValue("PanelPort");if(n is int && (int)n>=1024&&(int)n<=65535)return (int)n;}}catch{}return 5050; }
     [STAThread] static int Main(string[] args) {
+        if(args.Length==2 && args[0]=="--log-fixture") {try{using(var writer=new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false))){writer.WriteLine(Json.Serialize(LogSummary(args[1])));}return 0;}catch{Console.Error.WriteLine("Log fixture unavailable or invalid.");return 2;}}
         if(args.Length==2 && args[0]=="--fixture") {try{using(var writer=new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false))){writer.WriteLine(Json.Serialize(Project(ReadJson(args[1]))));}return 0;}catch{Console.Error.WriteLine("Fixture unavailable or invalid.");return 2;}}
         if(args.Length==2 && args[0]=="--api-fixture") {int p;if(!int.TryParse(args[1],out p)||p<1024||p>65535)return 2;try{using(var writer=new StreamWriter(Console.OpenStandardOutput(),new UTF8Encoding(false))){writer.WriteLine(Json.Serialize(Collect(false,false,true,p)));}return 0;}catch{return 2;}}
         if(args.Length==3 && args[0]=="--ui-fixture") {

@@ -23,18 +23,19 @@ New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
 foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-Path $projectRoot $folder) -Destination $buildRoot -Recurse -Force }
 & node scripts/build-info.cjs $buildRoot
 if($LASTEXITCODE -ne 0){throw 'Falha ao identificar a versão do pacote.'}
-if($CoolingDevelopment){
-  $buildInfo=Get-Content -LiteralPath (Join-Path $buildRoot 'server\build-info.json') -Raw | ConvertFrom-Json
-  if(-not $buildInfo.development -or $buildInfo.tag){throw 'Ventilação experimental exige um build de desenvolvimento sem tag.'}
+$buildInfo=Get-Content -LiteralPath (Join-Path $buildRoot 'server\build-info.json') -Raw | ConvertFrom-Json
+$includeCooling=($buildInfo.development -and -not $buildInfo.tag) -or (-not $buildInfo.development -and $buildInfo.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$')
+if($CoolingDevelopment -and (-not $buildInfo.development -or $buildInfo.tag)){throw 'Ventilação experimental privada exige um build de desenvolvimento sem tag.'}
+if($includeCooling){
   & (Join-Path $PSScriptRoot 'build-cooling.ps1') -OutputDirectory (Join-Path $buildRoot 'cooling')
   if($LASTEXITCODE -ne 0){throw 'Falha ao compilar ventilação experimental.'}
-  @{format='nexus-cooling-development/1';commit=$buildInfo.commit} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $buildRoot 'server\cooling-development.json') -Encoding ASCII
+  @{format='nexus-cooling-package/1';commit=$buildInfo.commit} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $buildRoot 'server\cooling-package.json') -Encoding ASCII
 }
 New-Item -ItemType Directory -Path (Join-Path $buildRoot 'scripts'),(Join-Path $buildRoot 'runtime'),(Join-Path $buildRoot 'licenses'),(Join-Path $buildRoot 'sources') -Force | Out-Null
 Copy-Item -LiteralPath 'scripts\install-services.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\ports.ps1','scripts\configure-ports.ps1','scripts\restart-services.ps1','scripts\install-path.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
 Copy-Item -LiteralPath 'scripts\measure-resources.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force
-if($CoolingDevelopment){Copy-Item -LiteralPath 'scripts\start-cooling-helper.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force}
+if($includeCooling){Copy-Item -LiteralPath 'scripts\start-cooling-helper.ps1' -Destination (Join-Path $buildRoot 'scripts') -Force}
 Copy-Item -LiteralPath 'package.json','package-lock.json','README.md','README-pt.md','README-en.md','LEIA-ME.txt','LICENSE.md','THIRD-PARTY-NOTICES.md' -Destination $buildRoot -Force
 Copy-Item -LiteralPath 'native\app.ico' -Destination (Join-Path $buildRoot 'app.ico') -Force
 Copy-Item -LiteralPath 'runtime\node.exe' -Destination (Join-Path $buildRoot 'runtime\node.exe') -Force

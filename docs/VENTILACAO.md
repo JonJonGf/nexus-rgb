@@ -1,12 +1,14 @@
-# Ventilação e curvas — desenvolvimento
+# Ventilação e curvas — experimental
 
 [English](en/COOLING.md) · [README](../README-pt.md)
 
-Esta candidata é separada da alpha.40 publicada. Implementa controle opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit, em auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
+A alpha.41 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
 
-## Instalação privada de desenvolvimento
+## Instalação e ativação
 
-`scripts/build.ps1 -CoolingDevelopment` gera `dist/NexusRGB-Setup-0.1.0-cooling-dev.exe`, separado do instalador oficial. A atualização exige administrador e reinicia os serviços RGB, preservando dados; não inicia sensores nem controle de ventoinhas. Builds oficiais não habilitam esse backend. Após instalar, **Detectar sensores** inicia leitura; alterar rotações exige associação canal/sensor e ativação explícita. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Esse ciclo foi verificado com canais simulados, ainda sem prova mecânica. Combinar instalação/ensaio com o proprietário antes de executar.
+Atualize pelo instalador oficial da alpha.41, sem desinstalar a versão anterior. O módulo começa desligado e não reativa o controle ao reiniciar. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
+
+Os pacotes alpha e de desenvolvimento incluem o backend somente com marcador do mesmo commit. Versões estáveis não habilitam automaticamente este recurso experimental. Para preparar uma candidata privada, `scripts/build.ps1 -CoolingDevelopment` continua disponível; isso não instala nem inicia sensores no PC.
 
 ## Experimentar sem tocar nas ventoinhas
 

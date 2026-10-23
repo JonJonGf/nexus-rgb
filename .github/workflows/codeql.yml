@@ -44,10 +44,17 @@ jobs:
           queries: security-extended
           config: |
             threat-models: [local]
-      - name: Compilar os dois executáveis nativos usados no instalador
+      - name: Compilar supervisor, auxiliares e diagnóstico sem abrir hardware
         if: matrix.language == 'csharp'
         shell: powershell
-        run: ./scripts/build-native.ps1 -OutputDirectory "$env:RUNNER_TEMP\nexus-codeql-native"
+        run: |
+          $ErrorActionPreference='Stop'
+          ./scripts/build-native.ps1 -OutputDirectory "$env:RUNNER_TEMP\nexus-codeql-native"
+          if($LASTEXITCODE -ne 0){throw 'Native build failed'}
+          ./scripts/build-cooling.ps1 -OutputDirectory "$env:RUNNER_TEMP\nexus-codeql-cooling"
+          if($LASTEXITCODE -ne 0){throw 'Cooling build failed'}
+          ./scripts/build-diagnostic.ps1 -OutputDirectory "$env:RUNNER_TEMP\nexus-codeql-diagnostic"
+          if($LASTEXITCODE -ne 0){throw 'Diagnostic build failed'}
       - name: Publicar resultados
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:

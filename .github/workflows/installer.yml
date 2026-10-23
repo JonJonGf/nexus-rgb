@@ -32,6 +32,27 @@ jobs:
         shell: powershell
         run: ./scripts/download-vendor.ps1
       - run: npm run build
+      - name: Validar ventilação opcional sem abrir sensores
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./scripts/build-cooling.ps1
+          if($LASTEXITCODE -ne 0){throw 'Cooling helper build failed'}
+          foreach($script in @('test-cooling-native.cjs','test-cooling-broker.cjs','test-cooling-launch-service.cjs','test-cooling-privilege.cjs','test-cooling-package.cjs')) {
+            & node ('scripts/'+$script)
+            if($LASTEXITCODE -ne 0){throw ('Cooling validation failed: '+$script)}
+          }
+      - name: Compilar e testar coletor portátil somente leitura
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          ./scripts/build-diagnostic.ps1
+          if($LASTEXITCODE -ne 0){throw 'Diagnostic build failed'}
+          & node scripts/test-gpu-report.cjs
+          if($LASTEXITCODE -ne 0){throw 'Diagnostic regression failed'}
+          Copy-Item -LiteralPath dist/diagnostics/NexusRGB-GPU-Diagnostic-dev.zip -Destination dist/
+          $digest=(Get-FileHash -LiteralPath dist/NexusRGB-GPU-Diagnostic-dev.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Add-Content -LiteralPath dist/SHA256SUMS.txt -Value ($digest+'  NexusRGB-GPU-Diagnostic-dev.zip') -Encoding ASCII
       - run: npm run test:installer
       - run: node scripts/test-installer-tray.js
       - name: Instalar, atualizar, recuperar, remover e reinstalar
@@ -42,7 +63,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          $records=@(foreach($file in @('dist\NexusRGB-Setup-0.1.0.exe','dist\NexusRGB-Uninstall-0.1.0.exe')){
+          $records=@(foreach($file in @('dist\NexusRGB-Setup-0.1.0.exe','dist\NexusRGB-Uninstall-0.1.0.exe','dist\NexusRGB-GPU-Diagnostic-dev.zip')){
             $item=Get-Item -LiteralPath $file
             [pscustomobject]@{name=$item.Name;sha256=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant();size=$item.Length}
           })
@@ -57,6 +78,7 @@ jobs:
             dist/NexusRGB-Uninstall-0.1.0.exe
             dist/SHA256SUMS.txt
             dist/BUILD-INFO.json
+            dist/NexusRGB-GPU-Diagnostic-dev.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

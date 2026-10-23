@@ -94,6 +94,11 @@ try {
   $build=Invoke-RestMethod ($origin+'/api/about') -WebSession $session
   Check ($build.version -eq '0.1.0') 'Installed package exposes its own build metadata'
   if($env:GITHUB_REF_TYPE -eq 'tag') {Check ($build.tag -eq $env:GITHUB_REF_NAME -and $build.commit -eq $env:GITHUB_SHA -and -not $build.development) 'Installed build matches the exact release tag and commit'}
+  $cooling=Invoke-RestMethod ($origin+'/api/cooling') -WebSession $session
+  $coolingExpected=$build.development -or $build.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$'
+  Check ($cooling.available -eq $coolingExpected -and -not $cooling.enabled -and $cooling.mode -eq 'off') 'Optional cooling matches the package channel and starts off'
+  Check (@(Get-Process nexus-cooling -ErrorAction SilentlyContinue).Count -eq 0) 'Installation does not start the sensor helper'
+  if($coolingExpected){Check ((Test-Path -LiteralPath (Join-Path $root 'cooling\nexus-cooling.exe')) -and (Test-Path -LiteralPath (Join-Path $root 'cooling\LibreHardwareMonitor-0.9.6-source.zip'))) 'Cooling helper includes matching source and libraries'}
   $resources=Invoke-RestMethod ($origin+'/api/resources') -WebSession $session
   Check (@($resources.processes | Where-Object role -eq 'server').Count -eq 1) 'Resource monitor includes the dedicated server and tolerates partial permission access'
   $diagnostic=Invoke-RestMethod ($origin+'/api/diagnostics') -WebSession $session
