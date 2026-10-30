@@ -305,6 +305,11 @@ internal sealed class Tray : ApplicationContext {
         int port;
         try { port = PortSettings.Load().Panel; } catch (Exception error) { MessageBox.Show(error.Message, "Nexus RGB"); return; }
         string health = Program.ReadHealth();
+        if (health.Contains("\"lanAccess\":\"authorized\"") || health.Contains("\"lanAccess\":\"local\"")) {
+            Program.OpenPanel();
+            icon.ShowBalloonTip(4000, "Nexus RGB", L.T("Confira Conexões no painel para gerar um link autorizado ou mudar o modo de acesso."), ToolTipIcon.Info);
+            return;
+        }
         int marker = health.IndexOf("\"lanUrl\":\"http://", StringComparison.Ordinal);
         if (marker >= 0) {
             int start = marker + 10, end = health.IndexOf('"', start);

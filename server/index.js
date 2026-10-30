@@ -2,7 +2,8 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Store, readJson, writeJson } = require('./store');
+const { Store } = require('./store');
+const {NetworkSettings}=require('./network-settings');
 const { presets, applyPreset } = require('./presets');
 const { Security, RateLimiter } = require('./security');
 const { Hardware } = require('./hardware');
@@ -23,6 +24,7 @@ const { Experiences } = require('./experiences');
 const { Room } = require('./room');
 const { Cooling } = require('./cooling');
 const { installedCooling } = require('./cooling-installation');
+const { DeviceReconnect } = require('./device-reconnect');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -51,29 +53,16 @@ async function createApp(options = {}) {
   fs.mkdirSync(directory, { recursive: true });
   const firstUse=new FirstUse(directory,options.disableWelcome===true);
   const getInterfaces = options.getInterfaces || network.adapters;
-  const networkFile = path.join(directory, 'network.json');
-  let preferredAddress = '';
-  try { const saved = readJson(networkFile, { address: '' }); if (saved && typeof saved.address === 'string' && network.privateIp(saved.address)) preferredAddress = saved.address; } catch {}
+  const networkSettings=new NetworkSettings(directory,getInterfaces);
   const store = options.store || new Store(directory); const security = new Security(directory, getInterfaces);
   const hardware = options.hardware || new Hardware(store, { port: configuredPorts.sdk });
   const localPort = configuredPorts.panel;
   const clients = new Set();
   const readRate = new RateLimiter(240), writeRate = new RateLimiter(180), signalRate = new RateLimiter(900), liveRate = new RateLimiter(900), heavyRate = new RateLimiter(60), assetRate = new RateLimiter(512), globalRate = new RateLimiter(2000);
   let local, heartbeat;
-  const resolveLan = (port = local?.address()?.port || localPort) => {
-    const addresses = getInterfaces();
-    const chosen = network.selectAdapter(addresses, preferredAddress);
-    return { addresses, chosen, selectedAddress: chosen?.address || null, lanUrl: chosen ? `http://${chosen.address}:${port}/` : null };
-  };
-  const savePreferredAddress = address => {
-    if (typeof address !== 'string' || (address !== '' && !network.privateIp(address))) throw new Error('Endereço de rede inválido.');
-    const addresses = getInterfaces();
-    if (address !== '' && !addresses.some(a => a.address === address)) throw new Error('Endereço de rede indisponível.');
-    preferredAddress = address;
-    writeJson(networkFile, { address: preferredAddress });
-  };
   const snapshot = () => ({ version: VERSION, library: store.data.library || {favorites:[],categories:{},transitionMs:0}, master: store.data.master, hardware: hardware.snapshot(), presets, profiles: store.data.profiles.map(p => ({ id: p.id, name: p.name, color: p.master.color, settings: p.master, deviceCount: Object.keys(p.devices || {}).length, spatial: Boolean(p.studio?.enabled), ...studio.profileInfo(p) })), alexa: { enabled: store.data.alexaEnabled, status: alexa.status }, performance: store.data.performance || { fps: 20 }, studio: studio.snapshot() });
   const broadcast = () => {
+    if(!clients.size)return;
     const message = `data: ${JSON.stringify(snapshot())}\n\n`;
     for (const client of clients) {
       if (!security.session(client.req) || client.res.destroyed || client.res.writableLength > 256 * 1024) { client.res.end(); clients.delete(client); continue; }
@@ -85,6 +74,7 @@ async function createApp(options = {}) {
   const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
   const cooling=new Cooling(directory,options.cooling ?? installedCooling(path.resolve(__dirname,'..')));
+  const reconnectDevices=new DeviceReconnect(store,hardware,directory);
   const resources = new Resources({additional:()=>cooling.resourceRows()});
   const conflicts = options.conflicts || new Conflicts();
   const experiences = new Experiences(store,hardware,studio,directory,broadcast);
@@ -99,6 +89,8 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/preview-stream.js',['preview-stream.js','application/javascript; charset=utf-8']],
+    ['/device-reconnect.js',['device-reconnect.js','application/javascript; charset=utf-8']],
     ['/cooling-model.js',['cooling-model.js','application/javascript; charset=utf-8']],
     ['/cooling.js',['cooling.js','application/javascript; charset=utf-8']],
     ['/cooling.css',['cooling.css','text/css; charset=utf-8']],
@@ -136,12 +128,12 @@ async function createApp(options = {}) {
     if (req.headers['sec-fetch-site'] === 'cross-site') return json(res, 403, { error: 'Origem não autorizada.' });
     const url = new URL(req.url, origin); const route = url.pathname;
     const isAsset = ['GET', 'HEAD'].includes(req.method) && assets.has(route);
-    const isHeavy = route === '/api/studio/import' || route === '/api/studio/draft' || /^\/api\/studio\/effects\/[a-f0-9]{24}\/duplicate$/.test(route) || route === '/api/backups' || route.startsWith('/api/backups/') || route === '/api/resources' || route === '/api/diagnostics' || route === '/api/conflicts' || route === '/api/link' || route === '/api/alexa/discover';
+    const isHeavy = route === '/api/devices/reconnect/review' || route === '/api/devices/reconnect/apply' || route === '/api/studio/import' || route === '/api/studio/draft' || /^\/api\/studio\/effects\/[a-f0-9]{24}\/duplicate$/.test(route) || route === '/api/backups' || route.startsWith('/api/backups/') || route === '/api/resources' || route === '/api/diagnostics' || route === '/api/conflicts' || route === '/api/link' || route === '/api/alexa/discover';
     const budget = isAsset ? assetRate : route==='/api/experiences/live' ? liveRate : route==='/api/experiences/signal' ? signalRate : isHeavy ? heavyRate : ['GET', 'HEAD'].includes(req.method) ? readRate : writeRate;
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     if (route === '/api/health' && req.method === 'GET' && isLocal) {
-      const lan = resolveLan(lport);
-      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}), ...(hardware.controllerHung ? { controllerHung: true } : {}) } });
+      const lan = networkSettings.resolve(lport);
+      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, lanAccess: security.access.config.mode, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}), ...(hardware.controllerHung ? { controllerHung: true } : {}) } });
     }
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
@@ -152,10 +144,23 @@ async function createApp(options = {}) {
       res.setHeader('Set-Cookie', security.cookie(security.newAdmin(), !!req.socket.encrypted, 8 * 3600));
       return json(res, 200, { admin: true, welcome: firstUse.take() });
     }
+    if(route==='/api/session/lan'&&req.method==='POST'){
+      if(isLocal)return json(res,403,{error:'Use este link no celular ou tablet da mesma rede.'});
+      const body=await readBody(req);
+      if(Object.keys(body).some(k=>k!=='token')||security.access.config.mode!=='authorized'||!security.access.accepts(body.token))return json(res,401,{error:'Link de acesso inválido ou revogado.'});
+      res.setHeader('Set-Cookie',`nexus_access=${body.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000${req.socket.encrypted?'; Secure':''}`);
+      return json(res,200,{admin:false});
+    }
     const session = security.session(req);
     if (route.startsWith('/api/')) {
-      if (!session) return json(res, 401, { error: 'Abra o painel neste computador para iniciar a sessão local.' });
+      if (!session) return json(res, 401, { error: !isLocal&&security.access.config.mode!=='open'?'Use um link autorizado ou confira o modo de acesso no PC.':'Abra o painel neste computador para iniciar a sessão local.' });
       const admin = () => { if (!session.admin || !isLocal) throw Object.assign(new Error('Este ajuste só pode ser feito no PC.'), { status: 403 }); };
+      if(route==='/api/access'&&req.method==='GET'){admin();return json(res,200,security.access.snapshot());}
+      if(route==='/api/access'&&req.method==='POST'){
+        admin();const result=security.access.configure(await readBody(req));
+        for(const client of clients)if(!security.session(client.req)){client.res.end();clients.delete(client);}
+        studio.pruneClients();return json(res,200,result);
+      }
       if(route==='/api/cooling'&&req.method==='GET'){admin();return json(res,200,cooling.snapshot());}
       if(route==='/api/cooling'&&req.method==='POST'){admin();const value=await cooling.configure(await readBody(req,32768));resources.cache=null;return json(res,200,value);}
       if(route==='/api/cooling/monitor'&&req.method==='POST'){admin();const body=await readBody(req),keys=Object.keys(body);if(keys.length&&!(keys.length===1&&body.enabled===false))throw Error('Comando de monitoramento inválido.');const value=keys.length?await cooling.unmonitor():await cooling.monitor();resources.cache=null;return json(res,200,value);}
@@ -222,6 +227,9 @@ async function createApp(options = {}) {
       if (route === '/api/control' && req.method === 'POST') { const body = await readBody(req); store.master(body); if (body.power === false) hardware.cancelIdentification?.(); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
       const presetRoute = route.match(/^\/api\/presets\/([a-z]{1,24})$/);
       if (presetRoute && req.method === 'POST') { await readBody(req); applyPreset(store, presetRoute[1]); hardware.changed(); broadcast(); return json(res, 200, snapshot()); }
+      if(route==='/api/devices/reconnect'&&req.method==='GET'){admin();return json(res,200,reconnectDevices.catalog());}
+      if(route==='/api/devices/reconnect/review'&&req.method==='POST'){admin();return json(res,200,reconnectDevices.review(await readBody(req)));}
+      if(route==='/api/devices/reconnect/apply'&&req.method==='POST'){admin();reconnectDevices.apply(await readBody(req));studio.reset({layoutChanged:true});hardware.changed();broadcast();return json(res,200,{applied:true,...snapshot()});}
       const deviceRoute = route.match(/^\/api\/devices\/([a-f0-9]{24})(\/resize)?$/);
       if (deviceRoute && req.method === 'POST') {
         const device = hardware.snapshot().devices.find(d => d.id === deviceRoute[1]);
@@ -243,22 +251,25 @@ async function createApp(options = {}) {
       if (profileRoute && req.method === 'PUT') { admin(); const body = await readBody(req, 256 * 1024); if (Object.hasOwn(body, 'studio')) { if ((body.studio?.source !== undefined || body.studio?.recipe !== undefined) && !heavyRate.take(ip)) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' }); await studio.saveProfile(profileRoute[1], body); } else { if (Object.keys(body).some(k => !['name', 'settings', 'replaceSpatial'].includes(k)) || body.replaceSpatial !== undefined && typeof body.replaceSpatial !== 'boolean') throw Error('Perfil do mapa inválido.'); store.updateProfile(profileRoute[1], body.name, body.settings, body.replaceSpatial); } broadcast(); return json(res, 200, snapshot()); }
       if (profileRoute && req.method === 'DELETE') { admin();if(experiences.usesProfile(profileRoute[1]))throw Object.assign(Error('Perfil em uso por uma cena ou regra de aplicativo.'),{status:409});store.data.profiles = store.data.profiles.filter(p => p.id !== profileRoute[1]); store.save(); broadcast(); return json(res, 200, snapshot()); }
       if (route === '/api/network' && req.method === 'GET') {
-        admin(); const lan = resolveLan(lport);
+        admin(); const lan = networkSettings.resolve(lport);
         return json(res, 200, { urls: lan.addresses.map(a => ({ name: a.name, address: a.address, url: `http://${a.address}:${lport}` })), selectedAddress: lan.selectedAddress, lanUrl: lan.lanUrl, ports: { panel: lport, sdk: configuredPorts.sdk, alexa: alexa.port, discovery: 1900 }, alexa: alexa.snapshot(), dataDirectory: directory, uptime: Math.floor(process.uptime()), memoryMB: Math.round(process.memoryUsage().rss / 1048576) });
       }
       if (route === '/api/network' && req.method === 'POST') {
         admin(); const body = await readBody(req);
         if (Object.keys(body).some(k => k !== 'address')) throw new Error('Configuração inválida.');
-        savePreferredAddress(body.address ?? '');
-        const lan = resolveLan(lport);
+        networkSettings.set(body.address ?? '');
+        const lan = networkSettings.resolve(lport);
         return json(res, 200, { selectedAddress: lan.selectedAddress, lanUrl: lan.lanUrl });
       }
       if (route === '/api/link' && req.method === 'POST') {
         admin(); const body = await readBody(req); const addresses = getInterfaces();
-        if (typeof body.address === 'string' && addresses.some(a => a.address === body.address)) savePreferredAddress(body.address);
-        const chosen = addresses.find(a => a.address === body.address) || network.selectAdapter(addresses, preferredAddress);
+        if (typeof body.address === 'string' && addresses.some(a => a.address === body.address)) networkSettings.set(body.address);
+        const chosen = addresses.find(a => a.address === body.address) || networkSettings.resolve(lport).chosen;
         if (!chosen) throw new Error('Conecte o PC a uma rede privada Wi-Fi ou Ethernet.');
-        const link = `http://${chosen.address}:${lport}/`;
+        const token=security.access.issue();
+        const link = `http://${chosen.address}:${lport}/${token?'#nexus-link='+token:''}`;
+        for(const client of clients)if(!security.session(client.req)){client.res.end();clients.delete(client);}
+        studio.pruneClients();
         return json(res, 200, { link, address: chosen.address, qr: await QRCode.toDataURL(link, { width: 260, margin: 2 }) });
       }
       if (route === '/api/alexa' && req.method === 'POST') {
@@ -288,7 +299,7 @@ async function createApp(options = {}) {
     try { await listen(local, localPort, options.listenHost||'0.0.0.0'); }
     catch (error) { await stop(); if (['EADDRINUSE', 'EACCES'].includes(error.code)) error.message = `Não foi possível abrir a porta ${localPort} do painel (${error.code}). No ícone do Nexus perto do relógio, abra Configurar portas, escolha outra porta e aplique.`; throw error; }
     local.on('error', error => console.error('Servidor:', error.code));
-    heartbeat = setInterval(() => { for (const client of clients) { if (!security.session(client.req)) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
+    heartbeat = setInterval(() => { for (const client of clients) { if (!security.session(client.req)||client.res.destroyed||client.res.writableLength>256*1024) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
     if (!options.disableHardware && process.env.NEXUS_DISABLE_HARDWARE !== '1') hardware.start();
     if (!options.disableAlexa) alexa.start();
     cooling.start();

@@ -1,0 +1,38 @@
+{
+  "base": "7f0f2af",
+  "scope": "Isolated notification microbenchmark, 10000 hardware change events, five synthetic components, no subscribers or real hardware. Two reversed repetitions. CPU milliseconds are process time, not sustained app CPU percentage or watts.",
+  "rows": [
+    {
+      "version": "baseline",
+      "events": 10000,
+      "subscribers": 0,
+      "elapsedMs": 423.34309999999994,
+      "cpuMs": 422,
+      "snapshots": 20000
+    },
+    {
+      "version": "candidate",
+      "events": 10000,
+      "subscribers": 0,
+      "elapsedMs": 0.9617999999999824,
+      "cpuMs": 0,
+      "snapshots": 0
+    },
+    {
+      "version": "candidate",
+      "events": 10000,
+      "subscribers": 0,
+      "elapsedMs": 0.9312999999999931,
+      "cpuMs": 0,
+      "snapshots": 0
+    },
+    {
+      "version": "baseline",
+      "events": 10000,
+      "subscribers": 0,
+      "elapsedMs": 428.98400000000004,
+      "cpuMs": 422,
+      "snapshots": 20000
+    }
+  ]
+}

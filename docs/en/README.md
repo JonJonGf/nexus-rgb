@@ -2,12 +2,14 @@
 
 [English README](../../README-en.md) · [Português](../../README-pt.md)
 
-These guides describe the published alpha.42 unless a section explicitly says **development**. A development file in the repository does not mean the feature is in the public installer or installed on your PC.
+These guides describe the published alpha.43 unless a section explicitly says **development**. A development file in the repository does not mean the feature is in the public installer or installed on your PC.
 
 | Guide | Contents |
 | --- | --- |
 | [Hardware compatibility](COMPATIBILITY.md) | Detection versus control, supported backends, identification and current limits |
 | [Setup map and calibration](SETUP-MAP.md) | Geometry, LED order, profiles, overrides, JSON/HTML editing |
+| [LAN access](LAN-ACCESS.md) | Open, authorized-link or PC-only access, renewal and revocation |
+| [Reconnect a device](DEVICE-RECONNECT.md) | Review saved lighting/map/profile migration to a new identity |
 | [Effect format](../EFFECTS.md) | Twelve JSON patterns, example code, Canvas compatibility and limits |
 | [Experiences](EXPERIENCES.md) | Live gestures, scenes, WLED, Windows audio and application context |
 | [Alexa](ALEXA.md) | Discovery, power-only behavior, virtual brightness, troubleshooting |

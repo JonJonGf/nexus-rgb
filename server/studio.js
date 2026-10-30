@@ -415,7 +415,7 @@ class Studio {
     }
     return retained;
   }
-  reset() { clearTimeout(this.retryTimer); this.retryTimer = null; this.retrying = false; this.signature = ''; this.error = null; this.failure = null; this.colors.clear(); this.stopWorker(); this.preview = null; this.rendered = false; this.healthySince = 0; this.healthyFrames = 0; }
+  reset({layoutChanged=false}={}) { if(layoutChanged)this.layoutRevision++;clearTimeout(this.retryTimer); this.retryTimer = null; this.retrying = false; this.signature = ''; this.error = null; this.failure = null; this.colors.clear(); this.stopWorker(); this.preview = null; this.rendered = false; this.healthySince = 0; this.healthyFrames = 0; }
   hasDevice(id) {
     if (!this.config.enabled || this.error || (this.config.excluded || []).includes(id)) return false;
     this.layout();
@@ -438,11 +438,12 @@ class Studio {
       }) };
   }
   publishPreview() {
+    if(!this.clients.size)return;
     const event = 'data: ' + JSON.stringify(this.previewPacket()) + '\n\n';
     for (const client of this.clients) client.res.write(event);
   }
   watch(req, res, authorized) {
-    for (const c of this.clients) if (c.res.destroyed || !c.authorized() || c.res.writableLength > 512 * 1024) { c.res.end(); this.clients.delete(c); }
+    this.pruneClients();
     const current = authorized?.(), isAdmin = Boolean(current === true || current?.admin);
     let lanClients = 0;
     for (const c of this.clients) { const s = c.authorized?.(); if (!(s === true || s?.admin)) lanClients++; }
@@ -451,6 +452,7 @@ class Studio {
     const client = { req, res, authorized }; this.clients.add(client); res.on('close', () => this.clients.delete(client)); res.on('error', () => this.clients.delete(client));
     res.write('data: ' + JSON.stringify(this.previewPacket()) + '\n\n');
   }
+  pruneClients(){for(const c of this.clients)if(c.res.destroyed||!c.authorized()||c.res.writableLength>512*1024){c.res.end();this.clients.delete(c);}}
   stopWorker() { clearTimeout(this.deadline); this.worker?.kill(); this.worker = null; this.busy = false; this.ready = false; this.frames = 0; this.windowAt = Date.now(); this.nextFrame = 0; this.metrics.fps = 0; this.metrics.memoryMB = 0; }
   fail(message, kind = 'effect', details = {}) {
     clearTimeout(this.retryTimer); this.retryTimer = null; this.retrying = false;

@@ -23,6 +23,8 @@ Fans em paralelo podem compartilhar um único comando e retorno de RPM. RGB e al
 
 ## Quando não funcionar
 
+Na alpha.43, dispositivos com apenas modos internos podem apagar por brilho zero quando a faixa declarada inclui zero e não exige salvamento automático. Modo e brilho salvos são preservados para religar; faixa mínima positiva não é tratada como apagada. Isso amplia tratamento por capacidades, não uma lista de modelos fisicamente confirmados. Se a identificação mudou, use [Reconectar dispositivo](RECONECTAR-DISPOSITIVO.md) com revisão.
+
 Confira a versão instalada em Configurações e prepare o diagnóstico revisável. Registre modelo/revisão, qual recurso respondeu e qual falhou, e se outro programa controla o mesmo aparelho. O diagnóstico compartilhável exclui dados privados por padrão; não publique tokens, seriais ou relatórios crus. Um teste físico precisa ser combinado com o proprietário. Não instale firmware, DLLs ou drivers de origem incerta como tentativa genérica.
 
 ## Como ampliamos o suporte

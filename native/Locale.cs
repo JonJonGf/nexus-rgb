@@ -51,6 +51,7 @@ internal static class L {
         { "Nexus RGB: painel indisponível na porta ", "Nexus RGB: dashboard unavailable on port " },
         { "Nexus RGB: confira serviços e portas", "Nexus RGB: check services and ports" },
         { "Link copiado", "Link copied" },
+        { "Confira Conexões no painel para gerar um link autorizado ou mudar o modo de acesso.", "Open Connections in the panel to generate an authorized link or change access mode." },
         { "Abra este endereço no celular conectado ao mesmo Wi-Fi.", "Open this address on your phone connected to the same Wi-Fi." },
         { "Rede indisponível", "Network unavailable" },
         { "Conecte o PC a uma rede Wi-Fi ou Ethernet privada.", "Connect your PC to private Wi-Fi or Ethernet." },

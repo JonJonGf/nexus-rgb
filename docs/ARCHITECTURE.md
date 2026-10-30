@@ -5,10 +5,13 @@ Read [current context](CONTEXTO-DESENVOLVIMENTO.md) and [plan](PLANO-MELHORIAS.m
 | Task | Starting files | Behavioral tests |
 | --- | --- | --- |
 | HTTP wiring, sessions, LAN | `server/index.js`, `server/security.js`, `server/network.js`, `public/app.js` | HTTP/security/network and browser connection tests |
+| LAN policy and network preferences | `server/access.js`, `server/network-settings.js` | `tests/access.test.js`, `tests/network-settings.test.js`, `tests/ui/access.spec.js` |
+| Reconnect saved identity | `server/device-reconnect.js`, `public/device-reconnect.js` | `tests/device-reconnect.test.js`, `tests/ui/device-reconnect.spec.js` |
 | Discovery, modes, RGB cadence | `server/hardware.js`, `server/openrgb-client.js`, `server/controllers/` | `tests/hardware.test.js`, `tests/traffic-control.test.js`, `tests/controllers-expansion.test.js` |
 | Lighting intent and profiles | `server/store.js`, `server/presets.js`, `server/backup.js`, `public/app.js` | Store/profile/backup and browser profile tests |
 | Spatial execution and sandbox | `server/studio.js`, `server/studio-worker.js`, `server/studio-render.js`, `server/studio-sandbox.txt` | Studio/HTML/Canvas/recovery tests |
 | Map and effect editor | `public/studio.js`, `public/map-model.js`, `public/workspace.js`, `public/calibration.js` | Browser Studio/map/editor: revisions and undo |
+| Preview connection lifecycle | `public/preview-stream.js` | `tests/ui/preview-lifecycle.spec.js`, browser Studio reconnection tests |
 | Fan configuration validation | `server/cooling-config.js` | `tests/cooling.test.js`, `tests/cooling-startup.test.js` through HTTP |
 | Fan graph and curve math | `public/cooling-model.js`, `public/cooling.js`, `public/cooling.css` | Same HTTP tests and `tests/ui/cooling.spec.js` |
 | Fan execution/startup/helper | `server/cooling.js`, `server/cooling-bridge.js`, `server/cooling-installation.js`, `native/NexusCoolingBridge.cs`, `native/CoolingLaunchBroker.cs` | Cooling/startup, bridge/launch-service and browser startup tests |
@@ -32,6 +35,13 @@ Locate exact tests using `rg --files tests`. Commands: [development guide](DESEN
 `cooling-model.js`: `{valueAt, plot}` via CommonJS and browser `NexusCoolingModel`. Ordered `[temperature, percent]` pairs; `valueAt` expects a nonempty validated curve and clamps beyond endpoints; `plot` also handles an empty draft. Linear or monotone smoothstep between points. Both use the same interpolation; neither performs thermal protection.
 
 `cooling.js` retains identity/freshness checks, critical-temperature protection, safety floors, hysteresis, bounded retries and firmware release. No bypass through graph/preset. Private `cooling.json` is written on configuration changes, not frames. Startup uses the last successfully applied configuration; explicit off disarms it.
+
+## Access, reconnection and capability contracts
+
+- `AccessPolicy` owns persisted LAN mode and link hash, never an administrator role. `Security.session` combines socket scope, admin cookie and LAN policy. HTTP origin/host/CSRF checks remain in the request handler. Policy updates must prune both state and preview streams. `NetworkSettings.set` changes memory only after persistence succeeds.
+- `DeviceReconnect` exposes `catalog/review/apply`. Review validates a disconnected source and conflict-free online destination, clones saved intent and captures a three-minute digest. Apply requires the matching unchanged review, acknowledgement of omissions, preserved original and atomic Store save. It never resizes hardware or guesses equivalence of native mode IDs. Caller invalidates Studio layout revision and output caches.
+- `NexusPreviewStream.create({enabled,refresh,onFrame})` owns one EventSource, retry timer and generation. `start/stop` invalidate old asynchronous work; refresh/frame rendering still belong to the Studio UI. No polling while closed is introduced.
+- `device-capabilities.js` interprets mode descriptors without I/O. Native power-off fallback requires a declared zero-brightness range without automatic-save; it does not claim physical validation or enable new USB protocols.
 
 ## Small future changes
 

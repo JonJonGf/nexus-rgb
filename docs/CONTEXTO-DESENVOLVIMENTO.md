@@ -2,7 +2,15 @@
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
 
-## Trabalho ativo: manutenção com menos contexto
+## Trabalho ativo: alpha.43 autorizada
+
+- Usuário autorizou revisão do código/pesquisa, melhorias do plano e publicação de nova alpha. Substitui a restrição anterior de manter só a branch. Instalação/UAC/hardware real ainda exigem autorização atual. RX 7600/resposta da Alexa continuam excluídos.
+- Branch `codex/alpha43-improvements`, base `7f0f2af`; mudanças novas ainda sem commit/tag. LAN aberta/link autorizado/somente PC e assistente de reconexão implementados com revisão/CAS/backup, telas PT/EN e testes HTTP/Edge. Novos módulos de acesso, reconexão, capacidades e preferência de rede; extração da conexão de prévia com proteção de geração em validação.
+- Corrigidos: snapshots descartados sem assinantes; escolha de interface alterada apesar de erro de gravação; desligamento de dispositivo somente nativo com brilho zero anunciado; reconexão antiga substituindo prévia nova. Reproduções e fontes no [relatório alpha.43](validation/2026-10-30-alpha43.md). Provas sintéticas/LAN de teste, sem comandos físicos.
+- Validação local: 316 gerais/72 Edge sem retries; ajustes finais passaram em contratos HTTP/Edge específicos, supervisor recompilado e 12 Inno. Auditoria de produção zero vulnerabilidades. Desktop/390 px em inglês inspecionados. Microbenchmark isolado: 20 mil snapshots descartados → zero por 10 mil eventos sem assinantes; não é redução medida de CPU/RAM total. Guias/notas PT/EN preparados; dois ciclos VM ampliados com preservação de política LAN, ainda pendentes.
+- Próximo: commit, CI/CodeQL, tag/build e publicação alpha.43 após gates. O hash real será registrado no fechamento; este checkpoint é anterior ao commit. PC/release permanecem alpha.42 até confirmação de publicação; não instalar automaticamente.
+
+## Entrega anterior: manutenção com menos contexto
 
 - Usuário pediu revisar pendências, avaliar Tailwind e organizar código/documentação para reduzir trabalho e tokens futuros. Autorizou branch separada no GitHub; não pediu instalar esta revisão nem publicar nova alpha.
 - Branch `codex/architecture-review`, base local `54b99ad` (documentação posterior à alpha.42); origin/main conferida em `de5573a` ao começar. Não mover tags, sobrescrever checkpoints ou mesclar automaticamente na main.

@@ -4,15 +4,15 @@ Este é o índice atual. [Propostas e evidências anteriores](HISTORICO-PLANO-ME
 
 ## Manutenção com menos contexto
 
-Organizar responsabilidades, compartilhar regras e documentar interfaces para ler menos arquivos por atualização. Branch `codex/architecture-review`; sem merge, release ou instalação automáticos. Menos linhas não é o objetivo: fonte comprimido pode dificultar manutenção.
+Organizar responsabilidades, compartilhar regras e documentar interfaces para ler menos arquivos por atualização. A revisão inicial ficou em `codex/architecture-review`; depois o usuário autorizou implementar melhorias e publicar a alpha.43 em `codex/alpha43-improvements`. Publicação após gates; instalação real continua separada. Menos linhas não é o objetivo: fonte comprimido pode dificultar manutenção.
 
 | Ordem | Entrega | Estado / critério |
 | --- | --- | --- |
 | 1 | Contexto curto, plano atual e índice de módulos/testes | Nesta branch; preservar histórico e conferir links. |
 | 2 | Configuração de ventilação separada da execução; curva compartilhada | Primeiro lote nesta branch. Preservar HTTP/Edge, retomada, segurança e visual. |
-| 3 | Grupos de rotas separados da composição HTTP | Planejado. Autorização/CSRF/limites permanecem centrais; começar por uma família real, sem criar framework próprio. |
-| 4 | Separar transporte, topologia e agendamento RGB | Planejado em lotes; preservar RAM, gerações, ACK, desligamento e fallback. Medir antes de alegar ganho. |
-| 5 | Separar editor, desenho e conexão de prévia do Studio | Planejado. Estado/revisão/desfazer continuam únicos; verificar PT/EN/celular no navegador. |
+| 3 | Separar política e configuração da composição HTTP | Alpha.43: acesso/reconexão/rede em módulos próprios; autenticação/CSRF/limites ficam centrais. Extração adicional de grupos de rotas continua incremental. |
+| 4 | Separar transporte, topologia e agendamento RGB | Alpha.43 extrai interpretação de capacidades/modos e elimina notificações descartadas. Agendamento/topologia continuam preservados; não reescrever todos os transportes de uma vez. |
+| 5 | Separar editor, desenho e conexão de prévia do Studio | Alpha.43 extrai EventSource com geração e corrige reconexão obsoleta; editor/desenho continuam próximos do estado compartilhado para evitar duplicação. |
 | 6 | Consolidar estilos e contratos dos módulos | Inventariar repetições reais. CSS já tem variáveis/classes comuns; documentar invariantes, não cada linha. |
 | 7 | Tailwind | Avaliado, sem adoção automática. [Decisão](adr/0001-maintenance-and-styles.md): piloto real precisa justificar migração. |
 
@@ -22,14 +22,14 @@ Cada lote deve ser revisável em commit próprio. Não reescrever tudo de uma ve
 
 | Recurso | Estado confirmado / próximo passo |
 | --- | --- |
-| Três modos de acesso LAN | `security.js` concede acesso não administrador à mesma sub-rede. Falta “somente PC” e link autorizado revogável/renovável. QR atual entrega URL, não autorização individual. Definir sessões, revogação de streams e ponte Alexa antes de implementar. |
-| “Reconectar dispositivo” | Falta migração revisável entre IDs distintos; reconexão de transporte já existe. Projetar origem/destino com prévia, sem adivinhar por nome/LEDs. |
+| Três modos de acesso LAN | Implementados na candidata alpha.43: aberto, link autorizado compartilhado revogável/renovável e somente PC; revogação de streams e Alexa independente. Não há revogação por telefone individual. [Guia](ACESSO-LAN.md). |
+| “Reconectar dispositivo” | Implementado na candidata alpha.43 com origem/destino explícitos, revisão temporária, conflitos/faixas bloqueados, backup e transferência de referências. Modos internos/contagem ARGB não são adivinhados. [Guia](RECONECTAR-DISPOSITIVO.md). |
 | Novos adaptadores de teclado/ventilação | OpenRGB genérico e nativo RK61 já existem; LampArray/protocolos adicionais não são suporte universal. Exigir capacidades, identidade, retorno seguro e teste por modelo. |
 | Recuperação autônoma de controlador travado | Reconexão, supervisor e renovação ao retomar Windows já existem. Proposta de recuperação da indisponibilidade parcial não está integralmente entregue; revisar cenários/orçamento/exclusão mútua antes de ampliar privilégios. |
 | Ensaios físicos adicionais | Transições em outros controladores, WLED, áudio/contexto em outras sessões e novos dispositivos precisam de observação. Recurso implementado com teste sintético não vira recurso ausente. |
 | Boot real das fans | Alpha.42 instalada; falta observar no próximo início depois de aplicar uma vez. Não reiniciar PC para encerrar esta revisão. |
 
-Estes itens são backlog, não autorização para implementar todos nesta rodada.
+As duas primeiras entregas foram autorizadas na nova rodada alpha.43. Ensaios físicos e novos protocolos dependentes de dispositivo/empacotamento não podem ser declarados concluídos com simulações. Recuperação autônoma de processo elevado permanece uma ampliação separada; não reduzir validações/privilégios para encaixá-la nesta publicação.
 
 ## Entregue: não refazer como pendência
 

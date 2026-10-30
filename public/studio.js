@@ -3,7 +3,7 @@
   const T = window.NexusI18n;
   const $ = id => document.getElementById(id), make = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
   const effectNames = T.map({ static: 'Estático', rainbow: 'Arco-íris', wave: 'Onda', breathe: 'Respiração', pulse: 'Pulso', strobe: 'Estrobo', sequence: 'Sequência', comet: 'Cometa', scanner: 'Vai e vem', sparkle: 'Cintilação' });
-  let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, stream, poll, dragging = false, loading = false;
+  let api, toast, state, isAdmin = false, current = 'control', data, selected, dirty = false, fpsDirty = false, poll, dragging = false, loading = false;
   const item = () => data?.layout.find(i => i.key === selected);
   let liveFrame, ports, workspace, calibration, backups, health, library;
   function renderPorts() { if (ports) $('settings-ports').textContent = T('Painel TCP ') + ports.panel + ' · SDK TCP ' + ports.sdk + ' · Alexa TCP ' + ports.alexa + T(' · descoberta UDP 1900.'); }
@@ -628,15 +628,8 @@
       toast(T('Taxa salva. Os efeitos usam o novo limite sem reiniciar o controlador.'));
     }
   });
-  let streamTimer = null, streamDelay = 2000;
-  function stopStream() { clearTimeout(streamTimer); streamTimer = null; stream?.close(); stream = null; }
-  function connectPreview() {
-    stopStream();
-    if (!api || current !== 'studio' || document.hidden) return;
-    stream = new EventSource('/api/studio/preview');
-    stream.onmessage = event => { try {
-      streamDelay = 2000;
-      const frame = JSON.parse(event.data), image = $('studio-preview'); liveFrame = frame;
+  const preview=window.NexusPreviewStream.create({enabled:()=>Boolean(api&&current==='studio'&&!document.hidden),refresh,onFrame(frame){
+      const image = $('studio-preview'); liveFrame = frame;
       image.hidden = !frame.image || !frame.enabled || !frame.power || !frame.connected || Boolean(frame.error);
       if (!image.hidden) image.src = 'data:image/png;base64,' + frame.image;
       else image.removeAttribute('src');
@@ -652,20 +645,9 @@
       if (frame.layout && frame.layout.length > 0 && (!data || !data.layout || data.layout.length === 0) && !dragging) {
         refresh(true, false);
       }
-    } catch {} };
-    stream.onerror = () => {
-      stopStream();
-      if (current !== 'studio' || document.hidden) return;
-      const delay = streamDelay; streamDelay = Math.min(streamDelay * 2, 15000);
-      streamTimer = setTimeout(async () => {
-        streamTimer = null;
-        if (current !== 'studio' || document.hidden) return;
-        await refresh(); connectPreview();
-      }, delay);
-    };
-  }
+  }});
   function open(name) {
-    current = name; clearInterval(poll); stopStream();
+    current = name; clearInterval(poll); preview.stop();
     health?.open(name);
     if (!api || !['studio', 'settings'].includes(name) || document.hidden) return;
     refresh();
@@ -673,7 +655,7 @@
     if (name === 'studio') {
       liveFrame = null; $('studio-preview').hidden = true; $('studio-preview').removeAttribute('src'); drawOutput();
       $('studio-current-effect').textContent = T('Aguardando saída');
-      streamDelay = 2000; connectPreview();
+      preview.start();
     } else if (isAdmin) api('/api/network').then(n => { ports = n.ports; renderPorts(); }).catch(error);
   }
   window.addEventListener('nexus:languagechange', () => {
@@ -684,7 +666,7 @@
     const source = $('studio-source').value; formulaPalette(false); $('studio-source').value = source; formulaValidity(formulaValid); formulaReadout(); $('formula-preview-toggle').textContent = T(formulaTimer || codePreview.playing() ? 'Pausar prévia' : 'Testar prévia');
   });
   document.addEventListener('visibilitychange', () => open(current));
-  window.addEventListener('pagehide', () => { clearInterval(poll); stopStream(); });
+  window.addEventListener('pagehide', () => { clearInterval(poll); preview.stop(); });
   workspace = window.NexusWorkspace.create({get:()=>data,selected:()=>selected,position,selection,mark,gesture:value=>{dragging=value;},save:()=>{mark();map();selection(true);}});
   calibration = window.NexusCalibration.create({item,devices:()=>state?.hardware.devices||[],selectFirst:()=>{selected=data?.layout[0]?.key;map();selection(true);},api:(...args)=>api(...args),save:()=>{mark();map();selection(true);}});
   backups = window.NexusBackups.create({api:(...args)=>api(...args),refresh:()=>location.reload()});

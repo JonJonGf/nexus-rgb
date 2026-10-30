@@ -347,3 +347,5 @@ select { width: 100%; }
   footer { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.reconnect-dialog{width:min(92vw,640px);max-height:90vh;overflow:auto;color:var(--text);background:var(--surface)}.reconnect-dialog select{width:100%;margin:.5rem 0 1rem}.reconnect-summary{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}.reconnect-dialog label{display:block}.reconnect-dialog [hidden]{display:none}

@@ -4,6 +4,31 @@ const { Hardware, frame } = require('../server/hardware'); const { defaults } = 
 function controller(name, location, direct = true) { return { name, vendor: 'Fornecedor', serial: '', location, type: 2, colors: Array(4).fill({ red: 0, green: 0, blue: 0 }), zones: [], modes: [{ id: 0, name: 'Rainbow', flagList: [] }, ...(direct ? [{ id: 2, name: 'Direct', flagList: ['perLedColor'] }] : [])] }; }
 class Mock extends EventEmitter { constructor(devices) { super(); this.devices = devices; this.calls = []; } async connect() {} async getControllerCount() { return this.devices.length; } async getControllerData(i) { return this.devices[i]; } async updateMode(id, mode) { this.calls.push(['mode', id, mode.id]); } updateLeds(id, colors) { this.calls.push(['leds', id, colors]); } disconnect() {} }
 
+test('native-only devices with a declared zero-brightness range can turn off and restore their saved mode',async t=>{
+  const raw=controller('Native-only keyboard','USB:native-only',false);raw.type=5;
+  raw.modes=[{id:7,name:'Firmware Cycle',flagList:['brightness','perLedColor'],brightnessMin:0,brightnessMax:200}];
+  const store={data:{master:{...defaults,brightness:70},devices:{}}},mock=new Mock([raw]),sent=[];
+  mock.updateMode=async(_id,mode)=>sent.push(structuredClone(mode));
+  const hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;
+  await hardware.connect();const id=hardware.snapshot().devices[0].id;store.data.devices[id]={nativeMode:7};await hardware.tick();
+  assert.equal(sent.at(-1).brightness,140);
+  store.data.master.power=false;hardware.changed();await hardware.tick();
+  assert.equal(sent.at(-1).brightness,0);assert.equal(hardware.snapshot().devices[0].error,null);
+  assert.equal(store.data.master.brightness,70);assert.equal(store.data.devices[id].nativeMode,7);
+  const length=sent.length;await hardware.tick();assert.equal(sent.length,length);
+  store.data.master.power=true;hardware.changed();await hardware.tick();assert.equal(sent.at(-1).brightness,140);
+  assert.equal(mock.calls.some(c=>c[0]==='leds'),false,'Brightness-only devices do not receive unsupported LED frames.');
+});
+
+for(const variant of ['positive-minimum','automatic-save'])test('native off fallback refuses '+variant+' descriptors',async t=>{
+  const raw=controller('Native-only controller','USB:'+variant,false);
+  raw.modes=[{id:7,name:'Firmware Cycle',flagList:['brightness',...(variant==='automatic-save'?['automaticSave']:[])],brightnessMin:variant==='positive-minimum'?10:0,brightnessMax:100}];
+  const store={data:{master:{...defaults},devices:{}}},mock=new Mock([raw]),hardware=new Hardware(store,{makeClient:()=>mock});
+  t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();store.data.devices[hardware.devices[0].id]={nativeMode:7};await hardware.tick();
+  mock.calls=[];store.data.master.power=false;hardware.changed();await hardware.tick();
+  assert.equal(mock.calls.length,0);assert.ok(hardware.snapshot().devices[0].error,'Unsupported power-off must stay visible as an error.');
+});
+
 test('static control prefers a non-saving compatible mode regardless of descriptor order',async t=>{
  const raw=controller('Generic controller','USB:capabilities',false);raw.modes=[{id:1,name:'Custom',flagList:['perLedColor','automaticSave']},{id:3,name:'Static',flagList:['perLedColor']}];
  const store={data:{master:{...defaults,effect:'static'},devices:{}}},mock=new Mock([raw]),hardware=new Hardware(store,{makeClient:()=>mock});t.after(()=>hardware.stop());hardware.stopped=false;await hardware.connect();await hardware.tick();

@@ -8,6 +8,8 @@
   let state = null, admin = false, currentPage = 'control', events = null, networkInfo = null, mobileLink = '', loading = false, toastTimer;
   let sessionRefresh = null, initializing = false, reconnectTimer = null, reconnectDelay = 3000;
   const onThisPC = ['127.0.0.1', 'localhost'].includes(location.hostname);
+  let incomingLink=location.hash.match(/^#nexus-link=([A-Za-z0-9_-]{43})$/)?.[1];
+  if(incomingLink)history.replaceState(null,'',location.pathname+location.search);
   const controls = ['power', 'color', 'hex', 'brightness', 'speed'];
   const el = (tag, className, text) => { const element = document.createElement(tag); if (className) element.className = className; if (text !== undefined) element.textContent = text; return element; };
   function icon(name) {
@@ -178,6 +180,7 @@
     window.NexusStudio?.update(state, admin, api, toast, currentPage);
     window.NexusExperiences?.update(state, admin, api, toast, currentPage);
     window.NexusCooling?.update(state, admin, api, toast, currentPage);
+    window.NexusReconnect?.update({admin,api,onApplied:render,notify:toast});
     $('save-profile').hidden = !admin; $('create-profile').hidden = !admin; $('admin-connections').hidden = !admin; $('phone-connections').hidden = admin;
     if (!admin) $('profile-form').hidden = true;
     $('current-link').href = location.origin + '/'; $('current-link').textContent = location.origin + '/';
@@ -460,9 +463,20 @@
     if (result) { closeProfile(); toast(T('Perfil salvo. Use Ativar perfil quando quiser aplicar nas luzes.')); }
   });
   function peerRow(text, subtitle, buttonText, callback) { const row = el('div', 'peer-row'); const title = el('div', '', text); if (subtitle) title.append(el('small', '', subtitle)); const button = el('button', 'button subtle', buttonText); button.addEventListener('click', callback); row.append(title, button); return row; }
+  function renderAccess(value){
+    $('access-mode').value=value.mode;$('access-revoke').disabled=value.mode!=='authorized';
+    $('access-status').textContent=T(value.mode==='local'?'Painel restrito a este PC.':value.mode==='authorized'?'Celular e tablet precisam do link autorizado.':'Aberto para dispositivos da mesma rede local.');
+    if(value.error)$('access-status').textContent+=' '+T(value.error);
+    $('generate-qr').disabled=value.mode==='local';
+    $('access-notice').textContent=T('A conexão usa HTTP local, sem criptografia. A administração fica somente no PC.');
+    $('link-mode-note').textContent=T(value.mode==='authorized'?'Gerar outro link revoga o anterior e os acessos associados.':'Sem login · Sem expiração · Sem pareamento');
+  }
+  $('access-mode').addEventListener('change',async()=>{const result=await action('/api/access',{mode:$('access-mode').value});if(result){renderAccess(result);$('qr-box').hidden=true;}else loadNetwork();});
+  $('access-revoke').addEventListener('click',async()=>{const result=await action('/api/access',{revoke:true});if(result){renderAccess(result);$('qr-box').hidden=true;toast(T('Link e acessos revogados.'));}});
   async function loadNetwork() {
     if (!admin || loading) return; loading = true;
     try {
+      renderAccess(await api('/api/access'));
       networkInfo = await api('/api/network'); const select = $('network-select'); const preferred = networkInfo.selectedAddress || select.value; select.replaceChildren();
       for (const item of networkInfo.urls) { const option = el('option', '', `${item.name} — ${item.url}`); option.value = item.address; select.append(option); }
       if ([...select.options].some(o => o.value === preferred)) select.value = preferred;
@@ -512,6 +526,7 @@
     initializing = true; clearTimeout(reconnectTimer); reconnectTimer = null;
     events?.close(); events = null;
     try {
+      if(incomingLink&&!onThisPC){try{await api('/api/session/lan',{token:incomingLink});incomingLink=null;}catch(error){if([400,401,403].includes(error.status))incomingLink=null;throw error;}}
       const localSession=onThisPC?await api('/api/session/local', {}):null;
       const session = await api('/api/session'); admin = session.admin; render(await api('/api/state'));
       if(localSession?.welcome)$('welcome-dialog').showModal();

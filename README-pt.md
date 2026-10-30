@@ -4,7 +4,7 @@
 
 [Compatibilidade e limites atuais](docs/COMPATIBILIDADE.md): detectar, controlar RGB, monitorar sensores e aplicar curvas de fan têm requisitos diferentes.
 
-> **Novidade na alpha.42:** o controle ativo das ventoinhas retoma automaticamente os sensores e a curva aplicada ao iniciar o PC. Configurações antigas precisam de uma ativação bem-sucedida na nova versão para registrar essa escolha; novas instalações continuam desligadas até serem configuradas. Consulte [ventilação](docs/VENTILACAO.md) e [notas da versão](docs/releases/v0.1.0-alpha.42.md).
+> **Novidade na alpha.43:** modos de acesso LAN (aberto, link autorizado revogável e somente PC), reconexão de dispositivo com revisão e melhorias de eficiência/compatibilidade por capacidades. Consulte [notas](docs/releases/v0.1.0-alpha.43.md), [acesso LAN](docs/ACESSO-LAN.md) e [reconexão](docs/RECONECTAR-DISPOSITIVO.md). A retomada das curvas de fan continua disponível após aplicar/ativar uma vez.
 
 <p align="center">
   <img src="docs/assets/nexus-banner.svg" alt="Nexus RGB Studio — Seu RGB. Sua rede. Seu controle. Windows, OpenRGB incluído, controle local e Alexa para ligar e desligar." width="100%">
@@ -17,8 +17,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
-  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.42">Arquivos da versão</a>
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Setup-0.1.0.exe"><b>⬇️ Baixar instalador para Windows</b></a> ·
+  <a href="https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.43">Arquivos da versão</a>
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@
   <a href="docs/DESENVOLVIMENTO.md">Desenvolver</a>
 </p>
 
-> **Gratuito, aberto e experimental.** Versão **v0.1.0-alpha.42**: OpenRGB Headless, ajustes de protocolo/cores de GPU e agrupamento das zonas por aparelho. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.42.md), a [compatibilidade de GPUs](docs/COMPATIBILIDADE-GPU.md) e a [validação](docs/validation/2026-10-20-alpha40.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo, revisão e suporte do controlador incorporado.
+> **Gratuito, aberto e experimental.** Versão **v0.1.0-alpha.43**: OpenRGB Headless, ajustes de protocolo/cores de GPU e agrupamento das zonas por aparelho. Consulte as [notas da versão](docs/releases/v0.1.0-alpha.43.md), a [compatibilidade de GPUs](docs/COMPATIBILIDADE-GPU.md) e a [validação](docs/validation/2026-10-20-alpha40.md). Os executáveis Nexus ainda não têm assinatura digital própria. A compatibilidade depende do modelo, revisão e suporte do controlador incorporado.
 
 O controle de componentes e controladoras de outras marcas utiliza o OpenRGB incluído. A integração USB própria está limitada ao descritor do Royal Kludge RK61 já exercitado, usando os efeitos internos do teclado e comandos quando o estado muda. Os encoders de outras controladoras são experimentais e não equivalem a suporte físico validado. Não há medição que comprove latência zero ou uma taxa universal de animação dos teclados.
 
@@ -86,7 +86,7 @@ O arquivo para instalar esta versão se chama:
 NexusRGB-Setup-0.1.0.exe
 ```
 
-Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.42) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
+Baixe o [instalador compilado](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Setup-0.1.0.exe) ou abra a [página da versão](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.43) para consultar os executáveis, hashes SHA256 e mudanças da prévia.
 
 **Download gratuito e público:** não é necessário ter conta GitHub para baixar o instalador ou o código. O painel na LAN também funciona sem conta ou login.
 
@@ -124,6 +124,8 @@ Os ajustes são salvos automaticamente. Quando o controlador está desconectado,
 <a id="celular"></a>
 
 ## 📱 Um link para o celular, o tablet e outro PC
+
+Em **Conexões**, escolha acesso aberto (padrão), somente por link autorizado ou somente neste PC. Renovar o link revoga o anterior e os acessos associados; a autorização da Alexa é independente. [Guia de acesso](docs/ACESSO-LAN.md).
 
 1. Conecte os aparelhos à mesma rede local do computador.
 2. No Nexus aberto pelo aplicativo do PC, entre em **Conexões**.
@@ -282,7 +284,7 @@ O painel Nexus atende somente a rede local. Comandos fora de casa pelo aplicativ
 
 ## 🧹 Desinstalar o Nexus RGB
 
-1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Uninstall-0.1.0.exe).
+1. Baixe [NexusRGB-Uninstall-0.1.0.exe](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Uninstall-0.1.0.exe).
 2. Abra o arquivo e autorize o pedido de administrador do Windows.
 3. Confirme a remoção na janela do desinstalador e aguarde a conclusão.
 

@@ -1,6 +1,7 @@
 'use strict';
 const crypto = require('node:crypto');
 const { loopback, sameSubnet } = require('./network');
+const { AccessPolicy } = require('./access');
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const random = () => crypto.randomBytes(32).toString('base64url');
 class RateLimiter {
@@ -16,7 +17,7 @@ class RateLimiter {
   }
 }
 class Security {
-  constructor(directory, getInterfaces) { this.admins = new Map(); this.getInterfaces = getInterfaces; }
+  constructor(directory, getInterfaces) { this.admins = new Map(); this.getInterfaces = getInterfaces; this.access=new AccessPolicy(directory); }
   cookie(token, secure, expires) {
     return `nexus_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${expires}${secure ? '; Secure' : ''}`;
   }
@@ -26,12 +27,14 @@ class Security {
     this.admins.set(hash(token), Date.now() + 8 * 3600000); return token;
   }
   session(req) {
+    const remote=!loopback(req.socket.remoteAddress)&&sameSubnet(req.socket.remoteAddress,this.getInterfaces?.());
+    const guest=()=>remote&&this.access.allows(req)?{admin:false,id:'lan'}:null;
     const cookies = req.headers.cookie || '';
     const token = cookies.match(/(?:^|;\s*)nexus_session=([a-zA-Z0-9_-]{43})(?:;|$)/)?.[1];
-    if (!token) return !loopback(req.socket.remoteAddress) && sameSubnet(req.socket.remoteAddress, this.getInterfaces?.()) ? { admin: false, id: 'lan' } : null;
+    if (!token) return guest();
     const fingerprint = hash(token);
     if (loopback(req.socket.remoteAddress) && this.admins.get(fingerprint) > Date.now()) return { admin: true, id: 'pc' };
-    return !loopback(req.socket.remoteAddress) && sameSubnet(req.socket.remoteAddress, this.getInterfaces?.()) ? { admin: false, id: 'lan' } : null;
+    return guest();
   }
 }
 module.exports = { Security, RateLimiter, hash };

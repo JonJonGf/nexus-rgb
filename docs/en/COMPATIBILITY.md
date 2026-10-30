@@ -27,6 +27,8 @@ Check the installed build in Settings and prepare the reviewable diagnostic. Inc
 
 ## Expanding support
 
+Alpha.43 adds native-only power-off when a mode explicitly declares a zero-brightness range without automatic-save. Saved mode/brightness are retained for power-on; positive minimum brightness is not considered off. This is descriptor-based handling, not a new list of physically verified models. For identity changes, use the [reviewed reconnect wizard](DEVICE-RECONNECT.md).
+
 Adapters need verifiable source/licenses, appropriate protocol identification, declared limits, regression coverage and physical validation before a model is called confirmed. Pinned dependencies keep upgrades reviewable and recoverable. Cooling remains optional: disabled mode opens no sensors and runs no helper.
 
 References: [Fan Control compatibility](https://github.com/Rem0o/FanControl.Releases#issues-and-hardware-compatibility), [sensor pairing](https://getfancontrol.com/docs/), [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor), [ARGB limitations](https://openrgb.org/resize.html), [bundled headless base](https://github.com/hello-nexus/openrgb-headless/tree/18e2c95f5e6d5d9f45a948df1e3d0b882e605b45).

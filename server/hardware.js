@@ -1,4 +1,5 @@
 'use strict';
+const {selectModes,nativeOffMode}=require('./device-capabilities');
 const { EventEmitter } = require('node:events');
 const crypto = require('node:crypto');
 const { OpenRGBClient } = require('./openrgb-client');
@@ -405,10 +406,7 @@ class Hardware extends EventEmitter {
         raw = await this.operation(client.getControllerData(i), this.operationTimeout, { phase: 'controller-description', controllerIndex: i, client, generation: currentGen });
         if (this.generation !== currentGen || this.stopped) return;
       }
-      const direct = raw.modes.find(m => /^direct$/i.test(m.name) && m.flagList.includes('perLedColor') && !m.flagList.includes('automaticSave'));
-      const fixedModes = raw.modes.filter(m => /^(?:direct|static|solid(?: color)?|fixed(?: color)?|custom)$/i.test(m.name) && (m.flagList.includes('perLedColor') || m.flagList.includes('modeSpecificColor')));
-      const fixed = direct || fixedModes.find(m => !m.flagList.includes('automaticSave')) || fixedModes[0];
-      const off = raw.modes.find(m => /^(off|disabled|blackout)$/i.test(m.name));
+      const {direct,fixed,off}=selectModes(raw);
       const ledCount = raw.colors.length;
       leds += ledCount; if (ledCount > 4096 || leds > 32768) throw new Error('Quantidade de LEDs acima do limite seguro.');
       const busType = detectBusArchitecture(raw);
@@ -859,15 +857,16 @@ class Hardware extends EventEmitter {
         if (this.studio?.hasDevice(d.id)) delete settings.nativeMode;
         const oldError = d.error;
         const activePower = Boolean(settings.power || fading);
-        const mode = identifying ? d.direct : !activePower ? (d.off || d.fixed) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
+        const brightnessOff=!activePower&&!d.off&&!d.fixed;
+        const mode = identifying ? d.direct : !activePower ? (d.off || d.fixed || nativeOffMode(d.raw,settings.nativeMode)) : settings.nativeMode !== undefined ? d.raw.modes.find(m => m.id === settings.nativeMode) : d.fixed;
         if (!mode) { d.error = 'Este dispositivo não oferece controle de cor compatível.'; }
         else if (activePower && settings.nativeMode === undefined && !d.effects.includes(settings.effect)) { d.error = 'Este efeito não está disponível neste dispositivo.'; }
         else {
           const modeSettings = fading && !settings.power ? { ...settings, power: true } : settings;
-          await this.applyMode(d, mode, modeSettings, mode.flagList.includes('perLedColor') && (!activePower || settings.nativeMode === undefined));
+          await this.applyMode(d, mode, modeSettings, !brightnessOff && mode.flagList.includes('perLedColor') && (!activePower || settings.nativeMode === undefined));
           let colors = null;
           const nativePerLed = activePower && settings.nativeMode !== undefined && mode.colorMode === 1;
-          if ((!activePower || settings.nativeMode === undefined || nativePerLed) && mode.flagList.includes('perLedColor')) {
+          if (!brightnessOff && (!activePower || settings.nativeMode === undefined || nativePerLed) && mode.flagList.includes('perLedColor')) {
             colors = nativePerLed
               ? frame({ ...settings, effect: 'static', brightness: mode.flagList.includes('brightness') ? 100 : settings.brightness }, d.ledCount, 0)
               : this.renderFrame(d.id, settings, d.ledCount, seconds, tickNow);

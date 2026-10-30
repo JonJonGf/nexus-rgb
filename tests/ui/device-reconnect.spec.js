@@ -1,0 +1,22 @@
+const {test,expect}=require('./fixture');
+const from='1'.repeat(24),to='2'.repeat(24);
+const device=id=>({id,name:'Fixture strip',vendor:'Fixture',type:3,kind:'device',ledCount:8,status:'online',spatialCapable:true,settings:{power:true,color:'#00f0ff',brightness:80,effect:'static',speed:40},effects:['static','wave'],modes:[],zones:[]});
+test.use({hardwareSnapshot:{connected:true,devices:[device(from)]}});
+test('reconnect dialog reviews saved settings before applying them to a new identity',async({page,hardwareSnapshot})=>{
+  await page.goto('/');await expect(page.locator('#power')).toBeEnabled();
+  const origin=new URL(page.url()).origin;
+  const saved=await page.request.post('/api/devices/'+from,{headers:{Origin:origin,'X-Nexus-Client':'web'},data:{color:'#ff0066',power:false}});expect(saved.ok()).toBe(true);
+  hardwareSnapshot.devices=[device(to)];await page.reload();
+  await page.locator('.nav[data-page=devices]').click();await page.locator('#reconnect-device').click();
+  await expect(page.locator('#reconnect-dialog')).toBeVisible();
+  await expect(page.locator('#reconnect-from option')).toHaveCount(2);
+  await page.locator('#reconnect-from').selectOption(from);await page.locator('#reconnect-to').selectOption(to);
+  await expect(page.locator('#reconnect-apply')).toBeDisabled();
+  await page.locator('#reconnect-review').click();await expect(page.locator('#reconnect-summary')).toContainText('#ff0066');
+  await expect(page.locator('#reconnect-apply')).toBeEnabled();await page.locator('#reconnect-apply').click();
+  await expect(page.locator('#reconnect-dialog')).not.toBeVisible();
+  const state=await (await page.request.get('/api/state')).json();
+  expect(state.hardware.devices[0].id).toBe(to);
+  await page.setViewportSize({width:390,height:844});await page.locator('#reconnect-device').click();
+  await expect(page.locator('#reconnect-dialog')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

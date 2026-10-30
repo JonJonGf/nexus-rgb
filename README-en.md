@@ -10,11 +10,9 @@
 
 Nexus RGB is free, open source and experimental. It runs locally on Windows, includes OpenRGB Headless, and has a Portuguese/English interface. No Nexus cloud account or telemetry is required.
 
-**Published version: v0.1.0-alpha.42.** Active fan control now resumes automatically with its saved sensor assignments and applied curve after startup. Fresh installations stay off until explicitly configured; existing installations need one successful activation to enable resumption. The external RX 7600 RGB failure remains under investigation. JSON/HTML profile editing and grouped RGB zones remain available. See the [release notes](docs/releases/v0.1.0-alpha.42.md) and [GPU compatibility guide](docs/en/GPU-COMPATIBILITY.md).
+**Published version: v0.1.0-alpha.43.** Choose open LAN, an authorized revocable link or PC-only access; review saved settings before reconnecting a device with a new identity. This version also reduces unused state broadcasts, fixes preview reconnection races and improves power-off for devices that report native zero-brightness support. See [release notes](docs/releases/v0.1.0-alpha.43.md), [LAN access](docs/en/LAN-ACCESS.md) and [reconnecting devices](docs/en/DEVICE-RECONNECT.md). Saved fan curves still resume after a successful activation.
 
-**Development work is separate:** optional fan curves and the portable GPU diagnostic collector are not included in the alpha.40 installer. A reported Gigabyte RX 7600 still has dark RGB after alpha.40; that issue remains unresolved. Detection is not proof of physical control.
-
-**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.42)
+**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.43)
 
 [Install](#installation) · [Effects and profiles](#effects-and-profiles) · [Setup map](#setup-map) · [Phone](#phone-and-local-network) · [Alexa](#alexa) · [Troubleshooting](#troubleshooting) · [Performance](#performance) · [Develop](#development)
 
@@ -22,7 +20,7 @@ Nexus RGB is free, open source and experimental. It runs locally on Windows, inc
 
 - **Spatial lighting:** position, rotate and resize strips, rings and matrices on a 2D setup map. Spatial effects sample a shared color image at each LED position.
 - **Hardware-aware updates:** select 5–60 FPS, with a default of 20. SMBus RAM remains limited to 20 FPS. Actual hardware refresh depends on the controller and its transport.
-- **Local PC and phone control:** use the browser panel on the same private network, without repeated QR pairing.
+- **Local PC and phone control:** use the browser panel on the same private network, with optional authorized links and PC-only mode.
 - **Optional Alexa power control:** expose one local Hue-compatible light for on/off commands, preserving Nexus colors, brightness and effects.
 - **Effect creation:** twelve declarative JSON patterns and experimental HTML Canvas import, running in an isolated effect worker.
 - **Profiles:** save individual overrides and spatial effects; edit their JSON/HTML source with a preview before applying.
@@ -97,6 +95,8 @@ See the [map, calibration and profile guide](docs/en/SETUP-MAP.md).
 
 ## Phone and local network
 
+In Connections, choose **Open on the local network** (default), **Authorized link only**, or **This PC only**. Generating another authorized link revokes the old link and its access. Alexa authorization is separate. [Access guide](docs/en/LAN-ACCESS.md).
+
 1. Connect the phone/tablet and PC to the same local network. Wired PC plus Wi-Fi phone is fine.
 2. In the PC panel, open **Connections**, choose the network interface and select **Show link and QR code**.
 3. Open the link on your phone and bookmark it or add it to the home screen.
@@ -141,7 +141,7 @@ Echo model/firmware affects compatibility. Some units may perform a command yet 
 - **Prepare diagnostics** shows the exact report and lets you remove categories before downloading. No report is uploaded automatically.
 - Updates preserve settings and create `before-update-*.json` backups. Automatic backups are not deleted on a schedule; manage their disk usage.
 
-To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
+To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
 
 See [backup, diagnosis and updates](docs/en/BACKUP-AND-DIAGNOSTICS.md).
 

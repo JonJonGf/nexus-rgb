@@ -136,6 +136,9 @@ try {
   $mapBody=@{layout=@($savedPiece);baseLayoutRevision=$mapBefore.layoutRevision}
   Invoke-RestMethod ($origin+'/api/studio') -Method Post -Headers $headers -ContentType 'application/json' -Body ($mapBody | ConvertTo-Json -Depth 8 -Compress) -WebSession $session | Out-Null
   $persistedMap=(Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress
+  Check ((Invoke-RestMethod ($origin+'/api/access') -WebSession $session).mode -eq 'open') 'Fresh LAN access defaults to open without granting admin'
+  Invoke-RestMethod ($origin+'/api/access') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"mode":"authorized"}' -WebSession $session | Out-Null
+  $accessFile=Join-Path $data 'app\access.json';$accessBefore=(Get-FileHash -LiteralPath $accessFile).Hash
   $settings=Join-Path $data 'app\settings.json'; $before=(Get-FileHash -LiteralPath $settings).Hash
   $firstDiagnostic=[IO.File]::ReadAllText((Join-Path $data 'installation.log'))
   # Exercise the same extracted preflight/restore transaction used when setup
@@ -157,6 +160,7 @@ try {
   $obsoleteQt=Join-Path $root 'openrgb\Qt6NexusUpgradeFixture.dll'
   [IO.File]::WriteAllText($obsoleteQt,'obsolete runtime fixture')
   Setup 'upgrade'; VerifyServices
+  Check ((Get-FileHash -LiteralPath $accessFile).Hash -eq $accessBefore -and (Invoke-RestMethod ($origin+'/api/access') -WebSession $session).mode -eq 'authorized') 'Upgrade preserves private LAN access policy'
   Check (-not(Test-Path -LiteralPath $obsoleteQt)) 'Upgrade removes obsolete Qt runtime files from the previous distribution'
   Check (@(Get-ChildItem -LiteralPath (Join-Path $root 'openrgb') -Filter 'Qt*.dll').Count -eq 0) 'Headless installation has no Qt runtime DLLs'
   Check (Test-Path -LiteralPath (Join-Path $root 'sources\openrgb-source-18e2c95.zip')) 'Headless installation includes the corresponding pinned source archive'
@@ -202,6 +206,7 @@ try {
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Uninstall preserves user profiles and settings'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Uninstall preserves imported effects'
   Setup 'reinstall'; VerifyServices
+  Check ((Get-FileHash -LiteralPath $accessFile).Hash -eq $accessBefore -and (Invoke-RestMethod ($origin+'/api/access') -WebSession $session).mode -eq 'authorized') 'Reinstall preserves private LAN access policy'
   Check (-not $welcome) 'Reinstall with preserved data does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Reinstall restores preserved data'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Reinstall restores imported effect files'
