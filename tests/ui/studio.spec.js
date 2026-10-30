@@ -202,6 +202,8 @@ test('indicador fora do mapa, botão Voltar a seguir o mapa e reconexão da pré
   await page.locator('#studio-follow-map').click();
   await expect(page.locator('.studio-item.excluded')).toHaveCount(0);
   await expect(page.locator('#studio-piece-excluded')).toBeHidden();
+  // Drain mocked state requests before the page API context is disposed.
+  await page.unrouteAll({ behavior: 'wait' });
 });
 
 test('painel de recuperação explica falha do efeito, restaura último funcional e permite manter luzes apagadas', async ({ page }) => {
