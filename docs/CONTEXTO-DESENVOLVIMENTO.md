@@ -4,6 +4,11 @@ Este é o registro público de continuidade entre sessões e ferramentas. Leia t
 
 ## Situação atual — 30/10/2026
 
+### Inventário de tamanho — consulta após alpha.42
+
+- Leitura dos arquivos versionados, sem alterar runtime/instalação: server/public/native somam 74 arquivos, 11.355 linhas físicas e 922.595 bytes (~0,88 MiB); testes 7.620 linhas e scripts 2.180. Linhas incluem comentários/espaços e há código compacto, portanto não medem complexidade ou desempenho. Dependências e binários de terceiros não entram nesse código próprio. Instalação observada ~216,36 MiB; dist local ~933,76 MiB inclui artefatos, não representa RAM em execução. Nenhum arquivo antigo apagado.
+- Esclarecimento: a entrega anterior incluiu reprodução, regressões HTTP/navegador, medição isolada, build, validação em duas VMs, publicação e instalação; tamanho da pasta por si só não explica a duração. Consulta de tamanho não executou testes novos nem comandou hardware.
+
 ### Alpha.42 publicada — retomada da ventilação
 
 - **Fechamento da publicação:** [alpha.42](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.42), prerelease pública no runtime/tag `8fc5d48ba592464b1b00b74c50b83f0a32244754`. Instalador oficial: 87.418.937 bytes, SHA256 `d4a630c9064629211d353f4f3d701897312216c2bd86a817f4406af976913f38`. Os cinco assets foram baixados e conferidos contra digests GitHub, BUILD-INFO (commit/tag/run), tamanhos e SHA256SUMS.
