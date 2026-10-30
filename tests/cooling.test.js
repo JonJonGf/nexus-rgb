@@ -32,7 +32,7 @@ test('three named custom profiles persist without fan commands, reject a fourth 
  await app.cooling.tick();assert.equal(app.cooling.snapshot().outputs[0].percent,56,'Editing a running preset must not apply it on the next sample');assert.equal(app.cooling.snapshot().profilePending,true);
  assert.equal((await post({profile:customProfiles[1].id})).json().outputs[0].percent,80);
  assert.equal((await post({customProfiles:[]})).status,400,'Active profile must not disappear');
- await app.cooling.close();const restarted=await fixture(t,{directory,cooling:{bridgeFactory:fake.factory,autoPoll:false}});const restored=(await restarted.request('/api/cooling',{cookie:restarted.cookie})).json();assert.equal(restored.enabled,false);assert.equal(restored.customProfiles.length,3);assert.equal(restored.customProfiles[2].name,'Curva editada');
+ await app.cooling.close();const restarted=await fixture(t,{directory,cooling:{bridgeFactory:fake.factory,autoPoll:false}});const restored=(await restarted.request('/api/cooling',{cookie:restarted.cookie})).json();assert.equal(restored.enabled,true);assert.equal(restored.outputs[0].percent,80);assert.equal(restored.customProfiles.length,3);assert.equal(restored.customProfiles[2].name,'Curva editada');
 });
 
 test('a manual curve overrides the previous TURBO preset instead of silently staying at 100%',async t=>{
@@ -59,9 +59,9 @@ test('channel names and visibility persist independently of control and do not m
  assert.equal((await post({channelPreferences:[{...preferences[0],name:'<img src=x>'}]})).status,200,'Names are rendered as text, never markup');
  assert.equal((await post({channelPreferences:[{...preferences[0],key:'../escape'}]})).status,400);assert.equal((await post({channelPreferences:preferences,enabled:true})).status,400);
  await post({channelPreferences:preferences});await first.app.cooling.close();
- const restarted=await fixture(t,{directory:first.directory,cooling:{bridgeFactory:factory,autoPoll:false}});assert.equal((await restarted.request('/api/cooling',{cookie:restarted.cookie})).json().enabled,false);
+ const restarted=await fixture(t,{directory:first.directory,cooling:{bridgeFactory:factory,autoPoll:false}});assert.equal((await restarted.request('/api/cooling',{cookie:restarted.cookie})).json().enabled,true);
  let value=(await restarted.request('/api/cooling/monitor',{cookie:restarted.cookie,method:'POST',body:{}})).json();assert.equal(value.controls[0].name,'Fans do gabinete');
- board='BOARD B';await restarted.app.cooling.tick();value=(await restarted.request('/api/cooling',{cookie:restarted.cookie})).json();assert.equal(value.controls[0].name,'CPU fan');assert.equal(value.controls[0].hidden,false);
+ await restarted.request('/api/cooling',{cookie:restarted.cookie,method:'POST',body:{enabled:false}});board='BOARD B';await restarted.app.cooling.monitor();value=(await restarted.request('/api/cooling',{cookie:restarted.cookie})).json();assert.equal(value.controls[0].name,'CPU fan');assert.equal(value.controls[0].hidden,false);
 });
 
 test('generic backend channels work by identity across vendors and reorder without guessing RPM pairing',async t=>{
@@ -161,7 +161,7 @@ test('invalid temperatures request protection, stale samples release and never r
   const count=fake.state.commands.length;await app.cooling.tick();assert.equal(fake.state.commands.length,count);
 });
 
-test('custom curves deduplicate output, invalid curves are rejected and a restart remains disabled',async t=>{
+test('custom curves deduplicate output, invalid curves are rejected and a restart restores active settings',async t=>{
   const fake=controller(),first=await fixture(t,{cooling:{bridgeFactory:fake.factory,autoPoll:false}});
   const post=body=>first.request('/api/cooling',{cookie:first.cookie,method:'POST',body});
   const custom={...assignment,points:[[30,30],[60,75],[85,100]]};
@@ -173,7 +173,7 @@ test('custom curves deduplicate output, invalid curves are rejected and a restar
   assert.equal((await post({profile:'silent'})).status,200);assert.equal(first.app.cooling.snapshot().assignments[0].points,undefined);
   await first.app.cooling.close();
   const second=await fixture(t,{directory:first.directory,cooling:{bridgeFactory:fake.factory,autoPoll:false}});
-  const saved=(await second.request('/api/cooling',{cookie:second.cookie})).json();assert.equal(saved.enabled,false);assert.equal(saved.mode,'off');assert.equal(saved.assignments.length,1);assert.equal(fake.state.open,false);
+  const saved=(await second.request('/api/cooling',{cookie:second.cookie})).json();assert.equal(saved.enabled,true);assert.equal(saved.mode,'controlling');assert.equal(saved.assignments.length,1);assert.equal(fake.state.open,true);
 });
 
 test('cooling endpoints require the local admin session',async t=>{

@@ -1,5 +1,6 @@
 'use strict';
 const path=require('node:path');
+const {createHash}=require('node:crypto');
 const {readJson,writeJson}=require('./store');
 const {identify}=require('./cooling-identification');
 const profiles = [
@@ -12,17 +13,60 @@ const profiles = [
 class Cooling {
   constructor(directory,options={}){
     this.options=options;this.now=options.now||Date.now;this.file=path.join(directory,'cooling.json');
-    this.config={profile:'balanced',assignments:[],customProfiles:[],channelPreferences:[]};this.enabled=false;this.mode='off';this.bridge=null;this.activeProfile=null;
+    this.config={profile:'balanced',assignments:[],customProfiles:[],channelPreferences:[],resumeOnStartup:false};this.enabled=false;this.mode='off';this.bridge=null;this.activeProfile=null;
     this.data={sensors:[],controls:[],fans:[],simulated:false};this.outputs=[];this.previous=new Map();
     this.queue=Promise.resolve();this.pending=0;this.error=null;this.lastSent='';this.timer=null;
-    try{this.config=validate(readJson(this.file,this.config));}catch(error){this.error=error.message;}
+    this.resumePending=false;this.resumeAttempts=0;this.resumeGeneration=0;this.resumeTimer=null;
+    let saved;
+    try{saved=readJson(this.file,this.config);this.config=validate(saved);}
+    catch(error){
+      this.error=error.message;this.mode='fault';
+      // Keep valid curves visible if only the startup record is damaged.
+      // Never rewrite the original file or infer an enabled state on load.
+      if(saved)try{this.config=validate({...saved,resumeOnStartup:false,resumeProfile:null,bindings:[]});}catch{}
+    }
   }
   serial(run,shutdown=false){
     if(!shutdown&&(this.closing||this.pending>=4))return Promise.reject(Error('A ventilação está ocupada. Aguarde a operação atual.'));
     this.pending++;const result=this.queue.then(()=>{if(this.closing&&!shutdown)throw Error('Ventilação encerrada.');return run();});this.queue=result.catch(()=>{}).finally(()=>{this.pending--;});return result;
   }
   allProfiles(){return [...profiles.map(p=>({...p,interpolation:'linear'})),...(this.config.customProfiles||[]).map(p=>({...p,custom:true}))];}
-  snapshot(){const selected=this.allProfiles().find(p=>p.id===this.config.profile);return {enabled:this.enabled,mode:this.mode,...structuredClone(this.config),profiles:structuredClone(this.allProfiles()),profilePending:Boolean(this.enabled&&this.config.assignments.some(a=>!a.points)&&(JSON.stringify(this.activeProfile?.points)!==JSON.stringify(selected?.points)||this.activeProfile?.interpolation!==selected?.interpolation)),
+  start(){
+    if(this.startupStarted||this.closing||!this.config.resumeOnStartup)return;
+    this.startupStarted=true;this.resumePending=true;
+    this.tryResume(this.resumeGeneration);
+  }
+  cancelResume(){
+    this.resumeGeneration++;clearTimeout(this.resumeTimer);this.resumeTimer=null;this.resumePending=false;
+  }
+  tryResume(generation){
+    if(this.closing||generation!==this.resumeGeneration||!this.config.resumeOnStartup)return;
+    this.resumeAttempts++;this.mode='starting';
+    this.startup=this.configure({enabled:true},true).then(()=>{
+      if(generation===this.resumeGeneration)this.resumePending=false;
+    }).catch(error=>{
+      if(this.closing||generation!==this.resumeGeneration)return;
+      this.error=error.message;
+      const delays=this.options.resumeRetryDelays||[1000,2000,4000,8000,15000,30000,30000];
+      if(error.code==='ECOOLING_IDENTITY'||this.resumeAttempts>delays.length){this.resumePending=false;this.mode='fault';return;}
+      this.mode='waiting';this.resumeTimer=setTimeout(()=>{this.resumeTimer=null;this.tryResume(generation);},delays[this.resumeAttempts-1]);this.resumeTimer.unref?.();
+    });
+  }
+  bindings(assignments){
+    const key=row=>createHash('sha256').update(JSON.stringify([this.data.board?.manufacturer?.trim().toUpperCase()||'',this.data.board?.model?.trim().toUpperCase()||'',row.id,row.originalName||row.name])).digest('hex');
+    return assignments.map(a=>{
+      const control=this.data.controls.find(c=>c.id===a.controlId),sensor=this.data.sensors.find(s=>s.id===a.sensorId);
+      if(!control||!sensor)throw Error('Canal ou sensor indisponível. Confira a associação.');
+      return {controlId:a.controlId,controlKey:key(control),sensorKey:key(sensor)};
+    });
+  }
+  checkBindings(config){
+    if(JSON.stringify(this.bindings(config.assignments))!==JSON.stringify(config.bindings)){const error=Error('O equipamento ou o sensor mudou. Confira a associação antes de retomar o controle.');error.code='ECOOLING_IDENTITY';throw error;}
+  }
+  checkResume(generation){
+    if(this.closing||generation!==this.resumeGeneration){const error=Error('Inicialização de ventilação cancelada.');error.code='ECANCELLED';throw error;}
+  }
+  snapshot(){const selected=this.allProfiles().find(p=>p.id===this.config.profile);return {enabled:this.enabled,mode:this.mode,...structuredClone(this.config),resumePending:this.resumePending,resumeAttempts:this.resumeAttempts,profiles:structuredClone(this.allProfiles()),profilePending:Boolean(this.enabled&&this.config.assignments.some(a=>!a.points)&&(JSON.stringify(this.activeProfile?.points)!==JSON.stringify(selected?.points)||this.activeProfile?.interpolation!==selected?.interpolation)),
     ...structuredClone(this.data),outputs:structuredClone(this.outputs),error:this.error,
     available:Boolean(this.options.bridgeFactory||this.options.allowHardware||this.options.simulated),development:true};}
   schedule(){clearTimeout(this.timer);if(this.options.autoPoll!==false&&this.bridge)this.timer=setTimeout(()=>this.tick().catch(()=>{if(this.bridge)this.schedule();}),1000);this.timer?.unref?.();}
@@ -52,7 +96,14 @@ class Cooling {
     this.data=identify(next,this.config.channelPreferences);
   }
   monitor(){return this.serial(async()=>{await this.open();return this.snapshot();});}
-  configure(body){return this.serial(async()=>{
+  unmonitor(){return this.serial(async()=>{if(this.mode==='monitoring'&&!this.enabled&&!this.resumePending)await this.off();return this.snapshot();});}
+  configure(body,restoring=false){
+    const generation=this.resumeGeneration;
+    if(!restoring&&body?.enabled===false&&Object.keys(body).length===1){const pending=this.resumePending;this.cancelResume();if(pending||this.mode==='starting')this.bridge?.cancel?.();}
+    return this.serial(async()=>{try{return await this.update(body,restoring,generation);}catch(error){if(restoring)await this.off();throw error;}});
+  }
+  async update(body,restoring,generation){
+    if(restoring)this.checkResume(generation);
     if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['enabled','profile','assignments','customProfiles','channelPreferences'].includes(k)))throw Error('Configuração de ventilação inválida.');
     if(body.channelPreferences!==undefined){
       if(Object.keys(body).length!==1)throw Error('Salve a identificação separadamente da ativação.');
@@ -67,22 +118,46 @@ class Cooling {
     if(body.enabled!==undefined&&typeof body.enabled!=='boolean')throw Error('Ativação de ventilação inválida.');
     const next={...this.config,...body};
     if(body.profile&&!body.assignments)next.assignments=next.assignments.map(({points,interpolation,...a})=>a);
-    const config=validate(next);const enabled=body.enabled??this.enabled;
+    const enabled=body.enabled??this.enabled;next.resumeOnStartup=restoring&&this.config.resumeOnStartup;
+    if(!restoring)next.resumeProfile=null;
+    const config=validate(next);
+    config.resumeProfile=enabled?structuredClone(restoring?config.resumeProfile:this.allProfiles().find(p=>p.id===config.profile)):null;
+    if(restoring&&!config.resumeProfile){const error=Error('Confira e aplique uma curva antes de ativar a retomada.');error.code='ECOOLING_IDENTITY';throw error;}
     if(enabled&&!config.assignments.length)throw Error('Selecione ao menos um canal e seu sensor.');
-    if(enabled){await this.open();for(const a of config.assignments){const channel=this.data.controls.find(c=>c.id===a.controlId);if(!channel||!this.data.sensors.some(s=>s.id===a.sensorId))throw Error('Canal ou sensor indisponível. Confira a associação.');if(!channel.controllable)throw Error('Este canal não oferece uma faixa segura de controle.');if(a.minPercent>channel.limits.maximum)throw Error('O mínimo escolhido excede o limite do canal.');}}
+    if(enabled){
+      await this.open();
+      if(restoring){this.checkResume(generation);this.mode='starting';}
+      if(restoring)this.accept(await this.bridge.request({action:'sample'}));
+      if(restoring)this.checkResume(generation);
+      for(const a of config.assignments){
+        const channel=this.data.controls.find(c=>c.id===a.controlId),sensor=this.data.sensors.find(s=>s.id===a.sensorId);
+        if(!channel||!sensor)throw Error('Canal ou sensor indisponível. Confira a associação.');
+        if(!channel.controllable)throw Error('Este canal não oferece uma faixa segura de controle.');
+        if(a.minPercent>channel.limits.maximum)throw Error('O mínimo escolhido excede o limite do canal.');
+        if(restoring&&(!Number.isFinite(sensor.value)||sensor.value< -20||sensor.value>150))throw Error('Aguardando uma temperatura válida para retomar a ventilação.');
+      }
+      if(restoring)this.checkBindings(config);else config.bindings=this.bindings(config.assignments);
+    }
     try{
       if(body.assignments&&this.enabled)await this.bridge.request({action:'release'});
-      writeJson(this.file,config);
+      if(!restoring)writeJson(this.file,config);
     }catch(error){if(this.enabled){await this.off();this.mode='fault';this.error=error.message;}throw error;}
     this.config=config;this.previous.clear();this.lastSent='';
+    if(!restoring)this.cancelResume();
     if(!enabled){if(body.enabled===false)await this.off();return this.snapshot();}
-    this.activeProfile=structuredClone(this.allProfiles().find(p=>p.id===config.profile));this.enabled=true;this.mode='controlling';await this.step();return this.snapshot();
-  });}
+    this.activeProfile=structuredClone(config.resumeProfile);this.enabled=true;this.mode='controlling';await this.step(!restoring);
+    if(!restoring){
+      try{const armed={...this.config,resumeOnStartup:true};writeJson(this.file,armed);this.config=armed;}
+      catch(error){await this.off();this.mode='fault';this.error=error.message;throw error;}
+    }
+    return this.snapshot();
+  }
   async step(sample=true){
     if(!this.bridge)return;
     try{
       if(sample)this.accept(await this.bridge.request({action:'sample'}));
       if(this.enabled){
+        this.checkBindings(this.config);
         const now=this.now(),preset=this.activeProfile;
         const outputs=this.config.assignments.map(a=>{
           const control=this.data.controls.find(c=>c.id===a.controlId);
@@ -119,7 +194,7 @@ class Cooling {
     this.data={sensors:[],controls:[],fans:[],simulated:false};this.outputs=[];this.previous.clear();this.lastSent='';this.activeProfile=null;
   }
   resourceRows(){return this.bridge&&this.data.resources?[structuredClone(this.data.resources)]:[];}
-  close(){this.closing=true;if(this.mode==='starting')this.bridge?.cancel?.();return this.serial(()=>this.off(),true);}
+  close(){this.closing=true;const pending=this.resumePending;this.cancelResume();if(pending||this.mode==='starting')this.bridge?.cancel?.();return this.serial(()=>this.off(),true);}
 }
 function curve(points,value,interpolation='linear'){
   if(value<=points[0][0])return points[0][1];
@@ -128,6 +203,11 @@ function curve(points,value,interpolation='linear'){
 }
 function validate(value){
   if(!value||typeof value!=='object'||!Array.isArray(value.assignments)||value.assignments.length>32)throw Error('Configuração de ventilação inválida.');
+  if(value.resumeOnStartup!==undefined&&typeof value.resumeOnStartup!=='boolean')throw Error('Retomada de ventilação inválida.');
+  const resumeProfile=value.resumeProfile??null;
+  if(resumeProfile!==null){if(typeof resumeProfile!=='object'||Array.isArray(resumeProfile)||Object.keys(resumeProfile).some(k=>!['id','name','points','interpolation','custom'].includes(k))||resumeProfile.id!==value.profile||typeof resumeProfile.name!=='string'||!resumeProfile.name||resumeProfile.name.length>40||!['linear','smooth'].includes(resumeProfile.interpolation))throw Error('Curva de retomada inválida.');validatePoints(resumeProfile.points);}
+  const bindings=value.bindings??[];
+  if(!Array.isArray(bindings)||bindings.length>32||bindings.some(b=>!b||Object.keys(b).some(k=>!['controlId','controlKey','sensorKey'].includes(k))||typeof b.controlId!=='string'||!b.controlId||b.controlId.length>180||![b.controlKey,b.sensorKey].every(k=>typeof k==='string'&&/^[a-f0-9]{64}$/.test(k)))||new Set(bindings.map(b=>b.controlId)).size!==bindings.length)throw Error('Identidade de ventilação inválida.');
   const channelPreferences=value.channelPreferences??[];
   if(!Array.isArray(channelPreferences)||channelPreferences.length>128||channelPreferences.some(p=>!p||Object.keys(p).some(k=>!['key','name','hidden'].includes(k))||typeof p.key!=='string'||!/^[a-f0-9]{64}$/.test(p.key)||typeof p.name!=='string'||p.name.length>48||/[\u0000-\u001f]/.test(p.name)||typeof p.hidden!=='boolean')||new Set(channelPreferences.map(p=>p.key)).size!==channelPreferences.length)throw Error('Identificação de canal inválida.');
   const customProfiles=value.customProfiles??[];
@@ -146,7 +226,7 @@ function validate(value){
     return structuredClone(a);
   });
   if(new Set(assignments.map(a=>a.controlId)).size!==assignments.length)throw Error('Canal de ventilação repetido.');
-  return {profile:value.profile,assignments,channelPreferences:channelPreferences.map(p=>({key:p.key,name:p.name.trim(),hidden:p.hidden})),customProfiles:customProfiles.map(p=>({id:p.id,name:p.name.trim(),points:structuredClone(p.points),interpolation:p.interpolation||'linear'}))};
+  return {profile:value.profile,assignments,bindings:structuredClone(bindings),resumeProfile:resumeProfile?{id:resumeProfile.id,name:resumeProfile.name,points:structuredClone(resumeProfile.points),interpolation:resumeProfile.interpolation}:null,resumeOnStartup:value.resumeOnStartup===true,channelPreferences:channelPreferences.map(p=>({key:p.key,name:p.name.trim(),hidden:p.hidden})),customProfiles:customProfiles.map(p=>({id:p.id,name:p.name.trim(),points:structuredClone(p.points),interpolation:p.interpolation||'linear'}))};
 }
 function validatePoints(points){if(!Array.isArray(points)||points.length<2||points.length>8||points.some((p,i)=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||p[0]<20||p[0]>100||p[1]<20||p[1]>100||i>0&&(p[0]<=points[i-1][0]||p[1]<points[i-1][1])))throw Error('A curva deve subir com a temperatura, entre 20 e 100%.');}
 module.exports={Cooling};

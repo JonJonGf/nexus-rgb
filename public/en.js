@@ -1,6 +1,18 @@
 'use strict';
 // First-party interface strings only. Device, profile and imported effect names are user content.
 window.NexusEnglish = Object.freeze({
+  "Aguardando sensores para retomar…":"Waiting for sensors to resume…",
+  "Configuração preservada. Aguardando os sensores para retomar a curva salva.":"Settings retained. Waiting for sensors to resume the saved curve.",
+  "Configuração salva. A curva será retomada ao iniciar o PC.":"Settings saved. The curve will resume when the PC starts.",
+  "Configuração preservada. Não foi possível retomar; confira o aviso e a associação dos sensores.":"Settings retained. Could not resume; check the warning and sensor assignments.",
+  "Curvas e associações salvas. Ative o controle para habilitar a retomada ao iniciar o PC.":"Curves and assignments saved. Enable control to resume when the PC starts.",
+  "TURBO solicita 100% nos canais selecionados. O controle ativo é retomado ao iniciar o PC, após conferir canais e temperaturas. Desligar o módulo cancela a retomada, libera o controle para o firmware e encerra as leituras.":"TURBO requests 100% on selected channels. Active control resumes when the PC starts, after checking channels and temperatures. Turning the module off cancels resumption, returns control to firmware and stops polling.",
+  "O equipamento ou o sensor mudou. Confira a associação antes de retomar o controle.":"The hardware or sensor changed. Review the assignments before resuming control.",
+  "Aguardando uma temperatura válida para retomar a ventilação.":"Waiting for a valid temperature to resume cooling.",
+  "Confira e aplique uma curva antes de ativar a retomada.":"Review and apply a curve before enabling startup resumption.",
+  "Retomada de ventilação inválida.":"Invalid cooling startup configuration.",
+  "Identidade de ventilação inválida.":"Invalid cooling hardware identity.",
+  "Curva de retomada inválida.":"Invalid startup cooling curve.",
   "Identificar canal":"Identify channel",
   "Nome deste canal":"Channel name",
   "Ocultar este canal":"Hide this channel",

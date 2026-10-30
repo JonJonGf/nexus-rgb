@@ -2,7 +2,22 @@
 
 Este é o registro público de continuidade entre sessões e ferramentas. Leia também [AGENTS.md](../AGENTS.md), o [plano de melhorias](PLANO-MELHORIAS.md) e o [guia de desenvolvimento](DESENVOLVIMENTO.md). Confirme o estado atual no Git e no ambiente antes de agir; versões instaladas em outros computadores podem ser diferentes.
 
-## Situação atual — 22/10/2026
+## Situação atual — 30/10/2026
+
+### Retomada da ventilação após iniciar o PC — em implementação
+
+- Usuário relatou precisar detectar sensores, reassociar canais, ativar e escolher curva a cada boot. Pediu persistência e retomada automática iguais ao RGB; esta decisão **substitui** a política anterior de sempre desarmar após reiniciar. Não autoriza UAC/instalação/reinício físico nesta nova sessão sem confirmação atual.
+- Base conferida: branch limpa `codex/fan-control-dev`, HEAD `981fa7b`; origin/main no mesmo ponto após fetch. Trabalho novo na branch **`codex/cooling-startup`**, ainda sem commit/tag/release. Build-info instalado alpha.41 confirmado por leitura; o arquivo de ventilação existia e tinha zero associações/perfis na fotografia lida. Isso não comprova por que escolhas anteriores desapareceram; nenhum arquivo instalado foi alterado ou semeado automaticamente.
+- Reprodução pelo HTTP: aplicar curva manual, parar servidor e abrir nova instância com a mesma pasta retornava enabled=false, exigindo nova detecção. Falha observada antes da correção. Causa confirmada da falta de retomada: ativação não era persistida e start não retomava Cooling. Configurações já salvas são carregadas; arquivo legado sem intenção explícita continua off até o usuário aplicar/ativar uma vez no build novo.
+- `server/cooling.js` e `server/index.js`: intenção de retomada só é armada após aplicação bem-sucedida, sem gravar por quadro. Guarda snapshot do perfil aplicado separado da biblioteca editável; preserva associações/curvas ao desligar, fechar, falhar ou aguardar o boot. Retoma sem bloquear painel/RGB, confere IDs/nomes/modelo informados e temperaturas atuais, tenta dependências tardias com recuo limitado (até oito tentativas) e cancela operações obsoletas ao desligar/encerrar. Mudança de identidade bloqueia comandos; metadados de retomada danificados não apagam configurações básicas válidas nem reescrevem arquivo ao carregar. Não garante identificar ligação física das fans.
+- UI PT/EN informa retomada salva/pendente/bloqueada e permite desligar durante espera. Teste real do navegador reinicia todo o servidor na mesma origem e confirma curva manual suave, valor editado, sensores/RPM e controle ativo sem clicar em Detectar.
+- Até esta nota: **27 contratos HTTP** na primeira rodada (17 existentes atualizados à nova decisão + 10 regressões de startup) passaram. Falhas antes das correções incluíram: não retomar; aceitar IDs em outra placa; iniciar com leitura nula; retomar edição de perfil ainda não aplicada; armar após aplicação recusada; descartar curvas válidas com metadado danificado; enviar curva de tentativa cancelada. Um teste Edge de reinício completo passou após ajuste visual. Testes são fixtures, sem leituras/escritas de hardware real, UAC, serviço do Windows ou atualização instalada.
+- Revisão posterior: 304 gerais e 68 Edge passaram sem retries; após ajustes finais, 28 contratos (11 de startup) e oito Edge específicos passaram novamente. Capturas desktop/390 px inspecionadas. Monitoramento somente leitura agora tem encerramento próprio que não cancela a escolha de retomada; status startup não é confundido com monitoramento descartável ao navegar. Política antiga dos testes foi atualizada à nova decisão do usuário, sem retirar validações de segurança.
+- Medição isolada final contra base `981fa7b`: off 0,362% CPU / 134,13 MiB RSS / 69,07 MiB privados; Equilibrado simulado 0,418% / 166,33 / 92,78, ~20 FPS, auxiliar ausente off. Duas repetições com SDK simulado, sem navegador/OpenRGB/sensores físicos; não concluir ganho de CPU ou watts. Mapa regenerado sem IA externa.
+- Revisão final local: **305/305 gerais e 68/68 Edge sem retries**, após todos os ajustes de ciclo/UI, com relatório [de retomada](validation/2026-10-30-cooling-startup.md) e medições sem dados pessoais. Fontes nativas/dependências de hardware não mudaram. Notas/guias/README alpha.42 preparados; publicar somente após gates da tag e conferir os assets.
+- Próximo passo: concluir testes UI de espera/cancelamento/tradução, suíte geral/Edge, revisar ciclo/segurança, gerar e validar atualização. Atualizar guias/política antiga com nota explícita de mudança. Publicação e instalação serão registradas separadamente; não anunciar reboot físico validado por simulação.
+
+## Histórico — 22/10/2026
 
 ### Alpha.41 publicada — fechamento da entrega
 

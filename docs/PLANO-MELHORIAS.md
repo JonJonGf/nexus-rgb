@@ -282,3 +282,7 @@ Preservar dados existentes, testar o comportamento anterior e a recuperação, d
 Publicar ventilação opcional com curvas e identificação manual, incorporando as revisões R3–R5, e diagnóstico portátil v2. Pacote inicia com módulo desligado. Caso RX 7600 continua em investigação: falso negativo dos logs corrigido, confirmação física e retorno ADL/I2C pendentes. Estado exato da publicação e testes no [contexto](CONTEXTO-DESENVOLVIMENTO.md).
 
 **Fechamento alpha.41:** publicada e verificada; ventilação opcional e coletor v2 entregues. Caso físico RX 7600 e intermitência de timeout na validação do worker continuam pendentes, sem correção anunciada. [Validação e limitações](validation/2026-10-22-alpha41.md).
+
+## Retomada da ventilação — alteração solicitada em 30/10/2026
+
+Usuário pediu que canais, sensores, curva aplicada e ativação voltem após iniciar o PC. Substitui a política anterior de não reativar. Persistir somente aplicação confirmada; retomar assíncrono com identificação e leituras válidas; aguardar dependências com recuo limitado, conservar a configuração se não puder retomar e respeitar Desligar sem reabrir sensores. Biblioteca editada não substitui silenciosamente a curva aplicada. Testar HTTP em novo processo/instância e navegador após reinício do serviço; ensaio físico depende de atualização autorizada. Estado no [contexto](CONTEXTO-DESENVOLVIMENTO.md).

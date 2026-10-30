@@ -2,13 +2,22 @@
 
 [English](en/COOLING.md) · [README](../README-pt.md)
 
-A alpha.41 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
+A alpha.42 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
 
 ## Instalação e ativação
 
-Atualize pelo instalador oficial da alpha.41, sem desinstalar a versão anterior. O módulo começa desligado e não reativa o controle ao reiniciar. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
+Atualize pelo instalador oficial da alpha.42, sem desinstalar a versão anterior. Novas instalações começam desligadas. Depois de ativar/aplicar o controle com sucesso, o Nexus guarda os canais, sensores, RPM, curva e escolha de ativação e retoma essa configuração ao iniciar o PC. Nas instalações anteriores, ative/aplique uma vez na nova versão para registrar a intenção de retomada; ela não é inferida de um arquivo antigo. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
 
 Os pacotes alpha e de desenvolvimento incluem o backend somente com marcador do mesmo commit. Versões estáveis não habilitam automaticamente este recurso experimental. Para preparar uma candidata privada, `scripts/build.ps1 -CoolingDevelopment` continua disponível; isso não instala nem inicia sensores no PC.
+
+
+## Retomada automática
+
+A partir da alpha.42, a política anterior de sempre iniciar desligado foi substituída por lembrar a última ativação bem-sucedida. A retomada ocorre em segundo plano, sem exigir abrir o painel ou clicar em Detectar sensores. As associações precisam corresponder aos IDs, nomes e modelo informados; o Nexus não adivinha o conector físico. Ele confere uma temperatura atual antes de assumir o controle. Se o auxiliar/sensor demorar a aparecer, tenta novamente com recuo, até oito tentativas, sem apagar suas curvas. Incompatibilidade de identidade bloqueia a retomada e pede revisão; após esgotar tentativas, a configuração permanece salva e o aviso explica a falha.
+
+**Desligar módulo** cancela a retomada e mantém o controle desligado também nos próximos boots, preservando curvas/associações. Apenas detectar sensores ou fechar o monitoramento não habilita nem cancela a escolha de controle salva. Encerrar o serviço libera o controle para o firmware, mas mantém a escolha para a próxima inicialização.
+
+A retomada usa a curva que foi realmente aplicada. Editar um perfil no banco sem reaplicá-lo não muda silenciosamente a curva do próximo boot. Metadados de retomada danificados desabilitam a retomada e preservam configurações básicas válidas para revisão, sem reescrever o arquivo original ao carregar.
 
 ## Experimentar sem tocar nas ventoinhas
 
@@ -50,7 +59,7 @@ Os nomes originais da biblioteca são preservados. Sugestões disponíveis para 
 
 Interpolação linear entre pontos. O mínimo configurado prevalece: por padrão 40%, ajustável de 20 a 100%, dentro dos limites do canal. Portanto, Silencioso não envia 25% se o mínimo do usuário for 40%. Não há parada a 0% nem calibração automática da velocidade de partida. RPM não é proporcional universalmente à porcentagem.
 
-Trocar de perfil substitui curvas personalizadas salvas; editar pontos preserva a curva até essa escolha explícita. O arquivo privado `cooling.json` é separado do RGB e do backup de iluminação. Reiniciar o servidor **não reativa o controle** automaticamente.
+Trocar de perfil substitui curvas personalizadas salvas; editar pontos preserva a curva até essa escolha explícita. O arquivo privado `cooling.json` é separado do RGB e do backup de iluminação. Reiniciar o servidor retoma o último controle ativado com sucesso, após conferir identidades e leituras; desligar o módulo cancela essa retomada.
 
 ## Proteções e limites
 

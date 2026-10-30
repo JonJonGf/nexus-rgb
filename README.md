@@ -10,11 +10,11 @@
 
 Nexus RGB is free, open source and experimental. It runs locally on Windows, includes OpenRGB Headless, and has a Portuguese/English interface. No Nexus cloud account or telemetry is required.
 
-**Published version: v0.1.0-alpha.41.** This release adds optional fan curves, manual channel identification and a revised portable GPU diagnostic. Cooling starts off; the external RX 7600 RGB failure remains under investigation. JSON/HTML profile editing and grouped RGB zones remain available. See the [release notes](docs/releases/v0.1.0-alpha.41.md) and [GPU compatibility guide](docs/en/GPU-COMPATIBILITY.md).
+**Published version: v0.1.0-alpha.42.** Active fan control now resumes automatically with its saved sensor assignments and applied curve after startup. Fresh installations stay off until explicitly configured; existing installations need one successful activation to enable resumption. The external RX 7600 RGB failure remains under investigation. JSON/HTML profile editing and grouped RGB zones remain available. See the [release notes](docs/releases/v0.1.0-alpha.42.md) and [GPU compatibility guide](docs/en/GPU-COMPATIBILITY.md).
 
 **Development work is separate:** optional fan curves and the portable GPU diagnostic collector are not included in the alpha.40 installer. A reported Gigabyte RX 7600 still has dark RGB after alpha.40; that issue remains unresolved. Detection is not proof of physical control.
 
-**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.41/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.41)
+**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.42)
 
 [Install](#installation) · [Effects and profiles](#effects-and-profiles) · [Setup map](#setup-map) · [Phone](#phone-and-local-network) · [Alexa](#alexa) · [Troubleshooting](#troubleshooting) · [Performance](#performance) · [Develop](#development)
 
@@ -141,7 +141,7 @@ Echo model/firmware affects compatibility. Some units may perform a command yet 
 - **Prepare diagnostics** shows the exact report and lets you remove categories before downloading. No report is uploaded automatically.
 - Updates preserve settings and create `before-update-*.json` backups. Automatic backups are not deleted on a schedule; manage their disk usage.
 
-To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.41/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
+To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.42/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
 
 See [backup, diagnosis and updates](docs/en/BACKUP-AND-DIAGNOSTICS.md).
 
@@ -183,7 +183,7 @@ Report vulnerabilities through [Security Advisories](https://github.com/JonJonGf
 
 Read [the English development guide](docs/en/DEVELOPMENT.md), [AGENTS.md](AGENTS.md) and the dated [continuity record](docs/CONTEXTO-DESENVOLVIMENTO.md) before changing code. User-facing English guides are indexed [here](docs/en/README.md); historical technical evidence remains in its original language unless a translated counterpart is explicitly linked.
 
-The optional experimental fan module has **Silent, Balanced, Performance, Aggressive and TURBO** presets, editable linear/smooth curves, three custom profiles and an off switch. It is included in alpha.41, isolated from RGB and disabled by default. See [cooling and measurement limits](docs/en/COOLING.md).
+The optional experimental fan module has **Silent, Balanced, Performance, Aggressive and TURBO** presets, editable linear/smooth curves, three custom profiles and an off switch. It is included in alpha builds, isolated from RGB and initially disabled. Once successfully activated, its applied settings resume on startup after hardware and temperature checks; turning it off cancels resumption. See [cooling and measurement limits](docs/en/COOLING.md).
 
 The portable GPU collector is a separate development tool. It reviews models, drivers, service state, requested GPU controls and selected error signatures without RGB writes or automatic upload. See [how to build/use the collector](docs/en/GPU-DIAGNOSTIC.md).
 

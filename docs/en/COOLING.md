@@ -2,13 +2,22 @@
 
 [Documentation](README.md) · [Português](../VENTILACAO.md)
 
-Alpha.41 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
+Alpha.42 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
 
 ## Installation and activation
 
-Update with the official alpha.41 installer without uninstalling the previous version. Cooling starts off and does not resume control automatically after a restart. **Detect sensors** starts monitoring; speed control requires explicit channel/sensor pairing and activation. Zero RPM does not prove an unused channel; parallel fans share the connector's output. The helper requests automatic control when its parent service disappears. Physical compatibility and response require confirmation on each machine; automated tests use simulated channels.
+Update with the official alpha.42 installer without uninstalling the previous version. Fresh installations start off. A successful activation saves the selected channels, sensors, RPM readings, curve and active choice, then resumes them when the PC starts. Previous installations need one successful activation on the new version; startup intent is not inferred from a legacy file. **Detect sensors** starts monitoring; speed control requires explicit channel/sensor pairing and activation. Zero RPM does not prove an unused channel; parallel fans share the connector's output. The helper requests automatic control when its parent service disappears. Physical compatibility and response require confirmation on each machine; automated tests use simulated channels.
 
 Only alpha/development packages with a matching commit marker enable this experimental backend. Stable packages keep it disabled. `scripts/build.ps1 -CoolingDevelopment` remains available for private candidates and does not install or start sensors.
+
+
+## Automatic startup resumption
+
+Alpha.42 replaces the previous always-off startup policy with remembering the last successful activation. Resumption runs in the background without opening the dashboard or clicking Detect sensors. Reported IDs, names and model must match; this does not identify physical fan wiring. A fresh valid temperature is checked before taking control. Late dependencies are retried with backoff, up to eight attempts, without deleting saved settings. Identity changes block resumption for review. Exhausted retries leave the configuration intact and show the failure.
+
+**Turn module off** cancels startup resumption while retaining curves and assignments. Read-only detection and closing monitoring do not change the saved startup choice. Stopping the service releases control to firmware but retains the choice for the next start.
+
+Resumption uses the curve actually applied. Editing the profile library without reapplying does not change the next boot's output. Damaged startup metadata disarms resumption and preserves valid base settings for review without overwriting the source file on load.
 
 ## Try the isolated simulation
 
@@ -46,7 +55,7 @@ Open `http://127.0.0.1:5151/` and choose **Cooling**. The page clearly identifie
 
 Interpolation is linear. The configured minimum takes precedence: default 40%, adjustable 20–100% within channel limits. Silent therefore does not request 25% when the selected minimum is 40%. Zero-RPM stop and automatic startup-speed calibration are not implemented. Percentage is not a universal RPM conversion.
 
-Choosing another preset replaces saved custom curves. Configuration is stored separately in private `cooling.json`, outside RGB backups. Restarting the development server **does not reactivate fan control**.
+Choosing another preset replaces saved custom curves. Configuration is stored separately in private `cooling.json`, outside RGB backups. Restarting the server resumes the last successfully activated control after identity and reading checks; turning the module off cancels resumption.
 
 ## Failure behavior and compatibility
 

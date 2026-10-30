@@ -157,7 +157,7 @@ async function createApp(options = {}) {
       const admin = () => { if (!session.admin || !isLocal) throw Object.assign(new Error('Este ajuste só pode ser feito no PC.'), { status: 403 }); };
       if(route==='/api/cooling'&&req.method==='GET'){admin();return json(res,200,cooling.snapshot());}
       if(route==='/api/cooling'&&req.method==='POST'){admin();const value=await cooling.configure(await readBody(req,32768));resources.cache=null;return json(res,200,value);}
-      if(route==='/api/cooling/monitor'&&req.method==='POST'){admin();const body=await readBody(req);if(Object.keys(body).length)throw Error('Comando de monitoramento inválido.');const value=await cooling.monitor();resources.cache=null;return json(res,200,value);}
+      if(route==='/api/cooling/monitor'&&req.method==='POST'){admin();const body=await readBody(req),keys=Object.keys(body);if(keys.length&&!(keys.length===1&&body.enabled===false))throw Error('Comando de monitoramento inválido.');const value=keys.length?await cooling.unmonitor():await cooling.monitor();resources.cache=null;return json(res,200,value);}
       if(route==='/api/experiences'&&req.method==='GET')return json(res,200,experiences.snapshot(session.admin&&isLocal));
       if(route==='/api/experiences/settings'&&req.method==='POST'){admin();return json(res,200,experiences.configure(await readBody(req)));}
       if(route==='/api/experiences/agent'&&req.method==='GET'){admin();return json(res,200,experiences.agentConfig());}
@@ -290,6 +290,7 @@ async function createApp(options = {}) {
     heartbeat = setInterval(() => { for (const client of clients) { if (!security.session(client.req)) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
     if (!options.disableHardware && process.env.NEXUS_DISABLE_HARDWARE !== '1') hardware.start();
     if (!options.disableAlexa) alexa.start();
+    cooling.start();
     console.log(`Nexus RGB ${VERSION}: http://127.0.0.1:${local.address().port} | LAN local`);
     return { localPort: local.address().port };
   }

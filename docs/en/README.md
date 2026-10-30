@@ -2,7 +2,7 @@
 
 [English README](../../README-en.md) · [Português](../../README-pt.md)
 
-These guides describe the published alpha.41 unless a section explicitly says **development**. A development file in the repository does not mean the feature is in the public installer or installed on your PC.
+These guides describe the published alpha.42 unless a section explicitly says **development**. A development file in the repository does not mean the feature is in the public installer or installed on your PC.
 
 | Guide | Contents |
 | --- | --- |
