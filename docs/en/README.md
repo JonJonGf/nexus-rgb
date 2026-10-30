@@ -14,6 +14,7 @@ These guides describe the published alpha.42 unless a section explicitly says **
 | [Backup and diagnostics](BACKUP-AND-DIAGNOSTICS.md) | Private backups, reviewed reports, updates and recovery |
 | [GPU compatibility](GPU-COMPATIBILITY.md) | Bundled controller families, actual limits and unresolved cases |
 | [Development](DEVELOPMENT.md) | Node setup, checks, packaging and contribution rules |
+| [Code architecture — development](../ARCHITECTURE.md) | Task-oriented source/test map, module ownership and maintenance contracts |
 | [Cooling — experimental](COOLING.md) | Optional fan curves, presets, isolated preview and measurements |
 | [Portable GPU diagnostics — development](GPU-DIAGNOSTIC.md) | Reviewable collection for a GPU that is detected but stays dark |
 | [Download verification](../SIGNING.md) | Digital signatures and SHA-256 checks |

@@ -9,6 +9,12 @@ Estas instruções se aplicam a qualquer agente que trabalhe neste repositório.
 3. Identifique o pedido atual e as pendências. Não implemente automaticamente itens adiados nem suponha autorização para instalar, publicar, reiniciar serviços ou comandar hardware.
 4. Se outro agente estiver trabalhando, combine a passagem antes de alterar os mesmos arquivos.
 
+### Leitura proporcional à tarefa
+
+Contexto e plano contêm o estado atual. Use [o índice do código](docs/ARCHITECTURE.md) para abrir os módulos e testes relevantes. Os documentos `HISTORICO-*` preservam evidências anteriores; consulte apenas o trecho necessário, sem reler tudo a cada atualização. Reutilize leituras ainda válidas da sessão e confirme informações voláteis no Git/código.
+
+Mantenha o contexto atual curto e vincule relatórios de entrega. Documente contratos, responsabilidades e invariantes; não replique código em prosa nem comprima o fonte para reduzir linhas. Refatorar deve reduzir conhecimento duplicado, sem prometer economia de tokens apenas por trocar nomes/ferramentas.
+
 ## Registrar contexto é parte da tarefa
 
 Atualize `docs/CONTEXTO-DESENVOLVIMENTO.md` após blocos relevantes de trabalho e **antes de encerrar, pausar ou passar a tarefa**, inclusive quando ela estiver incompleta ou perto de acabar o orçamento de execução.
