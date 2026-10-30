@@ -19,7 +19,7 @@
   function select(label,items,value){const e=make('select');e.setAttribute('aria-label',T(label));e.append(new Option(T('Escolha…'),''));for(const item of items)e.append(new Option(item.name,item.id));e.value=value||'';return e;}
   function graph(row){
     const points=row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]).filter(p=>p.every(Number.isFinite)).sort((a,b)=>a[0]-b[0]);
-    const plotted=[];for(let i=0;i<points.length-1;i++){const a=points[i],b=points[i+1],steps=row.interpolation.value==='smooth'?20:1;for(let j=0;j<steps;j++){const t=j/steps,r=row.interpolation.value==='smooth'?t*t*(3-2*t):t;plotted.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*r]);}}if(points.length)plotted.push(points.at(-1));
+    const plotted=window.NexusCoolingModel.plot(points,row.interpolation.value);
     row.line.setAttribute('points',plotted.map(([x,y])=>`${10+(x-20)*3.5},${140-y*1.3}`).join(' '));
     row.handles.replaceChildren();row.points.forEach((p,i)=>{const dot=document.createElementNS(row.svg.namespaceURI,'circle');dot.setAttribute('cx',10+(Number(p.temperature.value)-20)*3.5);dot.setAttribute('cy',140-Number(p.percent.value)*1.3);dot.setAttribute('r','5');dot.dataset.point=String(i);row.handles.append(dot);});
   }

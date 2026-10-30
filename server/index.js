@@ -99,6 +99,7 @@ async function createApp(options = {}) {
   }
   function json(res, status, data) { if (res.destroyed) return; res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(JSON.stringify(data)); }
   const assets = new Map([
+    ['/cooling-model.js',['cooling-model.js','application/javascript; charset=utf-8']],
     ['/cooling.js',['cooling.js','application/javascript; charset=utf-8']],
     ['/cooling.css',['cooling.css','text/css; charset=utf-8']],
     ['/experiences.js',['experiences.js','application/javascript; charset=utf-8']],
