@@ -42,3 +42,24 @@ Auxiliar ausente off. Custo observado de Equilibrado sobre off: ~32,19 MiB RSS /
 ## Git e entrega
 
 Código, pacote publicado e instalação real devem ser diferenciados no contexto. Até este registro inicial, trabalho ainda local na branch `codex/cooling-startup`, sem nova tag/release/instalação. A base instalada observada foi alpha.41; guias e notas alpha.42 foram preparados. Confirmação atual do proprietário é necessária antes de UAC/instalação. Fontes nativas e dependências de hardware não foram alteradas nesta correção.
+
+
+### Preparação da tag e processo separado
+
+Código/runtime `8fc5d48ba592464b1b00b74c50b83f0a32244754`, tag `v0.1.0-alpha.42`. Build local carimbou a tag/development false e passou na auditoria de produção, contrato do pacote off/sem auxiliar e 12 cenários Inno PT/EN. Uma validação privada adicional iniciou três processos Node independentes: retomada da curva suave em 55% no segundo, off persistente e zero aberturas do auxiliar no terceiro. Backend sintético, sem reboot do Windows.
+
+[Workflow de publicação](https://github.com/JonJonGf/nexus-rgb/actions/runs/41098984384) em andamento nesta nota. As três análises da tag passaram e havia zero alertas abertos na consulta. Instalação real continua pendente de autorização atual; nenhuma ação física foi feita para produzir esses resultados.
+
+### Fechamento da publicação
+
+A [alpha.42](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.42) foi publicada no runtime/tag acima. Logs finais das duas VMs comprovam o ciclo de instalação/reinstalação/remoção; o job publish registra a publicação às 17:43:58 UTC de 30/10. Consultas de status retornaram etapas atrasadas mesmo após os logs finais e a release pública. Nenhum gate foi flexibilizado.
+
+Os cinco assets oficiais foram baixados e verificados contra digests GitHub; BUILD-INFO confirmou tag, commit, run `41098984384`, tamanhos/hashes dos três executáveis/ZIP e SHA256SUMS confirmou os mesmos arquivos. Setup: **87.418.937 bytes**, SHA256 `d4a630c9064629211d353f4f3d701897312216c2bd86a817f4406af976913f38`.
+
+Usuário autorizou a instalação nesta sessão após o pacote verificado e backup privado. Instalador oficial aberto com progresso, sem PawnIO ou reinício do Windows. A instalação e o teste físico são resultados separados; fechamento no contexto. As notas anteriores representam os estados de cada etapa, não ausência atual de publicação.
+
+### Instalação autorizada no PC
+
+Setup terminou com **código 0**; build-info instalado confirma alpha.42/`8fc5d48...`/development false. Dois serviços Running e bandeja na sessão interativa. Health pronto, controlador conectado, seis componentes e detecção encerrada. Configurações de ventilação, iluminação e rede idênticas ao backup e 38 arquivos de efeitos preservados. Arquivos alterados de runtime/UI conferidos; `en.js` tinha somente diferença de finais CRLF/LF, texto idêntico após normalização.
+
+Windows não reiniciado e nenhum acionamento físico de fans foi usado para provar retomada. Usuário deve aplicar/ativar uma vez para registrar a intenção ausente em legado e conferir no próximo início normal. Testes automatizados e instalação bem-sucedida não comprovam RPM, associação física ou reboot real.
