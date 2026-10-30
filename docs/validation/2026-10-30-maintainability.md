@@ -44,3 +44,5 @@ Seguir [plano atual](../PLANO-MELHORIAS.md): rotas/composição HTTP, depois res
 ## Git e estado do aplicativo
 
 Runtime refatorado: `50895d8`; encerramento do teste: `259f554`. Documentação desta revisão é posterior e não altera esses resultados. Entrega na branch `codex/architecture-review`, sem merge automático; CI remoto deve ser distinguido dos resultados locais acima. Não há nova tag, instalador ou atualização instalada nesta rodada. Main/release/PC continuam alpha.42; o próximo lote de organização permanece proposto.
+
+Conferência remota: branch enviada em `7affcce`, main inalterada em `de5573a`. [CI 41139571912](https://github.com/JonJonGf/nexus-rgb/actions/runs/41139571912) em andamento para aquele commit, sem alegar aprovação remota. Corte final antes desta nota: 10.475 caracteres nos dois documentos de entrada, **97,29% menos**; o parágrafo curto de fechamento do contexto altera ligeiramente esse total, que continua aproximadamente 97% menor. Não é contagem de tokens. Esta nota posterior é somente documental.

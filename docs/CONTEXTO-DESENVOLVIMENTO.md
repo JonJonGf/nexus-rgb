@@ -13,6 +13,7 @@ Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do códig
 - Validação final local: **305 gerais e 68 Edge sem retries**, 28 HTTP direcionados e equivalência de 20 mil valores/2 mil gráficos. Primeira suíte Edge 67/68 teve erro de encerramento de interceptação; dez repetições isoladas passaram antes do ajuste. Teste agora aguarda handlers sem ignorar erros. Falha inicial preservada no relatório; nenhum teste físico alegado.
 - Código commit `50895d8` e ajuste de encerramento do teste `259f554`. Documentação de fechamento vem depois, na mesma branch. Destino remoto é **somente `codex/architecture-review`**, sem merge/tag/release/instalação; confirmar HEAD/envio no Git. Main e PC permanecem alpha.42.
 - Histórico preservado e 135 referências locais conferidas. Mapa atualizado: 1.153 nós/2.157 relações/88 comunidades. Próximo lote proposto: extrair uma família de rotas HTTP preservando os controles centrais, conforme plano. Não implementar automaticamente outros recursos do backlog.
+- Branch enviada e conferida no remoto em `7affcce`; main permaneceu `de5573a`. [CI 41139571912](https://github.com/JonJonGf/nexus-rgb/actions/runs/41139571912) iniciou para esse commit; resultado remoto ainda pendente nesta nota. Fechamento documental posterior não muda runtime/testes locais. Documentos de entrada terminaram em ~10,5 mil caracteres, cerca de 97% menores.
 
 ## Versão publicada e instalada
 
