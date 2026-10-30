@@ -3,6 +3,14 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const {fixture}=require('./helpers/http-app');
 const from='1'.repeat(24),to='2'.repeat(24);
 function target(count=8){return {id:to,name:'Current fixture',ledCount:count,status:'online',spatialCapable:true,effects:['static','wave'],modes:[]};}
+test('reconnect rejects prototype-related and malformed property names before reviewing any settings',async t=>{
+  const {app,request,cookie}=await fixture(t);app.hardware.snapshot=()=>({connected:true,devices:[target()]});
+  app.store.device(from,{color:'#ff0066'},[from]);const before=JSON.stringify(app.store.data);
+  for(const invalid of ['__proto__','constructor','prototype','a'.repeat(25),null,{},[]]){
+    for(const body of [{from:invalid,to},{from,to:invalid}])assert.equal((await request('/api/devices/reconnect/review',{cookie,method:'POST',body})).status,400);
+  }
+  assert.equal(JSON.stringify(app.store.data),before);assert.equal(Object.prototype.color,undefined);
+});
 test('reconnect reviews an offline identity then moves lighting, map and profile references atomically',async t=>{
   const {app,request,cookie,directory}=await fixture(t);
   app.hardware.snapshot=()=>({connected:true,devices:[target()]});

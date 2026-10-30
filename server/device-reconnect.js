@@ -27,9 +27,13 @@ class DeviceReconnect {
     return crypto.createHash('sha256').update(JSON.stringify([this.store.data,devices])).digest('hex');
   }
   prepare(body){
-    if(!body||Object.keys(body).some(k=>!['from','to'].includes(k))||![body.from,body.to].every(id=>typeof id==='string'&&idPattern.test(id))||body.from===body.to)throw Error('Escolha a origem e o destino da reconexão.');
-    const {from,to}=body,catalog=this.catalog();
-    if(!catalog.sources.some(s=>s.id===from))throw conflict('A origem não está desconectada ou não possui ajustes salvos.');
+    if(!body||Array.isArray(body)||Object.keys(body).some(k=>!['from','to'].includes(k)))throw Error('Escolha a origem e o destino da reconexão.');
+    const {from,to}=body;
+    if(typeof from!=='string'||!idPattern.test(from))throw Error('Escolha a origem e o destino da reconexão.');
+    if(typeof to!=='string'||!idPattern.test(to)||from===to)throw Error('Escolha a origem e o destino da reconexão.');
+    const catalog=this.catalog();
+    const source=catalog.sources.find(s=>s.id===from);
+    if(!source)throw conflict('A origem não está desconectada ou não possui ajustes salvos.');
     const target=this.hardware.snapshot().devices.find(d=>d.id===to&&d.status==='online');
     if(!target||!target.effects?.length)throw conflict('Destino indisponível ou sem controle de iluminação.');
     if(this.contexts().some(value=>this.references(value,to)))throw conflict('O destino já tem ajustes salvos. Revise-os antes de reconectar.');
@@ -37,12 +41,12 @@ class DeviceReconnect {
     if(next.zones?.[from])omitted.add('zones');
     for(const [index,value]of this.contexts(next).entries()){
       if(index&&this.references(value,from))profileCount++;
-      if(value.devices?.[from]){
-        const patch={...value.devices[from]};
+      if(value.devices?.[source.id]){
+        const patch={...value.devices[source.id]};
         if('nativeMode'in patch){delete patch.nativeMode;omitted.add('nativeMode');}
         if('syncWithPc'in patch&&target.type!==5){delete patch.syncWithPc;omitted.add('syncWithPc');}
         if(patch.effect&&!target.effects.includes(patch.effect))throw conflict('O destino não suporta um dos movimentos salvos.');
-        value.devices[to]=validatePatch(patch,true);delete value.devices[from];
+        value.devices[target.id]=validatePatch(patch,true);delete value.devices[source.id];
       }
       if(value.studio?.excluded)value.studio.excluded=value.studio.excluded.map(id=>id===from?to:id);
       if(value.studio?.layout){
@@ -54,7 +58,7 @@ class DeviceReconnect {
         schema.layout(value.studio.layout);
       }
     }
-    return {next,summary:{from,to,source:catalog.sources.find(s=>s.id===from).name,target:target.name,layoutItems,profileCount,omitted:[...omitted],lighting:next.devices?.[to]||null}};
+    return {next,summary:{from,to,source:source.name,target:target.name,layoutItems,profileCount,omitted:[...omitted],lighting:next.devices?.[target.id]||null}};
   }
   review(body){
     const {summary}=this.prepare(body),token=crypto.randomBytes(24).toString('hex');
