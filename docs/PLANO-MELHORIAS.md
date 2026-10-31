@@ -27,7 +27,7 @@ Cada lote deve ser revisável em commit próprio. Não reescrever tudo de uma ve
 | Novos adaptadores de teclado/ventilação | OpenRGB genérico e nativo RK61 já existem; LampArray/protocolos adicionais não são suporte universal. Exigir capacidades, identidade, retorno seguro e teste por modelo. |
 | Recuperação autônoma de controlador travado | Reconexão, supervisor e renovação ao retomar Windows já existem. Proposta de recuperação da indisponibilidade parcial não está integralmente entregue; revisar cenários/orçamento/exclusão mútua antes de ampliar privilégios. |
 | Ensaios físicos adicionais | Transições em outros controladores, WLED, áudio/contexto em outras sessões e novos dispositivos precisam de observação. Recurso implementado com teste sintético não vira recurso ausente. |
-| Boot real das fans | Alpha.42 instalada; falta observar no próximo início depois de aplicar uma vez. Não reiniciar PC para encerrar esta revisão. |
+| Boot real das fans | Alpha.43 instalada a pedido; ajustes preservados. Falta observar no próximo início depois da aplicação/ativação anterior. Não reiniciar PC para encerrar esta revisão. |
 
 As duas primeiras entregas estão publicadas na alpha.43; foram mantidas nesta tabela para localizar seus limites. Ensaios físicos e novos protocolos dependentes de dispositivo/empacotamento não podem ser declarados concluídos com simulações. Recuperação autônoma de processo elevado permanece uma ampliação separada; não reduzir validações/privilégios para encaixá-la nesta publicação.
 
