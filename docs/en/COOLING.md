@@ -4,6 +4,18 @@
 
 Alpha.42 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
 
+## Shared curve and CPU + GPU
+
+Enable **One curve for selected channels** to set temperature sources, minimum output, thermal protection and curve in one place. Select the channels you have identified. **Select visible channels** checks visible writable channels without enabling control; hidden and read-only channels are not automatically included. Apply curves or enable control to use the selection.
+
+Choose one source and use **Add sensor** for CPU, GPU or another available reading (up to eight distinct sources). Each sample uses the **highest temperature in °C**, rather than an average: CPU at 45 °C and GPU at 75 °C drive the curve at 75 °C. The hottest source can switch without reapplying. Multiple sources also work on individual channels with linking disabled.
+
+Linking shares the **requested percentage**, not an exact RPM. Each channel retains its hardware limits and explicit RPM association. Different or parallel fans can run at different RPM. Independent settings stay saved separately; disable linking and apply to use them again. Startup preserves the shared curve and checks the identity of every selected sensor.
+
+An invalid selected reading requests maximum permitted protective output; it is not silently ignored in favor of a cooler sensor. A missing or changed sensor/channel stops control and requests firmware release. No extra monitoring process is added: the existing helper already samples CPU/GPU sensors sequentially.
+
+**View profile curves** opens a single collapsible preview. Its profile selector inspects the built-in or custom curves without applying speeds, activating control or opening sensors. The profile buttons above remain the apply action.
+
 ## Installation and activation
 
 Update with the official alpha.42 installer without uninstalling the previous version. Fresh installations start off. A successful activation saves the selected channels, sensors, RPM readings, curve and active choice, then resumes them when the PC starts. Previous installations need one successful activation on the new version; startup intent is not inferred from a legacy file. **Detect sensors** starts monitoring; speed control requires explicit channel/sensor pairing and activation. Zero RPM does not prove an unused channel; parallel fans share the connector's output. The helper requests automatic control when its parent service disappears. Physical compatibility and response require confirmation on each machine; automated tests use simulated channels.

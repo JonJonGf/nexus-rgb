@@ -11,6 +11,18 @@ Atualize pelo instalador oficial da alpha.42, sem desinstalar a versão anterior
 Os pacotes alpha e de desenvolvimento incluem o backend somente com marcador do mesmo commit. Versões estáveis não habilitam automaticamente este recurso experimental. Para preparar uma candidata privada, `scripts/build.ps1 -CoolingDevelopment` continua disponível; isso não instala nem inicia sensores no PC.
 
 
+## Curva compartilhada e CPU + GPU
+
+Em **Ventilação**, marque **Uma curva para os canais selecionados** para configurar sensores, mínimo, proteção térmica e curva em um único lugar. Selecione os canais que você conferiu; **Selecionar canais visíveis** marca os canais visíveis com controle compatível, sem ativar o módulo. Canais ocultos ou somente leitura não entram automaticamente. Clique em **Aplicar curvas** ou ative o controle para usar a seleção.
+
+Escolha um sensor de temperatura e use **Adicionar sensor** para incluir a GPU, CPU ou outra leitura disponível (até oito fontes distintas). A cada amostra o Nexus usa a **maior temperatura em °C**, não a média: CPU a 45 °C e GPU a 75 °C fazem a curva seguir 75 °C. A origem mais quente pode trocar sem reaplicar. Também é possível combinar sensores em um canal individual, com o vínculo desligado.
+
+O vínculo compartilha **porcentagem de comando**, não um RPM exato. Cada canal mantém seus limites de hardware e a associação manual de RPM. Fans diferentes ou ligadas em paralelo podem apresentar rotações diferentes. Os ajustes individuais são guardados separadamente; ao desmarcar o vínculo e aplicar, eles voltam a ser usados. Grupo, fontes e curva aplicada são preservados na retomada, com conferência da identidade de **todos** os sensores.
+
+Se uma fonte selecionada retornar temperatura inválida, a saída solicita a proteção máxima permitida; ela não é ignorada para usar uma fonte mais fria. Se uma fonte/canal desaparecer ou mudar de identidade, o controle é interrompido e liberado para o firmware, conforme as proteções existentes. Selecionar uma GPU não acrescenta um monitor separado: o auxiliar já consulta sensores CPU/GPU em sua amostra sequencial.
+
+**Ver curvas dos perfis** abre uma única prévia recolhível. Escolha ali Silencioso, Equilibrado, Desempenho, Agressivo, TURBO ou um perfil próprio para consultar o gráfico. Essa seleção de prévia não muda rotações, não ativa o controle e não inicia sensores. Os botões de perfil acima continuam sendo a ação de aplicar um perfil.
+
 ## Retomada automática
 
 A partir da alpha.42, a política anterior de sempre iniciar desligado foi substituída por lembrar a última ativação bem-sucedida. A retomada ocorre em segundo plano, sem exigir abrir o painel ou clicar em Detectar sensores. As associações precisam corresponder aos IDs, nomes e modelo informados; o Nexus não adivinha o conector físico. Ele confere uma temperatura atual antes de assumir o controle. Se o auxiliar/sensor demorar a aparecer, tenta novamente com recuo, até oito tentativas, sem apagar suas curvas. Incompatibilidade de identidade bloqueia a retomada e pede revisão; após esgotar tentativas, a configuração permanece salva e o aviso explica a falha.

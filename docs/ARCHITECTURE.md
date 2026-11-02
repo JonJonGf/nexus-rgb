@@ -36,6 +36,8 @@ Locate exact tests using `rg --files tests`. Commands: [development guide](DESEN
 
 `cooling.js` retains identity/freshness checks, critical-temperature protection, safety floors, hysteresis, bounded retries and firmware release. No bypass through graph/preset. Private `cooling.json` is written on configuration changes, not frames. Startup uses the last successfully applied configuration; explicit off disarms it.
 
+`sensorId` remains the first/legacy source; optional `sensorIds` lists up to eight distinct sources, with that same first ID. All readings must be valid; the highest temperature drives the curve. Persisted identity bindings include every selected source. Optional `group` owns the shared temperature/curve/minimum/protection template; `effectiveAssignments(config)` overlays it on selected channels while retaining their saved independent assignments and RPM links. Grouping shares percentages subject to per-channel limits, not equal mechanical RPM. Preview selection is local SVG rendering with the shared model, without opening sensors or posting configuration.
+
 ## Access, reconnection and capability contracts
 
 - `AccessPolicy` owns persisted LAN mode and link hash, never an administrator role. `Security.session` combines socket scope, admin cookie and LAN policy. HTTP origin/host/CSRF checks remain in the request handler. Policy updates must prune both state and preview streams. `NetworkSettings.set` changes memory only after persistence succeeds.

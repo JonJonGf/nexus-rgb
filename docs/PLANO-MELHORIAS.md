@@ -1,6 +1,10 @@
-# Plano atual — revisão de 30/10/2026
+# Plano atual — revisão de 02/11/2026
 
 Este é o índice atual. [Propostas e evidências anteriores](HISTORICO-PLANO-MELHORIAS-2026-10-30.md) foram preservadas; rótulos antigos “pendente” não devem iniciar implementações repetidas. [Git/instalação](CONTEXTO-DESENVOLVIMENTO.md).
+
+## Pedido atual: ventilação conjunta
+
+Implementado no código em `codex/cooling-linked-sensors`: curva opcional para os canais selecionados, até oito fontes seguindo a maior temperatura, configurações individuais preservadas e prévia recolhível de perfis sem comandos. Seleção de canal permanece explícita; nenhuma associação de RPM é adivinhada. Testes/limites/envio no [relatório](validation/2026-11-02-cooling-linked.md). Instalação publicada/real permanece alpha.43 até entrega própria de novo pacote.
 
 ## Manutenção com menos contexto
 

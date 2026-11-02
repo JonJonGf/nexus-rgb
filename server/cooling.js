@@ -3,7 +3,7 @@ const path=require('node:path');
 const {createHash}=require('node:crypto');
 const {readJson,writeJson}=require('./store');
 const {identify}=require('./cooling-identification');
-const {profiles,validate}=require('./cooling-config');
+const {profiles,validate,sensorIds,effectiveAssignments}=require('./cooling-config');
 const {valueAt:curve}=require('../public/cooling-model');
 class Cooling {
   constructor(directory,options={}){
@@ -48,20 +48,22 @@ class Cooling {
     });
   }
   bindings(assignments){
-    const key=row=>createHash('sha256').update(JSON.stringify([this.data.board?.manufacturer?.trim().toUpperCase()||'',this.data.board?.model?.trim().toUpperCase()||'',row.id,row.originalName||row.name])).digest('hex');
+    const keys=new Map(),board=[this.data.board?.manufacturer?.trim().toUpperCase()||'',this.data.board?.model?.trim().toUpperCase()||''];
+    const key=row=>{if(!keys.has(row))keys.set(row,createHash('sha256').update(JSON.stringify([...board,row.id,row.originalName||row.name])).digest('hex'));return keys.get(row);};
     return assignments.map(a=>{
-      const control=this.data.controls.find(c=>c.id===a.controlId),sensor=this.data.sensors.find(s=>s.id===a.sensorId);
-      if(!control||!sensor)throw Error('Canal ou sensor indisponível. Confira a associação.');
-      return {controlId:a.controlId,controlKey:key(control),sensorKey:key(sensor)};
+      const control=this.data.controls.find(c=>c.id===a.controlId),sensors=sensorIds(a).map(id=>this.data.sensors.find(s=>s.id===id));
+      if(!control||sensors.some(s=>!s))throw Error('Canal ou sensor indisponível. Confira a associação.');
+      const keys=sensors.map(key);
+      return {controlId:a.controlId,controlKey:key(control),sensorKey:keys[0],...(keys.length>1?{sensorKeys:keys}:{})};
     });
   }
   checkBindings(config){
-    if(JSON.stringify(this.bindings(config.assignments))!==JSON.stringify(config.bindings)){const error=Error('O equipamento ou o sensor mudou. Confira a associação antes de retomar o controle.');error.code='ECOOLING_IDENTITY';throw error;}
+    if(JSON.stringify(this.bindings(effectiveAssignments(config)))!==JSON.stringify(config.bindings)){const error=Error('O equipamento ou o sensor mudou. Confira a associação antes de retomar o controle.');error.code='ECOOLING_IDENTITY';throw error;}
   }
   checkResume(generation){
     if(this.closing||generation!==this.resumeGeneration){const error=Error('Inicialização de ventilação cancelada.');error.code='ECANCELLED';throw error;}
   }
-  snapshot(){const selected=this.allProfiles().find(p=>p.id===this.config.profile);return {enabled:this.enabled,mode:this.mode,...structuredClone(this.config),resumePending:this.resumePending,resumeAttempts:this.resumeAttempts,profiles:structuredClone(this.allProfiles()),profilePending:Boolean(this.enabled&&this.config.assignments.some(a=>!a.points)&&(JSON.stringify(this.activeProfile?.points)!==JSON.stringify(selected?.points)||this.activeProfile?.interpolation!==selected?.interpolation)),
+  snapshot(){const selected=this.allProfiles().find(p=>p.id===this.config.profile);return {enabled:this.enabled,mode:this.mode,...structuredClone(this.config),resumePending:this.resumePending,resumeAttempts:this.resumeAttempts,profiles:structuredClone(this.allProfiles()),profilePending:Boolean(this.enabled&&effectiveAssignments(this.config).some(a=>!a.points)&&(JSON.stringify(this.activeProfile?.points)!==JSON.stringify(selected?.points)||this.activeProfile?.interpolation!==selected?.interpolation)),
     ...structuredClone(this.data),outputs:structuredClone(this.outputs),error:this.error,
     available:Boolean(this.options.bridgeFactory||this.options.allowHardware||this.options.simulated),development:true};}
   schedule(){clearTimeout(this.timer);if(this.options.autoPoll!==false&&this.bridge)this.timer=setTimeout(()=>this.tick().catch(()=>{if(this.bridge)this.schedule();}),1000);this.timer?.unref?.();}
@@ -99,7 +101,7 @@ class Cooling {
   }
   async update(body,restoring,generation){
     if(restoring)this.checkResume(generation);
-    if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['enabled','profile','assignments','customProfiles','channelPreferences'].includes(k)))throw Error('Configuração de ventilação inválida.');
+    if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).some(k=>!['enabled','profile','assignments','group','customProfiles','channelPreferences'].includes(k)))throw Error('Configuração de ventilação inválida.');
     if(body.channelPreferences!==undefined){
       if(Object.keys(body).length!==1)throw Error('Salve a identificação separadamente da ativação.');
       const config=validate({...this.config,channelPreferences:body.channelPreferences});
@@ -113,6 +115,7 @@ class Cooling {
     if(body.enabled!==undefined&&typeof body.enabled!=='boolean')throw Error('Ativação de ventilação inválida.');
     const next={...this.config,...body};
     if(body.profile&&!body.assignments)next.assignments=next.assignments.map(({points,interpolation,...a})=>a);
+    if(body.profile&&body.group===undefined&&next.group){const {points,interpolation,...group}=next.group;next.group=group;}
     const enabled=body.enabled??this.enabled;next.resumeOnStartup=restoring&&this.config.resumeOnStartup;
     if(!restoring)next.resumeProfile=null;
     const config=validate(next);
@@ -124,14 +127,14 @@ class Cooling {
       if(restoring){this.checkResume(generation);this.mode='starting';}
       if(restoring)this.accept(await this.bridge.request({action:'sample'}));
       if(restoring)this.checkResume(generation);
-      for(const a of config.assignments){
-        const channel=this.data.controls.find(c=>c.id===a.controlId),sensor=this.data.sensors.find(s=>s.id===a.sensorId);
-        if(!channel||!sensor)throw Error('Canal ou sensor indisponível. Confira a associação.');
+      for(const a of effectiveAssignments(config)){
+        const channel=this.data.controls.find(c=>c.id===a.controlId),sensors=sensorIds(a).map(id=>this.data.sensors.find(s=>s.id===id));
+        if(!channel||sensors.some(s=>!s))throw Error('Canal ou sensor indisponível. Confira a associação.');
         if(!channel.controllable)throw Error('Este canal não oferece uma faixa segura de controle.');
         if(a.minPercent>channel.limits.maximum)throw Error('O mínimo escolhido excede o limite do canal.');
-        if(restoring&&(!Number.isFinite(sensor.value)||sensor.value< -20||sensor.value>150))throw Error('Aguardando uma temperatura válida para retomar a ventilação.');
+        if(restoring&&sensors.some(sensor=>!Number.isFinite(sensor.value)||sensor.value< -20||sensor.value>150))throw Error('Aguardando uma temperatura válida para retomar a ventilação.');
       }
-      if(restoring)this.checkBindings(config);else config.bindings=this.bindings(config.assignments);
+      if(restoring)this.checkBindings(config);else config.bindings=this.bindings(effectiveAssignments(config));
     }
     try{
       if(body.assignments&&this.enabled)await this.bridge.request({action:'release'});
@@ -154,12 +157,14 @@ class Cooling {
       if(this.enabled){
         this.checkBindings(this.config);
         const now=this.now(),preset=this.activeProfile;
-        const outputs=this.config.assignments.map(a=>{
+        const outputs=effectiveAssignments(this.config).map(a=>{
           const control=this.data.controls.find(c=>c.id===a.controlId);
           if(!control)throw Error('Um canal de ventilação foi desconectado.');
           if(!control.controllable||a.minPercent>control.limits.maximum)throw Error('O limite do canal mudou. Revise a velocidade mínima antes de reativar.');
-          const temperature=this.data.sensors.find(s=>s.id===a.sensorId)?.value;
-          const failsafe=!Number.isFinite(temperature)||temperature< -20||temperature>150;
+          const sources=sensorIds(a).map(id=>this.data.sensors.find(s=>s.id===id));
+          const failsafe=sources.some(s=>!Number.isFinite(s?.value)||s.value< -20||s.value>150);
+          const hottest=failsafe?null:sources.reduce((a,b)=>a.value>=b.value?a:b);
+          const temperature=hottest?.value??null;
           const emergency=failsafe||temperature>=a.critical||preset.id==='turbo'&&!a.points;
           const points=a.points||preset.points;
           let percent=emergency?100:curve(points,temperature,a.points?a.interpolation||'linear':preset.interpolation||'linear');
@@ -171,7 +176,7 @@ class Cooling {
           }
           percent=Math.max(a.minPercent,control.limits.minimum,Math.min(control.limits.maximum,Math.round(percent)));
           this.previous.set(a.controlId,{percent,temperature:referenceTemperature,at:now});
-          return {id:a.controlId,percent,temperature,failsafe,emergency,rpm:this.data.fans.find(f=>f.id===a.rpmId)?.value??null};
+          return {id:a.controlId,percent,temperature,sensorId:hottest?.id??null,failsafe,emergency,rpm:this.data.fans.find(f=>f.id===a.rpmId)?.value??null};
         });
         const values=outputs.map(({id,percent})=>({id,percent})),signature=JSON.stringify(values);
         if(signature!==this.lastSent){await this.bridge.request({action:'apply',values});this.lastSent=signature;}

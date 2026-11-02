@@ -1,6 +1,20 @@
 'use strict';
 // First-party interface strings only. Device, profile and imported effect names are user content.
 window.NexusEnglish = Object.freeze({
+  "Uma curva para os canais selecionados":"One curve for selected channels",
+  "Sensor de temperatura do grupo":"Group temperature sensor",
+  "Sensor adicional de temperatura":"Additional temperature sensor",
+  "Adicionar sensor":"Add sensor",
+  "Remover sensor":"Remove sensor",
+  "Selecione sensores diferentes.":"Select different sensors.",
+  "Curva compartilhada inválida.":"Invalid shared curve.",
+  "Curva compartilhada":"Shared curve",
+  "A maior temperatura dos sensores selecionados determina a curva.":"The hottest selected sensor determines the curve.",
+  "Escolha os canais abaixo. Todos seguem a mesma curva; os limites de cada canal continuam valendo. RPM pode variar entre fans.":"Choose the channels below. They follow the same curve while keeping each channel's limits. RPM may differ between fans.",
+  "Selecionar canais visíveis":"Select visible channels",
+  "Ver curvas dos perfis":"View profile curves",
+  "Perfil para visualizar":"Profile to preview",
+  "Esta prévia não altera as rotações nem inicia a leitura dos sensores.":"This preview does not change fan speeds or start sensor monitoring.",
   "Não foi possível preservar os ajustes antes da transferência. Revise novamente.":"Could not preserve settings before transfer. Review again.",
   "Em Conexões, escolha acesso aberto, link autorizado ou somente neste PC. Revogar o link encerra os acessos associados. Em Dispositivos, Reconectar dispositivo permite revisar a transferência de ajustes quando a identificação de uma peça mudou.":"In Connections, choose open access, an authorized link or this PC only. Revoking a link closes associated access. In Devices, Reconnect device lets you review transfer of settings when a device identity changed.",
   "Fechar":"Close",

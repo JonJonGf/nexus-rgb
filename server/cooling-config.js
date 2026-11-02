@@ -15,7 +15,7 @@ function validate(value){
   const resumeProfile=value.resumeProfile??null;
   if(resumeProfile!==null){if(typeof resumeProfile!=='object'||Array.isArray(resumeProfile)||Object.keys(resumeProfile).some(k=>!['id','name','points','interpolation','custom'].includes(k))||resumeProfile.id!==value.profile||typeof resumeProfile.name!=='string'||!resumeProfile.name||resumeProfile.name.length>40||!['linear','smooth'].includes(resumeProfile.interpolation))throw Error('Curva de retomada inválida.');validatePoints(resumeProfile.points);}
   const bindings=value.bindings??[];
-  if(!Array.isArray(bindings)||bindings.length>32||bindings.some(b=>!b||Object.keys(b).some(k=>!['controlId','controlKey','sensorKey'].includes(k))||typeof b.controlId!=='string'||!b.controlId||b.controlId.length>180||![b.controlKey,b.sensorKey].every(k=>typeof k==='string'&&/^[a-f0-9]{64}$/.test(k)))||new Set(bindings.map(b=>b.controlId)).size!==bindings.length)throw Error('Identidade de ventilação inválida.');
+  if(!Array.isArray(bindings)||bindings.length>32||bindings.some(b=>!b||Object.keys(b).some(k=>!['controlId','controlKey','sensorKey','sensorKeys'].includes(k))||typeof b.controlId!=='string'||!b.controlId||b.controlId.length>180||![b.controlKey,b.sensorKey].every(k=>typeof k==='string'&&/^[a-f0-9]{64}$/.test(k))||b.sensorKeys!==undefined&&(!Array.isArray(b.sensorKeys)||b.sensorKeys.length<2||b.sensorKeys.length>8||b.sensorKeys[0]!==b.sensorKey||new Set(b.sensorKeys).size!==b.sensorKeys.length||b.sensorKeys.some(k=>typeof k!=='string'||!/^[a-f0-9]{64}$/.test(k))))||new Set(bindings.map(b=>b.controlId)).size!==bindings.length)throw Error('Identidade de ventilação inválida.');
   const channelPreferences=value.channelPreferences??[];
   if(!Array.isArray(channelPreferences)||channelPreferences.length>128||channelPreferences.some(p=>!p||Object.keys(p).some(k=>!['key','name','hidden'].includes(k))||typeof p.key!=='string'||!/^[a-f0-9]{64}$/.test(p.key)||typeof p.name!=='string'||p.name.length>48||/[\u0000-\u001f]/.test(p.name)||typeof p.hidden!=='boolean')||new Set(channelPreferences.map(p=>p.key)).size!==channelPreferences.length)throw Error('Identificação de canal inválida.');
   const customProfiles=value.customProfiles??[];
@@ -23,19 +23,28 @@ function validate(value){
   for(const p of customProfiles){if(!p||Object.keys(p).some(k=>!['id','name','points','interpolation'].includes(k))||p.interpolation!==undefined&&!['linear','smooth'].includes(p.interpolation)||typeof p.id!=='string'||!/^custom-[a-f0-9]{32}$/.test(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>40||/[\u0000-\u001f]/.test(p.name))throw Error('Perfil personalizado inválido.');validatePoints(p.points);}
   if(new Set(customProfiles.map(p=>p.id)).size!==customProfiles.length)throw Error('Perfil personalizado repetido.');
   if(![...profiles,...customProfiles].some(p=>p.id===value.profile))throw Error('Selecione outro perfil antes de excluir o atual.');
-  const assignments=value.assignments.map(a=>{
-    if(!a||Object.keys(a).some(k=>!['controlId','sensorId','rpmId','minPercent','critical','points','interpolation'].includes(k))||a.interpolation!==undefined&&(!a.points||!['linear','smooth'].includes(a.interpolation))||
+  const assignments=value.assignments.map(validateAssignment);
+  let group=null;
+  if(value.group!=null){
+    if(typeof value.group!=='object'||Array.isArray(value.group)||Object.keys(value.group).some(k=>!['sensorId','sensorIds','minPercent','critical','points','interpolation'].includes(k)))throw Error('Curva compartilhada inválida.');
+    const {controlId,...checked}=validateAssignment({controlId:'shared',...value.group});group=checked;
+  }
+  if(new Set(assignments.map(a=>a.controlId)).size!==assignments.length)throw Error('Canal de ventilação repetido.');
+  return {profile:value.profile,assignments,...(value.group!==undefined?{group}:{}),bindings:structuredClone(bindings),resumeProfile:resumeProfile?{id:resumeProfile.id,name:resumeProfile.name,points:structuredClone(resumeProfile.points),interpolation:resumeProfile.interpolation}:null,resumeOnStartup:value.resumeOnStartup===true,channelPreferences:channelPreferences.map(p=>({key:p.key,name:p.name.trim(),hidden:p.hidden})),customProfiles:customProfiles.map(p=>({id:p.id,name:p.name.trim(),points:structuredClone(p.points),interpolation:p.interpolation||'linear'}))};
+}
+function validateAssignment(a){
+    if(!a||Object.keys(a).some(k=>!['controlId','sensorId','sensorIds','rpmId','minPercent','critical','points','interpolation'].includes(k))||a.interpolation!==undefined&&(!a.points||!['linear','smooth'].includes(a.interpolation))||
       ![a.controlId,a.sensorId].every(id=>typeof id==='string'&&id.length>0&&id.length<=180)||
+      a.sensorIds!==undefined&&(!Array.isArray(a.sensorIds)||a.sensorIds.length<1||a.sensorIds.length>8||a.sensorIds[0]!==a.sensorId||new Set(a.sensorIds).size!==a.sensorIds.length||a.sensorIds.some(id=>typeof id!=='string'||!id||id.length>180))||
       a.rpmId!=null&&(typeof a.rpmId!=='string'||a.rpmId.length>180)||
       !Number.isInteger(a.minPercent)||a.minPercent<20||a.minPercent>100||!Number.isInteger(a.critical)||a.critical<60||a.critical>100)throw Error('Associação de ventilação inválida.');
     if(a.points!==undefined){
       validatePoints(a.points);
     }
     return structuredClone(a);
-  });
-  if(new Set(assignments.map(a=>a.controlId)).size!==assignments.length)throw Error('Canal de ventilação repetido.');
-  return {profile:value.profile,assignments,bindings:structuredClone(bindings),resumeProfile:resumeProfile?{id:resumeProfile.id,name:resumeProfile.name,points:structuredClone(resumeProfile.points),interpolation:resumeProfile.interpolation}:null,resumeOnStartup:value.resumeOnStartup===true,channelPreferences:channelPreferences.map(p=>({key:p.key,name:p.name.trim(),hidden:p.hidden})),customProfiles:customProfiles.map(p=>({id:p.id,name:p.name.trim(),points:structuredClone(p.points),interpolation:p.interpolation||'linear'}))};
 }
 function validatePoints(points){if(!Array.isArray(points)||points.length<2||points.length>8||points.some((p,i)=>!Array.isArray(p)||p.length!==2||!p.every(Number.isFinite)||p[0]<20||p[0]>100||p[1]<20||p[1]>100||i>0&&(p[0]<=points[i-1][0]||p[1]<points[i-1][1])))throw Error('A curva deve subir com a temperatura, entre 20 e 100%.');}
 
-module.exports = {profiles, validate};
+const sensorIds=assignment=>assignment.sensorIds||[assignment.sensorId];
+const effectiveAssignments=config=>config.group?config.assignments.map(({controlId,rpmId})=>({...config.group,controlId,rpmId})):config.assignments;
+module.exports = {profiles, validate, sensorIds, effectiveAssignments};

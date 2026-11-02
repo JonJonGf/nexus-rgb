@@ -1,6 +1,14 @@
-# Contexto atual — 30/10/2026
+# Contexto atual — 02/11/2026
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
+
+## Trabalho atual: canais vinculados e maior temperatura CPU/GPU
+
+- Usuário pediu opção para configurar canais juntos, seguir a maior temperatura entre sensores CPU/GPU, ver curvas dos perfis sem poluir a tela, testar e enviar ao GitHub. Escopo atual: código e testes; sem nova instalação, UAC, comandos físicos ou reinício. Alpha.43 segue instalada/publicada.
+- Branch `codex/cooling-linked-sensors`, base remota `c0f58d7`. Opção de curva compartilhada preserva ajustes individuais/RPM e respeita limites por canal; seleção explícita, incluindo botão para marcar canais visíveis compatíveis. `sensorIds` opcional (até oito fontes) mantém `sensorId` legado. Maior °C controla a curva, todas as identidades verificadas na retomada. Sensor inválido solicita proteção; ausência/identidade alterada libera controle. Sem novo processo/polling.
+- Prévia recolhível mostra um perfil por vez sem aplicar ou abrir sensores; fontes, curvas e limites documentados em [Ventilação](VENTILACAO.md), [guia inglês](en/COOLING.md) e [relatório](validation/2026-11-02-cooling-linked.md). Configuração/derivação em `cooling-config.js`, execução em `cooling.js`, UI em `public/cooling.js`/CSS/HTML e traduções. Não mexer no teclado nesta tarefa; auditoria anterior ficou preservada na branch local `codex/keyboard-usb-audit`.
+- Validação local: 322 gerais/74 Edge sem retries; depois de ajuste local de cache de hashes e teste adicional, 34 contratos HTTP de ventilação/retomada passaram (sobrepõem a suíte, não somar). Auxiliar nativo em fixture passou sem sensores físicos. Auditoria de produção zero vulnerabilidades. Capturas PC/390 px inspecionadas. Mapa conservador atualizado, 1.227 nós/2.297 relações; não prova execução física.
+- Código ainda em preparação de commit/envio. Próximo: confirmar CI/segurança do commit remoto e registrar resultado; não alegar novo instalador/versão física por enviar código.
 
 ## Entrega atual: alpha.43 publicada
 

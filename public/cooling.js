@@ -2,7 +2,7 @@
 (() => {
   const $=id=>document.getElementById(id),T=window.NexusI18n;
   const make=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
-  let api,admin=false,current=false,data,busy=false,timer,signature='',rows=new Map(),profileSignature='',librarySignature='',pendingPreset=null;
+  let api,admin=false,current=false,data,busy=false,timer,signature='',rows=new Map(),profileSignature='',librarySignature='',pendingPreset=null,shared=null,previewSignature='',previewCurveSignature='';
   function problem(error){$('cooling-error').textContent=T(error.message||error);$('cooling-error').hidden=false;}
   async function change(route,body){
     if(busy)return;busy=true;drawStatus();$('cooling-error').hidden=true;
@@ -17,6 +17,49 @@
   function input(type,value,min,max){const e=make('input');e.type=type;if(value!==undefined)e.value=value;if(min!==undefined)e.min=min;if(max!==undefined)e.max=max;return e;}
   function field(label,control){const e=make('label',undefined,'cooling-field');e.append(make('span',T(label)),control);return e;}
   function select(label,items,value){const e=make('select');e.setAttribute('aria-label',T(label));e.append(new Option(T('Escolha…'),''));for(const item of items)e.append(new Option(item.name,item.id));e.value=value||'';return e;}
+  function createSources(label,saved){
+    const ids=saved?.sensorIds||[saved?.sensorId],container=make('div',undefined,'cooling-sources');
+    const primary=select(label,data.sensors,ids[0]),extra=make('div'),entries=[];
+    const add=make('button',T('Adicionar sensor'),'button subtle');add.type='button';
+    function append(id){
+      if(entries.length>=7)return;
+      const line=make('div',undefined,'cooling-source-row'),sensor=select('Sensor adicional de temperatura',data.sensors,id);
+      const remove=make('button',T('Remover sensor'),'button subtle');remove.type='button';
+      const entry={sensor,line};entries.push(entry);line.append(field('Sensor adicional de temperatura',sensor),remove);extra.append(line);
+      remove.addEventListener('click',()=>{entries.splice(entries.indexOf(entry),1);line.remove();add.disabled=false;});
+      add.disabled=entries.length>=7;
+    }
+    for(const id of ids.slice(1))append(id);
+    add.addEventListener('click',()=>append());
+    container.append(field(label,primary),extra,add,make('p',T('A maior temperatura dos sensores selecionados determina a curva.'),'muted small'));
+    return {container,primary,entries};
+  }
+  function readSources(sources){
+    const ids=[sources.primary.value,...sources.entries.map(entry=>entry.sensor.value)];
+    if(ids.some(id=>!id))throw Error('Escolha um sensor para cada canal selecionado.');
+    if(new Set(ids).size!==ids.length)throw Error('Selecione sensores diferentes.');
+    return {sensorId:ids[0],...(ids.length>1?{sensorIds:ids}:{})};
+  }
+  function curveSettings(row){return row.custom.value==='manual'?{points:row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]).sort((a,b)=>a[0]-b[0]),interpolation:row.interpolation.value}:{};}
+  function sharedSettings(manual=true){
+    if(!$('cooling-linked').checked)return null;
+    return {...readSources(shared.sources),minPercent:Number(shared.minimum.value),critical:Number(shared.critical.value),...(manual?curveSettings(shared):{})};
+  }
+  function linkedMode(){
+    const linked=$('cooling-linked').checked;$('cooling-group').hidden=!linked;
+    for(const row of rows.values())for(const element of row.article.querySelectorAll('.cooling-independent'))element.hidden=linked;
+  }
+  function createShared(force=false){
+    const saved=data.group;
+    if(!saved&&!force){shared=null;$('cooling-group').replaceChildren();$('cooling-linked').checked=false;linkedMode();return;}
+    const selected=data.enabled&&data.resumeProfile?data.resumeProfile:data.profiles.find(p=>p.id===data.profile);
+    const sources=createSources('Sensor de temperatura do grupo',saved),minimum=input('number',saved?.minPercent??40,20,100),critical=input('number',saved?.critical??85,60,100);
+    shared=Object.assign(createCurve(saved?.points||selected.points,Boolean(saved?.points),saved?.interpolation||selected.interpolation||'linear'),{sources,minimum,critical});
+    const fields=make('div',undefined,'cooling-fields');fields.append(sources.container,field('Mínimo (%)',minimum),field('Proteção térmica (°C)',critical));
+    const save=make('button',T('Salvar como perfil personalizado'),'button subtle');save.type='button';save.addEventListener('click',()=>editPreset(null,shared.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]),shared.interpolation.value));
+    $('cooling-group').replaceChildren(make('h3',T('Curva compartilhada')),make('p',T('Escolha os canais abaixo. Todos seguem a mesma curva; os limites de cada canal continuam valendo. RPM pode variar entre fans.'),'muted small'),fields,shared.container,save);
+    $('cooling-linked').checked=Boolean(saved)||force;linkedMode();
+  }
   function graph(row){
     const points=row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]).filter(p=>p.every(Number.isFinite)).sort((a,b)=>a[0]-b[0]);
     const plotted=window.NexusCoolingModel.plot(points,row.interpolation.value);
@@ -31,13 +74,26 @@
     remove.addEventListener('click',()=>{if(row.points.length<=2)return;row.points=row.points.filter(p=>p!==entry);tr.remove();graph(row);});
     for(const e of [temperature,percent])e.addEventListener('input',()=>{row.custom.value='manual';row.editor.hidden=false;graph(row);});
   }
+  function createGraph(){
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 -6 300 170');svg.setAttribute('class','cooling-graph');svg.setAttribute('role','img');svg.setAttribute('aria-label',T('Curva de temperatura e velocidade'));
+    for(const y of [10,42.5,75,107.5,140]){const grid=document.createElementNS(svg.namespaceURI,'line');grid.setAttribute('x1','10');grid.setAttribute('x2','290');grid.setAttribute('y1',y);grid.setAttribute('y2',y);svg.append(grid);}for(const [x,y,label]of [[10,8,'100%'],[10,155,'0%'],[42,155,'20 °C'],[257,155,'100 °C']]){const text=document.createElementNS(svg.namespaceURI,'text');text.setAttribute('x',x);text.setAttribute('y',y);text.textContent=label;svg.append(text);}
+    const line=document.createElementNS(svg.namespaceURI,'polyline'),handles=document.createElementNS(svg.namespaceURI,'g');svg.append(line,handles);
+    return {svg,line,handles};
+  }
+  function drawPreview(){
+    const selection=$('cooling-preview-profile'),next=JSON.stringify(data.profiles);
+    if(next!==previewSignature){previewSignature=next;const value=selection.value;selection.replaceChildren(...data.profiles.map(p=>new Option(p.custom?p.name:T(p.name),p.id)));selection.value=data.profiles.some(p=>p.id===value)?value:data.profile;}
+    const preset=data.profiles.find(p=>p.id===selection.value);if(!preset)return;
+    const curveSignature=JSON.stringify([preset,T('Curva de temperatura e velocidade')]);if(curveSignature===previewCurveSignature)return;previewCurveSignature=curveSignature;
+    const {svg,line}=createGraph(),model=window.NexusCoolingModel,points=[[20,model.valueAt(preset.points,20,preset.interpolation)],...preset.points,[100,model.valueAt(preset.points,100,preset.interpolation)]];
+    line.setAttribute('points',model.plot(points.filter((p,i)=>!i||p[0]!==points[i-1][0]),preset.interpolation).map(([x,y])=>`${10+(x-20)*3.5},${140-y*1.3}`).join(' '));
+    $('cooling-preview-graph').replaceChildren(svg);
+  }
   function createCurve(points,manual,mode='linear'){
     const container=make('div'),detail=make('div',undefined,'cooling-curve-editor'),custom=make('select');custom.setAttribute('aria-label',T('Modo de controle'));custom.append(new Option(T('Seguir perfil selecionado'),'profile'),new Option(T('Curva manual'),'manual'));custom.value=manual?'manual':'profile';detail.hidden=custom.value!=='manual';container.append(field('Modo de controle',custom));
     custom.addEventListener('change',()=>{detail.hidden=custom.value!=='manual';});
     const interpolation=make('select');interpolation.setAttribute('aria-label',T('Traçado da curva'));interpolation.append(new Option(T('Linear'),'linear'),new Option(T('Suave'),'smooth'));interpolation.value=mode;
-    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 -6 300 170');svg.setAttribute('class','cooling-graph');svg.setAttribute('role','img');svg.setAttribute('aria-label',T('Curva de temperatura e velocidade'));
-    for(const y of [10,42.5,75,107.5,140]){const grid=document.createElementNS(svg.namespaceURI,'line');grid.setAttribute('x1','10');grid.setAttribute('x2','290');grid.setAttribute('y1',y);grid.setAttribute('y2',y);svg.append(grid);}for(const [x,y,label]of [[10,8,'100%'],[10,155,'0%'],[42,155,'20 °C'],[257,155,'100 °C']]){const text=document.createElementNS(svg.namespaceURI,'text');text.setAttribute('x',x);text.setAttribute('y',y);text.textContent=label;svg.append(text);}
-    const line=document.createElementNS(svg.namespaceURI,'polyline'),handles=document.createElementNS(svg.namespaceURI,'g');svg.append(line,handles);
+    const {svg,line,handles}=createGraph();
     const table=make('table'),head=make('thead'),headers=make('tr'),body=make('tbody');for(const label of ['Temperatura (°C)','Velocidade (%)',''])headers.append(make('th',T(label)));head.append(headers);table.append(head,body);
     const row={container,custom,interpolation,editor:detail,table:body,line,svg,handles,points:[]};interpolation.addEventListener('change',()=>graph(row));
     for(const point of points)addPoint(row,point);
@@ -55,11 +111,11 @@
     const identity=make('p',undefined,'muted small');article.append(identity);
     enabled.addEventListener('change',filterChannels);
     const output=make('p','', 'cooling-output');article.append(output);
-    const sensor=select('Sensor de temperatura',data.sensors,saved?.sensorId),rpm=select('Leitura de RPM',data.fans,saved?.rpmId);
+    const sources=createSources('Sensor de temperatura',saved),sensor=sources.primary,rpm=select('Leitura de RPM',data.fans,saved?.rpmId);
     const minimum=input('number',saved?.minPercent??Math.max(control.limits.minimum,Math.min(control.limits.maximum,40)),control.limits.minimum,control.limits.maximum),critical=input('number',saved?.critical??85,60,100);
-    const fields=make('div',undefined,'cooling-fields');fields.append(field('Sensor de temperatura',sensor),field('Leitura de RPM',rpm),field('Mínimo (%)',minimum),field('Proteção térmica (°C)',critical));article.append(fields);
-    const selected=data.enabled&&data.resumeProfile?data.resumeProfile:data.profiles.find(p=>p.id===data.profile),row=Object.assign(createCurve(saved?.points||selected.points,Boolean(saved?.points),saved?.points?saved.interpolation||'linear':selected.interpolation||'linear'),{control,article,title,original,identity,enabled,sensor,rpm,minimum,critical,output});article.append(row.container);
-    const save=make('button',T('Salvar como perfil personalizado'),'button subtle');save.type='button';save.addEventListener('click',()=>editPreset(null,row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]),row.interpolation.value));article.append(save);
+    const fields=make('div',undefined,'cooling-fields'),minField=field('Mínimo (%)',minimum),criticalField=field('Proteção térmica (°C)',critical);for(const element of [sources.container,minField,criticalField])element.classList.add('cooling-independent');fields.append(sources.container,field('Leitura de RPM',rpm),minField,criticalField);article.append(fields);
+    const selected=data.enabled&&data.resumeProfile?data.resumeProfile:data.profiles.find(p=>p.id===data.profile),row=Object.assign(createCurve(saved?.points||selected.points,Boolean(saved?.points),saved?.points?saved.interpolation||'linear':selected.interpolation||'linear'),{control,article,title,original,identity,enabled,sources,sensor,rpm,minimum,critical,output});row.container.classList.add('cooling-independent');article.append(row.container);
+    const save=make('button',T('Salvar como perfil personalizado'),'button subtle cooling-independent');save.type='button';save.addEventListener('click',()=>editPreset(null,row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]),row.interpolation.value));article.append(save);
     const identification=make('details'),summary=make('summary',T('Identificar canal')),name=input('text'),hidden=input('checkbox');name.maxLength=48;name.setAttribute('aria-label',T('Nome deste canal'));hidden.setAttribute('aria-label',T('Ocultar este canal'));
     const visibility=make('label',undefined,'cooling-check');visibility.append(hidden,make('span',T('Ocultar este canal')));
     const saveIdentity=make('button',T('Salvar identificação'),'button subtle');saveIdentity.type='button';
@@ -68,10 +124,9 @@
     identification.append(summary,field('Nome deste canal',name),visibility,make('p',T('Salvar identificação não altera as rotações. Canais selecionados continuam visíveis.'),'muted small'),saveIdentity);article.append(identification);Object.assign(row,{channelName:name,channelHidden:hidden,saveIdentity});
     rows.set(control.id,row);return article;
   }
-  function assignments(){return [...rows.values()].filter(r=>r.enabled.checked).map(r=>{
-    if(!r.sensor.value)throw Error('Escolha um sensor para cada canal selecionado.');
-    return {controlId:r.control.id,sensorId:r.sensor.value,rpmId:r.rpm.value||null,minPercent:Number(r.minimum.value),critical:Number(r.critical.value),
-      ...(r.custom.value==='manual'?{points:r.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]).sort((a,b)=>a[0]-b[0]),interpolation:r.interpolation.value}:{})};
+  function assignments(){const group=sharedSettings();return [...rows.values()].filter(r=>r.enabled.checked).map(r=>{
+    const sources=group&&!r.sensor.value?{sensorId:group.sensorId,...(group.sensorIds?{sensorIds:group.sensorIds}:{})}:readSources(r.sources);
+    return {controlId:r.control.id,...sources,rpmId:r.rpm.value||null,minPercent:Number(r.minimum.value),critical:Number(r.critical.value),...curveSettings(r)};
   });}
   function filterChannels(){let shown=0;for(const row of rows.values()){row.article.hidden=!$('cooling-show-all').checked&&row.control.hidden&&!row.enabled.checked;if(!row.article.hidden)shown++;}$('cooling-channel-count').textContent=shown+' / '+rows.size+' '+T('canais exibidos');}
   function editPreset(profile,points,interpolation){
@@ -93,7 +148,7 @@
     if(!busy)$('cooling-enabled').checked=Boolean(data?.enabled);$('cooling-enabled').disabled=!admin||busy||data?.resumePending||!data?.available||!data.controls.some(c=>c.controllable)&&!data?.enabled;
     $('cooling-monitor').disabled=!admin||busy||data?.resumePending||!data?.available||Boolean(data?.enabled);
     $('cooling-stop').disabled=!admin||busy||!data||data.mode==='off';
-    $('cooling-save').disabled=!admin||busy||data?.resumePending||!data?.controls.length;
+    $('cooling-save').disabled=!admin||busy||data?.resumePending||!data?.controls.length;$('cooling-linked').disabled=!admin||busy||data?.resumePending;$('cooling-select-visible').disabled=!admin||busy||data?.resumePending||!data?.controls.some(c=>c.controllable);
     $('cooling-resume').hidden=!data?.assignments.length;
     $('cooling-resume').textContent=T(data?.resumePending?'Configuração preservada. Aguardando os sensores para retomar a curva salva.':data?.resumeOnStartup?(data.enabled?'Configuração salva. A curva será retomada ao iniciar o PC.':'Configuração preservada. Não foi possível retomar; confira o aviso e a associação dos sensores.'):'Curvas e associações salvas. Ative o controle para habilitar a retomada ao iniciar o PC.');
     $('cooling-access').hidden=admin&&Boolean(data?.available);
@@ -106,24 +161,28 @@
   function draw(){
     if(!data)return;
     const presetSignature=JSON.stringify(data.profiles);if(presetSignature!==profileSignature){profileSignature=presetSignature;$('cooling-profiles').replaceChildren();for(const preset of data.profiles){const button=make('button',preset.custom?preset.name:T(preset.name),'button subtle');button.type='button';button.dataset.profile=preset.id;button.addEventListener('click',()=>{
-      try{change('/api/cooling',{profile:preset.id,assignments:assignments().map(({points,interpolation,...value})=>value)});}catch(error){problem(error);}
-    });$('cooling-profiles').append(button);}}drawLibrary();
-    const next=JSON.stringify([data.controls.map(c=>[c.id,c.identityKey]),data.sensors.map(s=>s.id),data.fans.map(f=>f.id),data.profile,data.assignments,data.enabled?data.resumeProfile:null]);
-    if(next!==signature){signature=next;rows=new Map();$('cooling-channels').replaceChildren(...data.controls.map(channel));}
+      try{change('/api/cooling',{profile:preset.id,group:sharedSettings(false),assignments:assignments().map(({points,interpolation,...value})=>value)});}catch(error){problem(error);}
+    });$('cooling-profiles').append(button);}}drawLibrary();drawPreview();
+    const next=JSON.stringify([data.controls.map(c=>[c.id,c.identityKey]),data.sensors.map(s=>s.id),data.fans.map(f=>f.id),data.profile,data.assignments,data.group,data.enabled?data.resumeProfile:null]);
+    if(next!==signature){signature=next;rows=new Map();$('cooling-channels').replaceChildren(...data.controls.map(channel));createShared();}
     for(const [id,row] of rows){row.control=data.controls.find(c=>c.id===id)||row.control;const control=row.control;row.title.textContent=control.name;row.original.textContent=control.originalName||control.name;row.original.hidden=row.original.textContent===row.title.textContent;row.identity.textContent=T(control.identitySource==='user'?'Identificado por você':control.identitySource==='backend'?'Nome informado pelo sensor':'Conector não identificado')+(control.connectorHint?' · '+T('Sugestão não confirmada: {0}',control.connectorHint):'')+(!control.controllable?' · '+T('Somente leitura: sem faixa segura de controle'):T(' · Faixa de controle: {0}–{1}%',control.limits.minimum,control.limits.maximum));row.minimum.min=control.limits.minimum;row.minimum.max=control.limits.maximum;if(!row.presentationDirty){row.channelName.value=control.identitySource==='user'?control.name:'';row.channelHidden.checked=Boolean(control.hidden);}const output=data.outputs.find(o=>o.id===id),temperature=data.sensors.find(s=>s.id===row.sensor.value)?.value,rpm=data.fans.find(f=>f.id===row.rpm.value)?.value;
-      row.output.textContent=(output?`${output.percent}% ${T('solicitado')}`:T('Sem comando de rotação'))+(Number.isFinite(temperature)?` · ${Math.round(temperature)} °C`:'')+(Number.isFinite(rpm)?` · ${Math.round(rpm)} RPM`:' · '+T('RPM não associado'))+(output?.failsafe?' · '+T('Sensor inválido: saída de proteção'):'');}
+      const displayedTemperature=output?output.temperature:temperature;
+      row.output.textContent=(output?`${output.percent}% ${T('solicitado')}`:T('Sem comando de rotação'))+(Number.isFinite(displayedTemperature)?` · ${Math.round(displayedTemperature)} °C`:'')+(Number.isFinite(rpm)?` · ${Math.round(rpm)} RPM`:' · '+T('RPM não associado'))+(output?.failsafe?' · '+T('Sensor inválido: saída de proteção'):'');}
     filterChannels();$('cooling-identification').hidden=!data.controls.length;$('cooling-empty').hidden=Boolean(data.controls.length);$('cooling-empty').textContent=T(data.mode==='off'?'Inicie a detecção para ver os canais compatíveis. Detectar sensores não altera a rotação.':'A biblioteca não informou canais de controle. A detecção não altera rotações nem garante suporte de escrita.');$('cooling-capabilities').hidden=data.mode==='off';$('cooling-capabilities').textContent=T('{0} sensores de temperatura · {1} leituras de RPM · {2} canais informados · {3} com faixa segura',data.sensors.length,data.fans.length,data.controls.length,data.controls.filter(c=>c.controllable).length);drawStatus();
   }
   $('cooling-show-all').addEventListener('change',filterChannels);
+  $('cooling-preview-profile').addEventListener('change',drawPreview);
+  $('cooling-select-visible').addEventListener('click',()=>{for(const row of rows.values())if(!row.article.hidden&&row.control.controllable)row.enabled.checked=true;filterChannels();});
+  $('cooling-linked').addEventListener('change',()=>{if($('cooling-linked').checked&&!shared)createShared(true);else linkedMode();});
   $('cooling-custom-new').addEventListener('click',()=>editPreset(null));
   $('cooling-preset-cancel').addEventListener('click',()=>{pendingPreset=null;$('cooling-preset-editor').hidden=true;});
   $('cooling-preset-editor').addEventListener('submit',async event=>{event.preventDefault();if(!pendingPreset||busy)return;const {id,curve}=pendingPreset,profile={id:id||'custom-'+crypto.randomUUID().replaceAll('-',''),name:$('cooling-preset-name').value.trim(),interpolation:curve.interpolation.value,points:curve.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]).sort((a,b)=>a[0]-b[0])};const bank=(data.customProfiles||[]).map(p=>p.id===profile.id?profile:p);if(!id)bank.push(profile);const result=await change('/api/cooling',{customProfiles:bank});if(result){pendingPreset=null;$('cooling-preset-editor').hidden=true;}});
   $('cooling-monitor').addEventListener('click',()=>change('/api/cooling/monitor',{}));
   $('cooling-stop').addEventListener('click',()=>change('/api/cooling',{enabled:false}));
-  $('cooling-enabled').addEventListener('change',()=>{try{const enabled=$('cooling-enabled').checked;change('/api/cooling',{enabled,...(enabled?{assignments:assignments()}: {})});}catch(error){$('cooling-enabled').checked=false;problem(error);}});
-  $('cooling-save').addEventListener('click',()=>{try{change('/api/cooling',{assignments:assignments()});}catch(error){problem(error);}});
+  $('cooling-enabled').addEventListener('change',()=>{try{const enabled=$('cooling-enabled').checked;change('/api/cooling',{enabled,...(enabled?{assignments:assignments(),group:sharedSettings()}: {})});}catch(error){$('cooling-enabled').checked=false;problem(error);}});
+  $('cooling-save').addEventListener('click',()=>{try{change('/api/cooling',{assignments:assignments(),group:sharedSettings()});}catch(error){problem(error);}});
   document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden&&current)refresh();});
-  window.addEventListener('nexus:languagechange',()=>{signature='';profileSignature='';librarySignature='';draw();});
+  window.addEventListener('nexus:languagechange',()=>{signature='';profileSignature='';librarySignature='';previewSignature='';previewCurveSignature='';draw();});
   window.NexusCooling={update(state,isAdmin,request,toast,page){admin=isAdmin;api=request;if(page==='cooling'&&!current)this.open(true);},open(value){
     const was=current;current=value;clearTimeout(timer);if(value)refresh();
     else if(was&&data?.mode==='monitoring'&&!data?.resumePending)change('/api/cooling/monitor',{enabled:false});
