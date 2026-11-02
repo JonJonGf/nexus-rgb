@@ -4,7 +4,7 @@ Este é o índice atual. [Propostas e evidências anteriores](HISTORICO-PLANO-ME
 
 ## Pedido atual: ventilação conjunta
 
-Implementado na main em `codex/cooling-linked-sensors`: curva opcional para os canais selecionados, até oito fontes seguindo a maior temperatura, configurações individuais preservadas e prévia recolhível de perfis sem comandos. Seleção de canal permanece explícita; nenhuma associação de RPM é adivinhada. Testes/limites/envio no [relatório](validation/2026-11-02-cooling-linked.md). Release pública permanece alpha.43; usuário pediu instalação posterior e recebeu candidata de desenvolvimento; revisão posterior **c0dcfcd instalada**, com cartões reorganizados e temperatura por fonte. Ajustes preservados; vínculo não foi alterado pela atualização. [Correção visual](validation/2026-11-02-cooling-layout.md).
+Implementado na main em `codex/cooling-linked-sensors`: curva opcional para os canais selecionados, até oito fontes seguindo a maior temperatura, configurações individuais preservadas e prévia recolhível de perfis sem comandos. Seleção de canal permanece explícita; nenhuma associação de RPM é adivinhada. Testes/limites/envio no [relatório](validation/2026-11-02-cooling-linked.md). Publicação alpha.44 autorizada e em preparação; até a confirmação dos assets, a release pública permanece alpha.43. Usuário pediu instalação posterior e recebeu candidata de desenvolvimento; revisão posterior **c0dcfcd instalada**, com cartões reorganizados e temperatura por fonte. Ajustes preservados; vínculo não foi alterado pela atualização. [Correção visual](validation/2026-11-02-cooling-layout.md).
 
 ## Próxima atualização: sobreposição no celular
 

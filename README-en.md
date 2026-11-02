@@ -10,9 +10,9 @@
 
 Nexus RGB is free, open source and experimental. It runs locally on Windows, includes OpenRGB Headless, and has a Portuguese/English interface. No Nexus cloud account or telemetry is required.
 
-**Published version: v0.1.0-alpha.43.** Choose open LAN, an authorized revocable link or PC-only access; review saved settings before reconnecting a device with a new identity. This version also reduces unused state broadcasts, fixes preview reconnection races and improves power-off for devices that report native zero-brightness support. See [release notes](docs/releases/v0.1.0-alpha.43.md), [LAN access](docs/en/LAN-ACCESS.md) and [reconnecting devices](docs/en/DEVICE-RECONNECT.md). Saved fan curves still resume after a successful activation.
+**Published version: v0.1.0-alpha.44.** Link selected fan channels to one curve and follow the hottest of your CPU, GPU or other selected temperature sources (up to eight). Cooling cards now show each source temperature with a clearer layout, and a collapsible preview lets you inspect preset curves without applying them. Cooling remains optional and experimental; saved activation resumes after identity and reading checks. See [release notes](docs/releases/v0.1.0-alpha.44.md) and the [cooling guide](docs/en/COOLING.md).
 
-**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.43)
+**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.44/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.44)
 
 [Install](#installation) · [Effects and profiles](#effects-and-profiles) · [Setup map](#setup-map) · [Phone](#phone-and-local-network) · [Alexa](#alexa) · [Troubleshooting](#troubleshooting) · [Performance](#performance) · [Develop](#development)
 
@@ -141,7 +141,7 @@ Echo model/firmware affects compatibility. Some units may perform a command yet 
 - **Prepare diagnostics** shows the exact report and lets you remove categories before downloading. No report is uploaded automatically.
 - Updates preserve settings and create `before-update-*.json` backups. Automatic backups are not deleted on a schedule; manage their disk usage.
 
-To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.43/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
+To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.44/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
 
 See [backup, diagnosis and updates](docs/en/BACKUP-AND-DIAGNOSTICS.md).
 

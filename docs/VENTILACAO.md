@@ -2,22 +2,24 @@
 
 [English](en/COOLING.md) · [README](../README-pt.md)
 
-A alpha.42 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
+A alpha.44 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
 
 ## Instalação e ativação
 
-Atualize pelo instalador oficial da alpha.42, sem desinstalar a versão anterior. Novas instalações começam desligadas. Depois de ativar/aplicar o controle com sucesso, o Nexus guarda os canais, sensores, RPM, curva e escolha de ativação e retoma essa configuração ao iniciar o PC. Nas instalações anteriores, ative/aplique uma vez na nova versão para registrar a intenção de retomada; ela não é inferida de um arquivo antigo. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
+Atualize pelo instalador oficial da alpha.44, sem desinstalar a versão anterior. Novas instalações começam desligadas. Depois de ativar/aplicar o controle com sucesso, o Nexus guarda os canais, sensores, RPM, curva e escolha de ativação e retoma essa configuração ao iniciar o PC. Nas instalações anteriores, ative/aplique uma vez na nova versão para registrar a intenção de retomada; ela não é inferida de um arquivo antigo. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
 
 Os pacotes alpha e de desenvolvimento incluem o backend somente com marcador do mesmo commit. Versões estáveis não habilitam automaticamente este recurso experimental. Para preparar uma candidata privada, `scripts/build.ps1 -CoolingDevelopment` continua disponível; isso não instala nem inicia sensores no PC.
 
 
 ## Curva compartilhada e CPU + GPU
 
-Estas opções estão no código em desenvolvimento após a alpha.43; o instalador publicado dessa versão ainda não as inclui.
+Disponível a partir da alpha.44, tanto para canais individuais quanto para o grupo opcional.
 
 Em **Ventilação**, marque **Uma curva para os canais selecionados** para configurar sensores, mínimo, proteção térmica e curva em um único lugar. Selecione os canais que você conferiu; **Selecionar canais visíveis** marca os canais visíveis com controle compatível, sem ativar o módulo. Canais ocultos ou somente leitura não entram automaticamente. Clique em **Aplicar curvas** ou ative o controle para usar a seleção.
 
 Escolha um sensor de temperatura e use **Adicionar sensor** para incluir a GPU, CPU ou outra leitura disponível (até oito fontes distintas). A cada amostra o Nexus usa a **maior temperatura em °C**, não a média: CPU a 45 °C e GPU a 75 °C fazem a curva seguir 75 °C. A origem mais quente pode trocar sem reaplicar. Também é possível combinar sensores em um canal individual, com o vínculo desligado.
+
+Cada fonte selecionada mostra sua temperatura atual ao lado do seletor. Com duas ou mais leituras válidas, a maior recebe destaque; uma leitura indisponível é indicada explicitamente. Os valores reutilizam as amostras existentes. Selecionar fontes no formulário ainda exige aplicar para mudar o controle.
 
 O vínculo compartilha **porcentagem de comando**, não um RPM exato. Cada canal mantém seus limites de hardware e a associação manual de RPM. Fans diferentes ou ligadas em paralelo podem apresentar rotações diferentes. Os ajustes individuais são guardados separadamente; ao desmarcar o vínculo e aplicar, eles voltam a ser usados. Grupo, fontes e curva aplicada são preservados na retomada, com conferência da identidade de **todos** os sensores.
 

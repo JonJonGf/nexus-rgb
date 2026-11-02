@@ -2,6 +2,13 @@
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
 
+## Publicação alpha.44 autorizada
+
+- Usuário confirmou que quer publicar a versão de ventilação com múltiplos sensores. Esta autorização substitui a espera pela release registrada abaixo; sobreposição do Mapa do setup no telefone continua adiada.
+- Branch `codex/alpha44-release`, base `b597c77` (main conferida no remoto). Sem alteração funcional nova: reúne canais vinculados/maior temperatura, prévia recolhível e cartões/leituras já testados e instalados em desenvolvimento c0dcfcd. READMEs e guias PT/EN atualizados e notas `docs/releases/v0.1.0-alpha.44.md` preparadas.
+- Código anterior: CI 41538145894/CodeQL 41538145740 success, 323 gerais/76 Edge, supervisor/estabilidade e zero alertas. Verificação da nova tag, commit e pipeline de publicação ainda pendentes neste checkpoint. Publicação deve aguardar segurança e ciclos completos nas duas VMs; não substituir assets/tags antigos.
+- PC permanece no build de desenvolvimento c0dcfcd; este pedido autoriza publicação, sem nova instalação, UAC ou mudança física de curva/LED. Próximo: conferir candidato, criar/enviar commit/tag nova e acompanhar publicação até assets verificados.
+
 ## Correção em andamento: cartões de ventilação
 
 - Usuário rejeitou layout de três cartões independentes e pediu temperaturas por fonte; **release permanece pendente**. [Relatório](validation/2026-11-02-cooling-layout.md). Branch `codex/cooling-layout-readings`, base `ef323b0`; código **c0dcfcd3534d2b744559f78d92a40aabfbee0717** enviado à main. Backend/curvas/proteções intactos.
