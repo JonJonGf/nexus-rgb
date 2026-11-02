@@ -2,6 +2,12 @@
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
 
+## Correção em andamento: cartões de ventilação
+
+- Usuário rejeitou layout de três cartões independentes e pediu temperaturas por fonte; **release permanece pendente**. [Relatório](validation/2026-11-02-cooling-layout.md). Branch `codex/cooling-layout-readings`, base `ef323b0`; correção ainda local. Backend/curvas/proteções intactos.
+- Reproduzido seletor RPM com 127,625 px; CSS agora usa linhas completas para fontes/RPM e altura de 40 px. Leituras atuais ao lado dos sensores, destaque da maior válida, indisponibilidade explícita; usa amostras/polling existentes, sem comandos de fan.
+- Capturas de 3 cartões/nomes longos e mobile conferidas; 10 testes iniciais de ventilação e dois novos de leitura passaram. Suíte completa Edge: **76/76 aprovados sem retries**; scripts/diff conferidos. Mapa atualizado com 1.229 nós/2.306 relações. Capturas de grupo/prévia anteriores não cobriam este arranjo; novo teste cobre. Build instalado ainda b1d87b4 até atualização própria; nada publicado como alpha.44.
+
 ## Entrega atual: canais vinculados e maior temperatura CPU/GPU
 
 - Usuário pediu opção para configurar canais juntos, seguir a maior temperatura entre sensores CPU/GPU, ver curvas dos perfis sem poluir a tela, testar e enviar ao GitHub. Pedido inicial era código/testes; depois pediu **“instala a nova versão”**, autorizando a atualização local abaixo. Release pública permanece alpha.43; PC agora usa candidata de desenvolvimento.

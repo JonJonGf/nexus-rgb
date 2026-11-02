@@ -23,6 +23,7 @@ test('shared cooling curve uses CPU/GPU maximum and survives reload without chan
   await expect(page.locator('.cooling-independent:visible')).toHaveCount(0);
   await page.reload();await page.locator('.nav[data-page=cooling]').click();await expect(page.getByLabel('Uma curva para os canais selecionados',{exact:true})).toBeChecked();
   await expect(group.getByLabel('Sensor adicional de temperatura',{exact:true})).toHaveValue('gpu');
+  await expect(group.locator('.cooling-source-reading')).toHaveText(['42 °C','76 °C']);
   await page.locator('.nav[data-page=settings]').click();await page.locator('#settings-language').selectOption('en');await page.locator('.nav[data-page=cooling]').click();
   await expect(page.getByLabel('One curve for selected channels',{exact:true})).toBeChecked();
   for(const width of [1280,390]){

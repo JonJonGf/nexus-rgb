@@ -1,6 +1,10 @@
 'use strict';
 // First-party interface strings only. Device, profile and imported effect names are user content.
 window.NexusEnglish = Object.freeze({
+  "Sensor adicional":"Additional sensor",
+  "Indisponível":"Unavailable",
+  "Maior selecionada: {0} °C":"Highest selected: {0} °C",
+  "Escolha sensores válidos para comparar as temperaturas.":"Choose valid sensors to compare temperatures.",
   "Uma curva para os canais selecionados":"One curve for selected channels",
   "Sensor de temperatura do grupo":"Group temperature sensor",
   "Sensor adicional de temperatura":"Additional temperature sensor",

@@ -2,7 +2,7 @@
 (() => {
   const $=id=>document.getElementById(id),T=window.NexusI18n;
   const make=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
-  let api,admin=false,current=false,data,busy=false,timer,signature='',rows=new Map(),profileSignature='',librarySignature='',pendingPreset=null,shared=null,previewSignature='',previewCurveSignature='';
+  let api,admin=false,current=false,data,busy=false,timer,signature='',rows=new Map(),profileSignature='',librarySignature='',pendingPreset=null,shared=null,previewSignature='',previewCurveSignature='',sourceReadingId=0;
   function problem(error){$('cooling-error').textContent=T(error.message||error);$('cooling-error').hidden=false;}
   async function change(route,body){
     if(busy)return;busy=true;drawStatus();$('cooling-error').hidden=true;
@@ -19,20 +19,37 @@
   function select(label,items,value){const e=make('select');e.setAttribute('aria-label',T(label));e.append(new Option(T('Escolha…'),''));for(const item of items)e.append(new Option(item.name,item.id));e.value=value||'';return e;}
   function createSources(label,saved){
     const ids=saved?.sensorIds||[saved?.sensorId],container=make('div',undefined,'cooling-sources');
-    const primary=select(label,data.sensors,ids[0]),extra=make('div'),entries=[];
+    function source(label,id,removable=false){
+      const sensor=select(label,data.sensors,id),line=make('div',undefined,'cooling-source-row'+(removable?' with-remove':''));
+      const reading=make('span','—','cooling-source-reading');reading.id='cooling-reading-'+(++sourceReadingId);sensor.setAttribute('aria-describedby',reading.id);
+      const control=field(removable?'Sensor adicional':label,sensor);control.firstChild.className='cooling-source-heading';control.firstChild.append(reading);line.append(control);
+      sensor.addEventListener('change',()=>updateSources(sources));return {sensor,line,reading};
+    }
+    const first=source(label,ids[0]),primary=first.sensor,extra=make('div',undefined,'cooling-source-extra'),entries=[],summary=make('p','', 'muted small cooling-source-summary');
+    const sources={container,primary,entries,first,summary};
     const add=make('button',T('Adicionar sensor'),'button subtle');add.type='button';
     function append(id){
       if(entries.length>=7)return;
-      const line=make('div',undefined,'cooling-source-row'),sensor=select('Sensor adicional de temperatura',data.sensors,id);
-      const remove=make('button',T('Remover sensor'),'button subtle');remove.type='button';
-      const entry={sensor,line};entries.push(entry);line.append(field('Sensor adicional de temperatura',sensor),remove);extra.append(line);
-      remove.addEventListener('click',()=>{entries.splice(entries.indexOf(entry),1);line.remove();add.disabled=false;});
-      add.disabled=entries.length>=7;
+      const entry=source('Sensor adicional de temperatura',id,true),remove=make('button','×','button subtle cooling-remove-source');remove.type='button';remove.setAttribute('aria-label',T('Remover sensor'));remove.title=T('Remover sensor');
+      entries.push(entry);entry.line.append(remove);extra.append(entry.line);
+      remove.addEventListener('click',()=>{entries.splice(entries.indexOf(entry),1);entry.line.remove();add.disabled=false;updateSources(sources);});
+      add.disabled=entries.length>=7;updateSources(sources);
     }
     for(const id of ids.slice(1))append(id);
     add.addEventListener('click',()=>append());
-    container.append(field(label,primary),extra,add,make('p',T('A maior temperatura dos sensores selecionados determina a curva.'),'muted small'));
-    return {container,primary,entries};
+    container.append(first.line,extra,add,summary);updateSources(sources);return sources;
+  }
+  function updateSources(sources){
+    const entries=[sources.first,...sources.entries],values=entries.map(entry=>data.sensors.find(s=>s.id===entry.sensor.value)?.value);
+    const valid=value=>Number.isFinite(value)&&value>=-20&&value<=150;
+    const complete=entries.every(entry=>entry.sensor.value)&&values.every(valid),maximum=complete?Math.max(...values):null;
+    entries.forEach((entry,index)=>{
+      entry.reading.textContent=valid(values[index])?Math.round(values[index])+' °C':entry.sensor.value?T('Indisponível'):'—';
+      entry.reading.classList.toggle('is-hottest',complete&&entries.length>1&&values[index]===maximum);
+      entry.sensor.title=entry.sensor.selectedOptions[0]?.textContent||'';
+    });
+    sources.summary.hidden=entries.length<2;
+    sources.summary.textContent=complete?T('Maior selecionada: {0} °C',Math.round(maximum)):T('Escolha sensores válidos para comparar as temperaturas.');
   }
   function readSources(sources){
     const ids=[sources.primary.value,...sources.entries.map(entry=>entry.sensor.value)];
@@ -47,7 +64,7 @@
   }
   function linkedMode(){
     const linked=$('cooling-linked').checked;$('cooling-group').hidden=!linked;
-    for(const row of rows.values())for(const element of row.article.querySelectorAll('.cooling-independent'))element.hidden=linked;
+    for(const row of rows.values()){for(const element of row.article.querySelectorAll('.cooling-independent'))element.hidden=linked;if(!linked)updateSources(row.sources);}
   }
   function createShared(force=false){
     const saved=data.group;
@@ -112,8 +129,9 @@
     enabled.addEventListener('change',filterChannels);
     const output=make('p','', 'cooling-output');article.append(output);
     const sources=createSources('Sensor de temperatura',saved),sensor=sources.primary,rpm=select('Leitura de RPM',data.fans,saved?.rpmId);
+    rpm.addEventListener('change',draw);
     const minimum=input('number',saved?.minPercent??Math.max(control.limits.minimum,Math.min(control.limits.maximum,40)),control.limits.minimum,control.limits.maximum),critical=input('number',saved?.critical??85,60,100);
-    const fields=make('div',undefined,'cooling-fields'),minField=field('Mínimo (%)',minimum),criticalField=field('Proteção térmica (°C)',critical);for(const element of [sources.container,minField,criticalField])element.classList.add('cooling-independent');fields.append(sources.container,field('Leitura de RPM',rpm),minField,criticalField);article.append(fields);
+    const fields=make('div',undefined,'cooling-fields'),minField=field('Mínimo (%)',minimum),criticalField=field('Proteção térmica (°C)',critical),rpmField=field('Leitura de RPM',rpm);rpmField.classList.add('cooling-rpm-field');for(const element of [sources.container,minField,criticalField])element.classList.add('cooling-independent');fields.append(sources.container,rpmField,minField,criticalField);article.append(fields);
     const selected=data.enabled&&data.resumeProfile?data.resumeProfile:data.profiles.find(p=>p.id===data.profile),row=Object.assign(createCurve(saved?.points||selected.points,Boolean(saved?.points),saved?.points?saved.interpolation||'linear':selected.interpolation||'linear'),{control,article,title,original,identity,enabled,sources,sensor,rpm,minimum,critical,output});row.container.classList.add('cooling-independent');article.append(row.container);
     const save=make('button',T('Salvar como perfil personalizado'),'button subtle cooling-independent');save.type='button';save.addEventListener('click',()=>editPreset(null,row.points.map(p=>[Number(p.temperature.value),Number(p.percent.value)]),row.interpolation.value));article.append(save);
     const identification=make('details'),summary=make('summary',T('Identificar canal')),name=input('text'),hidden=input('checkbox');name.maxLength=48;name.setAttribute('aria-label',T('Nome deste canal'));hidden.setAttribute('aria-label',T('Ocultar este canal'));
@@ -142,6 +160,7 @@
     }));}
   }
   function drawStatus(){
+    if(shared)updateSources(shared.sources);
     const mode={off:'Desligado',starting:'Iniciando…',waiting:'Aguardando sensores para retomar…',monitoring:'Somente monitoramento',controlling:'Controle ativo',fault:'Verifique a ventilação'}[data?.mode||'off'];
     $('cooling-mode').textContent=(data?.simulated?T('Simulação')+' · ':'')+T(mode);
     if(data?.profilePending)$('cooling-mode').textContent+=' · '+T('Perfil alterado; selecione novamente para aplicar.');
@@ -167,6 +186,7 @@
     if(next!==signature){signature=next;rows=new Map();$('cooling-channels').replaceChildren(...data.controls.map(channel));createShared();}
     for(const [id,row] of rows){row.control=data.controls.find(c=>c.id===id)||row.control;const control=row.control;row.title.textContent=control.name;row.original.textContent=control.originalName||control.name;row.original.hidden=row.original.textContent===row.title.textContent;row.identity.textContent=T(control.identitySource==='user'?'Identificado por você':control.identitySource==='backend'?'Nome informado pelo sensor':'Conector não identificado')+(control.connectorHint?' · '+T('Sugestão não confirmada: {0}',control.connectorHint):'')+(!control.controllable?' · '+T('Somente leitura: sem faixa segura de controle'):T(' · Faixa de controle: {0}–{1}%',control.limits.minimum,control.limits.maximum));row.minimum.min=control.limits.minimum;row.minimum.max=control.limits.maximum;if(!row.presentationDirty){row.channelName.value=control.identitySource==='user'?control.name:'';row.channelHidden.checked=Boolean(control.hidden);}const output=data.outputs.find(o=>o.id===id),temperature=data.sensors.find(s=>s.id===row.sensor.value)?.value,rpm=data.fans.find(f=>f.id===row.rpm.value)?.value;
       const displayedTemperature=output?output.temperature:temperature;
+      if(!row.sources.container.hidden)updateSources(row.sources);
       row.output.textContent=(output?`${output.percent}% ${T('solicitado')}`:T('Sem comando de rotação'))+(Number.isFinite(displayedTemperature)?` · ${Math.round(displayedTemperature)} °C`:'')+(Number.isFinite(rpm)?` · ${Math.round(rpm)} RPM`:' · '+T('RPM não associado'))+(output?.failsafe?' · '+T('Sensor inválido: saída de proteção'):'');}
     filterChannels();$('cooling-identification').hidden=!data.controls.length;$('cooling-empty').hidden=Boolean(data.controls.length);$('cooling-empty').textContent=T(data.mode==='off'?'Inicie a detecção para ver os canais compatíveis. Detectar sensores não altera a rotação.':'A biblioteca não informou canais de controle. A detecção não altera rotações nem garante suporte de escrita.');$('cooling-capabilities').hidden=data.mode==='off';$('cooling-capabilities').textContent=T('{0} sensores de temperatura · {1} leituras de RPM · {2} canais informados · {3} com faixa segura',data.sensors.length,data.fans.length,data.controls.length,data.controls.filter(c=>c.controllable).length);drawStatus();
   }

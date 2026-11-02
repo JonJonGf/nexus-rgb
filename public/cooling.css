@@ -9,14 +9,27 @@
 .cooling-channels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:1rem;margin-top:1rem}
 .cooling-channel{min-width:0}.cooling-channel h3{overflow-wrap:anywhere}.cooling-channel details{margin-top:1rem}
 .cooling-channel summary{cursor:pointer;font-weight:600;padding:.5rem 0}.cooling-output{font-variant-numeric:tabular-nums;min-height:1.5em}
-.cooling-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-.cooling-field{display:grid;gap:.45rem;font-size:.85rem}.cooling-field input,.cooling-field select{min-width:0;width:100%;max-width:100%;padding:.65rem}
+.cooling-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;align-items:start}
+.cooling-field{display:grid;align-content:start;gap:.45rem;font-size:.85rem}.cooling-field input,.cooling-field select{min-width:0;width:100%;max-width:100%;padding:.65rem;min-height:40px;height:40px;box-sizing:border-box}
 .cooling-graph{display:block;width:100%;max-height:180px;margin:1rem 0;background:linear-gradient(0deg,transparent 24%,#8882 25%,transparent 26%,transparent 49%,#8882 50%,transparent 51%,transparent 74%,#8882 75%,transparent 76%)}
 .cooling-graph polyline{fill:none;stroke:var(--accent,#ff4b36);stroke-width:2;stroke-linejoin:round}
 .cooling-graph{touch-action:none;aspect-ratio:30/17;height:auto;max-height:none;max-width:600px;margin:1rem auto;background:transparent}.cooling-graph circle{fill:var(--accent,#ff4b36);stroke:var(--bg,#18151a);stroke-width:2;cursor:grab}.cooling-graph line{stroke:currentColor;opacity:.15;stroke-width:.5}.cooling-graph text{fill:currentColor;stroke:none;font-size:8px;opacity:.7}.cooling-curve-editor{margin-top:1rem}
 .cooling-library{margin:1rem 0;padding-top:1rem;border-top:1px solid var(--border,#8884)}.cooling-library h3{margin:0}.cooling-custom-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.6rem;margin:.75rem 0}.cooling-custom-list article{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.8rem}.cooling-custom-list strong{flex:1 0 100%;overflow-wrap:anywhere}#cooling-preset-editor{max-width:650px}
 .cooling-channel table{width:100%;table-layout:fixed;margin:.5rem 0;border-spacing:.4rem}.cooling-channel th{text-align:left;font-size:.75rem}.cooling-channel td input{width:100%;min-width:0;padding:.5rem}.cooling-channel td button{padding:.5rem;font-size:.75rem;max-width:100%}
 .cooling-note{max-width:85ch;line-height:1.6}.cooling-error{border-left:3px solid #ff7755;padding:.8rem;overflow-wrap:anywhere}
-.cooling-group{margin:1rem 0}.cooling-sources{min-width:0}.cooling-sources>.button{margin-top:.5rem}.cooling-source-row{display:flex;gap:.5rem;align-items:end;margin-top:.5rem}.cooling-source-row label{flex:1;min-width:0}.cooling-source-row>.button{padding:.65rem;font-size:.8rem}
+.cooling-group{margin:1rem 0}
+.cooling-channel{display:flex;flex-direction:column;gap:1rem}
+.cooling-channel>h3,.cooling-channel>p{margin:0}
+.cooling-channel>button{align-self:flex-start;max-width:100%}
+.cooling-sources{display:grid;gap:.65rem;min-width:0;grid-column:1/-1}
+.cooling-sources>.button{justify-self:start}
+.cooling-source-extra{display:grid;gap:.65rem}.cooling-source-extra:empty{display:none}
+.cooling-source-row{min-width:0}.cooling-source-row.with-remove{display:grid;grid-template-columns:minmax(0,1fr) 2rem;align-items:end;gap:.5rem}
+.cooling-source-heading{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.cooling-source-reading{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:.8rem;font-weight:600;padding:.15rem .4rem;border-radius:4px;background:#8882}
+.cooling-source-reading.is-hottest{color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.cooling-source-row>.cooling-remove-source{width:2rem;height:40px;padding:0;font-size:1.2rem}
+.cooling-source-summary{margin:0;font-variant-numeric:tabular-nums}
+.cooling-rpm-field{grid-column:1/-1}
 .cooling-preview{max-width:600px;margin:.5rem 0 1rem}.cooling-preview summary{cursor:pointer;font-weight:600;padding:.5rem 0}.cooling-preview .cooling-field{margin-top:.75rem;max-width:300px}.cooling-preview .cooling-graph{touch-action:auto;max-width:440px}
 @media(max-width:480px){.cooling-graph text{font-size:11px}.cooling-fields{grid-template-columns:1fr}.cooling-toolbar .button{flex:1}.cooling-profiles .button{flex:1 0 30%}}
