@@ -13,6 +13,8 @@ Os pacotes alpha e de desenvolvimento incluem o backend somente com marcador do 
 
 ## Curva compartilhada e CPU + GPU
 
+Estas opções estão no código em desenvolvimento após a alpha.43; o instalador publicado dessa versão ainda não as inclui.
+
 Em **Ventilação**, marque **Uma curva para os canais selecionados** para configurar sensores, mínimo, proteção térmica e curva em um único lugar. Selecione os canais que você conferiu; **Selecionar canais visíveis** marca os canais visíveis com controle compatível, sem ativar o módulo. Canais ocultos ou somente leitura não entram automaticamente. Clique em **Aplicar curvas** ou ative o controle para usar a seleção.
 
 Escolha um sensor de temperatura e use **Adicionar sensor** para incluir a GPU, CPU ou outra leitura disponível (até oito fontes distintas). A cada amostra o Nexus usa a **maior temperatura em °C**, não a média: CPU a 45 °C e GPU a 75 °C fazem a curva seguir 75 °C. A origem mais quente pode trocar sem reaplicar. Também é possível combinar sensores em um canal individual, com o vínculo desligado.

@@ -6,6 +6,8 @@ Alpha.42 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and
 
 ## Shared curve and CPU + GPU
 
+These options are in development code after alpha.43; the published alpha.43 installer does not include them yet.
+
 Enable **One curve for selected channels** to set temperature sources, minimum output, thermal protection and curve in one place. Select the channels you have identified. **Select visible channels** checks visible writable channels without enabling control; hidden and read-only channels are not automatically included. Apply curves or enable control to use the selection.
 
 Choose one source and use **Add sensor** for CPU, GPU or another available reading (up to eight distinct sources). Each sample uses the **highest temperature in °C**, rather than an average: CPU at 45 °C and GPU at 75 °C drive the curve at 75 °C. The hottest source can switch without reapplying. Multiple sources also work on individual channels with linking disabled.

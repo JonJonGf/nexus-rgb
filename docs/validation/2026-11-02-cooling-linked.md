@@ -34,3 +34,9 @@ Não foi repetido ciclo de instalador em VM: não houve mudança de empacotament
 ## Git e próximo passo
 
 Mudanças em configuração/execução de ventilação, UI/CSS/HTML, strings PT/EN, dois testes de contrato/browser e guias/índice/contexto. Commit e confirmação remota serão registrados no fechamento; não inventar hash antes da criação. Conferir CI/CodeQL antes de encerrar. Publicar instalador e instalar no PC são entregas separadas; tag/binário alpha.43 não serão substituídos.
+
+Código `4b2e8735e129622e6ef261cac46b770275e95311` enviado e confirmado na main. [CI 41532051543](https://github.com/JonJonGf/nexus-rgb/actions/runs/41532051543) e [CodeQL 41532051733](https://github.com/JonJonGf/nexus-rgb/actions/runs/41532051733) iniciados; resultados finais ainda pendentes neste checkpoint. Guias foram explicitados como posteriores ao instalador alpha.43. Notas posteriores ao commit não mudam seus executáveis.
+
+### Capturas de teste: reanálise solicitada
+
+CodeQL abriu `#119/#120` (`js/path-injection`) nas duas capturas opcionais do novo teste de navegador: `mkdirSync` recebia uma pasta da variável de ambiente de evidência. É código de teste, sem entrada HTTP/controle de fans, mas a saída foi restringida a `data/cooling-dev/linked-ui-evidence/`, derivada de constantes do projeto. A variável agora é apenas um opt-in booleano (`NEXUS_COOLING_SCREENSHOTS=1`); seu conteúdo nunca define caminho. As duas verificações de navegador com captura passaram novamente. Nenhum alerta dispensado; aguardar a reanálise do commit com essa correção antes de declarar fechamento.

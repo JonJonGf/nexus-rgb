@@ -1,4 +1,11 @@
 const {test,expect}=require('./fixture');
+const fs=require('node:fs'),path=require('node:path');
+const evidenceDirectory=path.resolve(__dirname,'../../data/cooling-dev/linked-ui-evidence');
+async function capture(locator,name){
+  if(process.env.NEXUS_COOLING_SCREENSHOTS!=='1')return;
+  fs.mkdirSync(evidenceDirectory,{recursive:true});
+  await locator.screenshot({path:path.join(evidenceDirectory,name)});
+}
 test.use({serviceWorkers:'block',coolingOptions:{autoPoll:false,bridgeFactory:()=>({async request(body){
   if(body.action==='open'||body.action==='sample')return {at:Date.now(),simulated:true,sensors:[{id:'cpu',name:'CPU package',value:42},{id:'gpu',name:'GPU core',value:76}],controls:[{id:'case-a',name:'Gabinete A',min:0,max:100},{id:'case-b',name:'Gabinete B',min:0,max:100}],fans:[]};
   return {};
@@ -20,7 +27,7 @@ test('shared cooling curve uses CPU/GPU maximum and survives reload without chan
   await expect(page.getByLabel('One curve for selected channels',{exact:true})).toBeChecked();
   for(const width of [1280,390]){
     await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    if(process.env.NEXUS_UI_EVIDENCE_DIR){const fs=require('node:fs'),path=require('node:path');fs.mkdirSync(process.env.NEXUS_UI_EVIDENCE_DIR,{recursive:true});await page.locator('#cooling-group').screenshot({path:path.join(process.env.NEXUS_UI_EVIDENCE_DIR,'linked-group-'+width+'.png')});}
+    await capture(page.locator('#cooling-group'),'linked-group-'+width+'.png');
   }
 });
 
@@ -38,6 +45,6 @@ test('compact preset preview can inspect every factory curve without starting se
   await expect(preview.getByLabel('Profile to preview',{exact:true})).toBeVisible();
   for(const width of [1280,390]){
     await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    if(process.env.NEXUS_UI_EVIDENCE_DIR){const fs=require('node:fs'),path=require('node:path');fs.mkdirSync(process.env.NEXUS_UI_EVIDENCE_DIR,{recursive:true});await preview.screenshot({path:path.join(process.env.NEXUS_UI_EVIDENCE_DIR,'preset-preview-'+width+'.png')});}
+    await capture(preview,'preset-preview-'+width+'.png');
   }
 });
