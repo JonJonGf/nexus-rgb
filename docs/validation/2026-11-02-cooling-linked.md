@@ -40,3 +40,11 @@ Código `4b2e8735e129622e6ef261cac46b770275e95311` enviado e confirmado na main.
 ### Capturas de teste: reanálise solicitada
 
 CodeQL abriu `#119/#120` (`js/path-injection`) nas duas capturas opcionais do novo teste de navegador: `mkdirSync` recebia uma pasta da variável de ambiente de evidência. É código de teste, sem entrada HTTP/controle de fans, mas a saída foi restringida a `data/cooling-dev/linked-ui-evidence/`, derivada de constantes do projeto. A variável agora é apenas um opt-in booleano (`NEXUS_COOLING_SCREENSHOTS=1`); seu conteúdo nunca define caminho. As duas verificações de navegador com captura passaram novamente. Nenhum alerta dispensado; aguardar a reanálise do commit com essa correção antes de declarar fechamento.
+
+Correção em `5192f46c8319a315abb38243cabcd8e70b20cff1`, enviada e conferida na main. A análise JavaScript marcou ambos **Fixed** automaticamente em `2026-11-02T21:56:39Z`; consulta autenticada confirmou zero alertas abertos. [CI final 41532729511](https://github.com/JonJonGf/nexus-rgb/actions/runs/41532729511) e [CodeQL final 41532729100](https://github.com/JonJonGf/nexus-rgb/actions/runs/41532729100) ainda em andamento neste checkpoint. CI anterior `41532051543` passou: **323 gerais, 74 Edge**, supervisor e estabilidade de 60 segundos (171 requisições/10 reinícios abruptos na fixture). Não é medição de overhead térmico/físico da ventilação.
+
+### Fechamento remoto
+
+CI final **41532729511: success** no commit `5192f46`: **323/323 gerais, 74/74 Edge (2,3 min, sem flaky reportado)**, supervisor e estabilidade de 60 s aprovados. Ensaio de estabilidade: 171 requisições/10 reinícios abruptos na fixture, sem falha; memória do processo dessa fixture não é medição do módulo em hardware. CodeQL final **41532729100: success** nas três linguagens; zero alertas abertos e nenhuma dispensa. Não houve alteração de código após essas verificações, apenas este fechamento documental.
+
+Confirmada leitura do carimbo instalado: **alpha.43 / c2f87cd / development false**, sem atualizar/configurar o PC. A main contém as novas funcionalidades; o release/instalador alpha.43 permanece imutável e não as inclui. Nenhum novo instalador foi publicado como parte deste pedido de envio de código.
