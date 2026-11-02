@@ -39,3 +39,5 @@ Pedido posterior sobre sobreposição do Mapa do setup no telefone registrado no
 ## Fechamento
 
 [CI 41538145894](https://github.com/JonJonGf/nexus-rgb/actions/runs/41538145894) **success** sobre c0dcfcd: testes gerais, **76 Edge**, supervisor e estabilidade de 60 s passaram. [CodeQL 41538145740](https://github.com/JonJonGf/nexus-rgb/actions/runs/41538145740) **success** nas três linguagens; consulta autenticada retornou lista vazia de alertas abertos na main. Nenhuma dispensa de alerta. Notas de fechamento posteriores ao commit não alteram o pacote c0dcfcd instalado. Release pública continua alpha.43; nenhuma tag alpha.44 criada/publicada. Próxima tarefa explicitamente adiada: reproduzir/corrigir sobreposição no telefone, conforme plano.
+
+Nota posterior: usuário autorizou a publicação depois deste fechamento. [Alpha.44 publicada e verificada](2026-11-02-alpha44.md); o adiamento do mapa no telefone foi mantido. A publicação não substituiu automaticamente o desenvolvimento c0dcfcd instalado.

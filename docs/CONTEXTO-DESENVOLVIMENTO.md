@@ -2,12 +2,13 @@
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
 
-## Publicação alpha.44 autorizada
+## Entrega atual: alpha.44 publicada
 
-- Usuário confirmou que quer publicar a versão de ventilação com múltiplos sensores. Esta autorização substitui a espera pela release registrada abaixo; sobreposição do Mapa do setup no telefone continua adiada.
-- Branch `codex/alpha44-release`, base `b597c77` (main conferida no remoto). Sem alteração funcional nova: reúne canais vinculados/maior temperatura, prévia recolhível e cartões/leituras já testados e instalados em desenvolvimento c0dcfcd. READMEs e guias PT/EN atualizados e notas `docs/releases/v0.1.0-alpha.44.md` preparadas.
-- Código anterior: CI 41538145894/CodeQL 41538145740 success, 323 gerais/76 Edge, supervisor/estabilidade e zero alertas. Verificação da nova tag, commit e pipeline de publicação ainda pendentes neste checkpoint. Publicação deve aguardar segurança e ciclos completos nas duas VMs; não substituir assets/tags antigos.
-- PC permanece no build de desenvolvimento c0dcfcd; este pedido autoriza publicação, sem nova instalação, UAC ou mudança física de curva/LED. Próximo: conferir candidato, criar/enviar commit/tag nova e acompanhar publicação até assets verificados.
+- Usuário autorizou publicar a ventilação com múltiplos sensores, substituindo a espera anterior; sobreposição do Mapa do setup no telefone continua adiada. Canais vinculados, maior temperatura CPU/GPU (até oito fontes), prévia recolhível e cartões/temperaturas já testados; sem mudança funcional nova ao preparar release. READMEs/guias/notas PT/EN atualizados.
+- Branch `codex/alpha44-release`, base `b597c77`; runtime/tag **b41f7192b32874daaa32834fef73247c7e4bccac / v0.1.0-alpha.44**, enviados sem mover tags anteriores. [Relatório](validation/2026-11-02-alpha44.md), com falha inicial preservada: VM 5050/CI main excederam 6 s no teste de backup/worker; repetições passaram sem mudar código/limites (causa ainda não comprovada).
+- [Publicação 41539949357](https://github.com/JonJonGf/nexus-rgb/actions/runs/41539949357) **success na tentativa 2**: duas VMs, 323 gerais/76 Edge, supervisor, pacote/ciclo de instalação e gate com três linguagens/zero alertas. CI main tentativa 2, CI da tag e CodeQL main também success. Dados/mapa/LAN/primeiro uso preservados nos ciclos. Build local e contrato off sem auxiliar/polling aprovados; testes não são prova física de RPM/LED.
+- [Release alpha.44](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.44) pública em `2026-11-02T23:15:44Z`, prévia experimental. Cinco assets baixados em `dist/releases/v0.1.0-alpha.44/` e conferidos por digest GitHub/SHA256SUMS/BUILD-INFO exato. Setup oficial **87.460.713 bytes**, SHA256 `095972f706d8a6e037a7064a7d61b0686026d79e03c459a871e4da1a2759a731`. Fechamento documental posterior não muda tag/binário.
+- **PC continua no desenvolvimento c0dcfcd**, instalado na tarefa anterior. Publicação não instalou nada nem abriu UAC/reiniciou serviços/comandou hardware. Próximo: sobreposição no telefone, registrada no plano para outra entrega; manter investigação da causa do timeout de CI como limite documentado, sem alegar correção.
 
 ## Correção em andamento: cartões de ventilação
 
