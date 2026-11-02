@@ -4,7 +4,11 @@ Este é o índice atual. [Propostas e evidências anteriores](HISTORICO-PLANO-ME
 
 ## Pedido atual: ventilação conjunta
 
-Implementado na main em `codex/cooling-linked-sensors`: curva opcional para os canais selecionados, até oito fontes seguindo a maior temperatura, configurações individuais preservadas e prévia recolhível de perfis sem comandos. Seleção de canal permanece explícita; nenhuma associação de RPM é adivinhada. Testes/limites/envio no [relatório](validation/2026-11-02-cooling-linked.md). Release pública permanece alpha.43; usuário pediu instalação posterior e recebeu candidata de desenvolvimento b1d87b4, com ajustes preservados e vínculo ainda desligado.
+Implementado na main em `codex/cooling-linked-sensors`: curva opcional para os canais selecionados, até oito fontes seguindo a maior temperatura, configurações individuais preservadas e prévia recolhível de perfis sem comandos. Seleção de canal permanece explícita; nenhuma associação de RPM é adivinhada. Testes/limites/envio no [relatório](validation/2026-11-02-cooling-linked.md). Release pública permanece alpha.43; usuário pediu instalação posterior e recebeu candidata de desenvolvimento; revisão posterior **c0dcfcd instalada**, com cartões reorganizados e temperatura por fonte. Ajustes preservados; vínculo não foi alterado pela atualização. [Correção visual](validation/2026-11-02-cooling-layout.md).
+
+## Próxima atualização: sobreposição no celular
+
+Adiado explicitamente pelo usuário durante a revisão dos cartões de ventilação. Na captura do Mapa do setup, a prévia cobre parte de Ajustar efeito/Trocar efeito e a área inferior encobre controles/conteúdo perto do painel Componente/Efeito. Reproduzir em navegador móvel/viewport estreito com efeito ativo, conferir altura/scroll/camadas e área segura da navegação inferior. Corrigir layout e cobrir interação por toque, sem reduzir o mapa nem esconder ações essenciais apenas para passar teste. Causa ainda não investigada; captura do usuário é evidência visual, não prova de um seletor CSS específico. Não incluir automaticamente na candidata de ventilação em preparação.
 
 ## Manutenção com menos contexto
 
@@ -31,7 +35,7 @@ Cada lote deve ser revisável em commit próprio. Não reescrever tudo de uma ve
 | Novos adaptadores de teclado/ventilação | OpenRGB genérico e nativo RK61 já existem; LampArray/protocolos adicionais não são suporte universal. Exigir capacidades, identidade, retorno seguro e teste por modelo. |
 | Recuperação autônoma de controlador travado | Reconexão, supervisor e renovação ao retomar Windows já existem. Proposta de recuperação da indisponibilidade parcial não está integralmente entregue; revisar cenários/orçamento/exclusão mútua antes de ampliar privilégios. |
 | Ensaios físicos adicionais | Transições em outros controladores, WLED, áudio/contexto em outras sessões e novos dispositivos precisam de observação. Recurso implementado com teste sintético não vira recurso ausente. |
-| Boot real das fans | Candidata de desenvolvimento b1d87b4 instalada a pedido; três associações retomadas após reinício de serviços. Falta observação em boot real. Não reiniciar PC para encerrar esta revisão. |
+| Boot real das fans | Candidata de desenvolvimento c0dcfcd instalada a pedido; três associações retomadas após reinício de serviços. Falta observação em boot real. Não reiniciar PC para encerrar esta revisão. |
 
 As duas primeiras entregas estão publicadas na alpha.43; foram mantidas nesta tabela para localizar seus limites. Ensaios físicos e novos protocolos dependentes de dispositivo/empacotamento não podem ser declarados concluídos com simulações. Recuperação autônoma de processo elevado permanece uma ampliação separada; não reduzir validações/privilégios para encaixá-la nesta publicação.
 
