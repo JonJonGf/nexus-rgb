@@ -2,7 +2,7 @@
 
 [English README](../../README-en.md) · [Português](../../README-pt.md)
 
-These guides describe the published alpha.43 unless a section explicitly says **development**. A development file in the repository does not mean the feature is in the public installer or installed on your PC.
+These guides describe the official 1.0.0 feature set unless a section identifies another release. Optional hardware fan control remains experimental. Release validation and installed-build information are recorded separately in the project context.
 
 | Guide | Contents |
 | --- | --- |

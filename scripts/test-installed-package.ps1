@@ -1,5 +1,5 @@
 ﻿# Destructive lifecycle checks: execute only in a fresh GitHub-hosted VM.
-param([Parameter(Mandatory=$true)][string]$Installer,[ValidateRange(1024,65535)][int]$PanelPort=5050,[ValidateRange(1024,65535)][int]$SDKPort=6743,[ValidateRange(1,65535)][int]$AlexaPort=80,[switch]$CustomDirectory)
+param([Parameter(Mandatory=$true)][string]$Installer,[ValidateRange(1024,65535)][int]$PanelPort=5050,[ValidateRange(1024,65535)][int]$SDKPort=6743,[ValidateRange(1,65535)][int]$AlexaPort=80,[switch]$CustomDirectory,[string]$PreviousInstaller)
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
 if($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted'){throw 'Este teste só pode rodar em uma VM descartável hospedada pelo GitHub.'}
@@ -11,6 +11,7 @@ $data=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'NexusRG
 if((Test-Path -LiteralPath $root) -or (Test-Path -LiteralPath $data) -or (Get-Service NexusRGB,NexusRGBHardware -ErrorAction SilentlyContinue)){throw 'A VM não está limpa: já existe uma instalação ou dados Nexus.'}
 $Installer=(Resolve-Path -LiteralPath $Installer).Path
 $workspace=[IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+$expectedVersion=(Get-Content -LiteralPath (Join-Path $workspace 'package.json') -Raw | ConvertFrom-Json).version
 if(-not $Installer.StartsWith($workspace+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Instalador fora do checkout de teste.'}
 $reports=Join-Path $workspace 'test-results\installation'
 New-Item -ItemType Directory -Path $reports -Force | Out-Null
@@ -83,22 +84,48 @@ function Uninstall([string]$Phase) {
   Check (-not (Test-Path -LiteralPath (Join-Path $root 'NexusRGB.exe'))) 'Nexus executable removed'
   Check (-not (Test-Path -LiteralPath 'HKLM:\SOFTWARE\Classes\nexusrgb')) 'Local recovery URL registration removed'
 }
+$coolingDraft='{"enabled":false,"profile":"silent","assignments":[{"controlId":"vm-control","sensorId":"vm-cpu","sensorIds":["vm-cpu","vm-gpu"],"rpmId":"vm-rpm","minPercent":40,"critical":85,"points":[[20,40],[90,100]],"interpolation":"smooth"}],"group":{"sensorId":"vm-cpu","sensorIds":["vm-cpu","vm-gpu"],"minPercent":40,"critical":85,"points":[[20,40],[90,100]],"interpolation":"smooth"}}'
 $sentinel='Nexus installation test sentinel'
 try {
   $unrelated=Get-CimInstance Win32_Service -Filter "Name='RpcSs'" | Select-Object Name,State,StartMode,PathName
   New-NetFirewallRule -DisplayName $sentinel -Group $sentinel -Direction Inbound -Action Block -Protocol TCP -LocalPort 59999 | Out-Null
+  if($PreviousInstaller) {
+    $previous=(Resolve-Path -LiteralPath $PreviousInstaller).Path
+    if(-not $previous.StartsWith($workspace+'\',[StringComparison]::OrdinalIgnoreCase) -or (Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash.ToLowerInvariant() -cne '095972f706d8a6e037a7064a7d61b0686026d79e03c459a871e4da1a2759a731'){throw 'Previous installer is not the pinned alpha.44 asset.'}
+    $currentInstaller=$Installer;$Installer=$previous
+    Setup 'alpha44-base'
+    $legacyBuild=Invoke-RestMethod ($origin+'/api/about') -WebSession $session
+    Check ($legacyBuild.tag -eq 'v0.1.0-alpha.44') 'Migration starts from the official alpha.44 installer'
+    $headers=@{Origin=$origin;'X-Nexus-Client'='web'}
+    Invoke-RestMethod ($origin+'/api/control') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"power":false,"color":"#765432","brightness":43}' -WebSession $session | Out-Null
+    Invoke-RestMethod ($origin+'/api/profiles') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"name":"Alpha44 migration profile"}' -WebSession $session | Out-Null
+    Invoke-RestMethod ($origin+'/api/cooling') -Method Post -Headers $headers -ContentType 'application/json' -Body $coolingDraft -WebSession $session | Out-Null
+    $legacySettings=(Get-FileHash -LiteralPath (Join-Path $data 'app\settings.json')).Hash
+    $legacyCooling=(Get-FileHash -LiteralPath (Join-Path $data 'app\cooling.json')).Hash
+    $Installer=$currentInstaller
+  }
   Setup 'fresh'; VerifyServices; VerifyPermissions
-  Check $welcome 'First local visit offers the welcome guide'
+  if($PreviousInstaller) {
+    Check (-not $welcome) 'Alpha-to-stable upgrade does not repeat the welcome guide'
+    Check ((Get-FileHash -LiteralPath (Join-Path $data 'app\settings.json')).Hash -eq $legacySettings) 'Alpha-to-stable upgrade preserves lighting and profiles byte for byte'
+    Check ((Get-FileHash -LiteralPath (Join-Path $data 'app\cooling.json')).Hash -eq $legacyCooling) 'Alpha-to-stable upgrade preserves shared dual-source fan curves byte for byte'
+  } else {Check $welcome 'First local visit offers the welcome guide'}
   Check ((Invoke-WebRequest ($origin+'/help') -UseBasicParsing).StatusCode -eq 200) 'Offline help is included in the installed payload'
   Check ([IO.File]::ReadAllText((Join-Path $root 'LEIA-ME.txt')).Contains('Configuracoes > Ajuda')) 'Plain-text Notepad guide is included'
   $build=Invoke-RestMethod ($origin+'/api/about') -WebSession $session
-  Check ($build.version -eq '0.1.0') 'Installed package exposes its own build metadata'
+  Check ($build.version -eq $expectedVersion) 'Installed package exposes its own build metadata'
   if($env:GITHUB_REF_TYPE -eq 'tag') {Check ($build.tag -eq $env:GITHUB_REF_NAME -and $build.commit -eq $env:GITHUB_SHA -and -not $build.development) 'Installed build matches the exact release tag and commit'}
   $cooling=Invoke-RestMethod ($origin+'/api/cooling') -WebSession $session
-  $coolingExpected=$build.development -or $build.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$'
+  $coolingExpected=$build.development -or $build.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$' -or ($build.version -cmatch '^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' -and $build.tag -ceq ('v'+$build.version))
   Check ($cooling.available -eq $coolingExpected -and -not $cooling.enabled -and $cooling.mode -eq 'off') 'Optional cooling matches the package channel and starts off'
   Check (@(Get-Process nexus-cooling -ErrorAction SilentlyContinue).Count -eq 0) 'Installation does not start the sensor helper'
   if($coolingExpected){Check ((Test-Path -LiteralPath (Join-Path $root 'cooling\nexus-cooling.exe')) -and (Test-Path -LiteralPath (Join-Path $root 'cooling\LibreHardwareMonitor-0.9.6-source.zip'))) 'Cooling helper includes matching source and libraries'}
+  if($coolingExpected) {
+    $headers=@{Origin=$origin;'X-Nexus-Client'='web'}
+    $savedCooling=Invoke-RestMethod ($origin+'/api/cooling') -Method Post -Headers $headers -ContentType 'application/json' -Body $coolingDraft -WebSession $session
+    Check ($savedCooling.assignments[0].sensorIds.Count -eq 2 -and $savedCooling.group.sensorIds.Count -eq 2 -and -not $savedCooling.enabled) 'Installed API saves a dual-source shared curve without opening sensors'
+    $coolingFile=Join-Path $data 'app\cooling.json';$coolingHash=(Get-FileHash -LiteralPath $coolingFile).Hash
+  }
   $resources=Invoke-RestMethod ($origin+'/api/resources') -WebSession $session
   Check (@($resources.processes | Where-Object role -eq 'server').Count -eq 1) 'Resource monitor includes the dedicated server and tolerates partial permission access'
   $diagnostic=Invoke-RestMethod ($origin+'/api/diagnostics') -WebSession $session
@@ -168,6 +195,7 @@ try {
   Check $trayBefore.HasExited 'Upgrade closes the previous tray process automatically'
   Check (-not $welcome) 'Upgrade does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Upgrade preserves settings and profiles byte for byte'
+  if($coolingExpected){Check ((Get-FileHash -LiteralPath $coolingFile).Hash -eq $coolingHash) 'Upgrade preserves fan configuration byte for byte'}
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Upgrade preserves imported effects byte for byte'
   Check (((Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress) -eq $persistedMap) 'Upgrade preserves saved map and calibration'
   $upgradeBackups=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json')
@@ -210,6 +238,7 @@ try {
   Check (-not $welcome) 'Reinstall with preserved data does not repeat the welcome guide'
   Check ((Get-FileHash -LiteralPath $settings).Hash -eq $before) 'Reinstall restores preserved data'
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Reinstall restores imported effect files'
+  if($coolingExpected){Check ((Get-FileHash -LiteralPath $coolingFile).Hash -eq $coolingHash) 'Reinstall preserves fan configuration byte for byte'}
   Check ((State).performance.fps -eq 60) 'Reinstalled API restores selected FPS'
   Check (((Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress) -eq $persistedMap) 'Reinstall restores map and calibration'
   Uninstall 'final-removal'

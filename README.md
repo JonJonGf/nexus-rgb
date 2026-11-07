@@ -8,11 +8,11 @@
 
 **Your RGB, your network, your control.** Arrange your PC components on a 2D map, create or import lighting effects, and control your setup from a PC, phone or compatible Alexa Echo.
 
-Nexus RGB is free, open source and experimental. It runs locally on Windows, includes OpenRGB Headless, and has a Portuguese/English interface. No Nexus cloud account or telemetry is required.
+Nexus RGB is free and open source. It runs locally on Windows, includes OpenRGB Headless, and has a Portuguese/English interface. No Nexus cloud account or telemetry is required.
 
-**Published version: v0.1.0-alpha.44.** Link selected fan channels to one curve and follow the hottest of your CPU, GPU or other selected temperature sources (up to eight). Cooling cards now show each source temperature with a clearer layout, and a collapsible preview lets you inspect preset curves without applying them. Cooling remains optional and experimental; saved activation resumes after identity and reading checks. See [release notes](docs/releases/v0.1.0-alpha.44.md) and the [cooling guide](docs/en/COOLING.md).
+**Official release: v1.0.0.** Local RGB control, a spatial setup map, JSON/HTML effects, phone access and Alexa integration. This release fixes phone-map overlap, makes every mobile navigation tab reachable, separates worker startup from effect execution limits and adds bounded recovery of confirmed OpenRGB hangs. Optional fan curves can follow the hottest CPU/GPU source. See [release notes](docs/releases/v1.0.0.md), [cooling](docs/en/COOLING.md) and [validation scope](docs/validation/2026-11-07-stable-1.0.md).
 
-**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.44/NexusRGB-Setup-0.1.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.44)
+**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v1.0.0/NexusRGB-Setup-1.0.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v1.0.0)
 
 [Install](#installation) · [Effects and profiles](#effects-and-profiles) · [Setup map](#setup-map) · [Phone](#phone-and-local-network) · [Alexa](#alexa) · [Troubleshooting](#troubleshooting) · [Performance](#performance) · [Develop](#development)
 
@@ -36,7 +36,7 @@ OpenRGB handles supported hardware across brands. The separate native USB keyboa
 
 You need Windows 10/11 x64, compatible RGB hardware, and administrator permission for installation. A phone and optional compatible Echo must share the PC's local network.
 
-1. Download **NexusRGB-Setup-0.1.0.exe** from the official release above. No GitHub account is needed to download it.
+1. Download **NexusRGB-Setup-1.0.0.exe** from the official release above. No GitHub account is needed to download it.
 2. Close competing RGB applications, including other OpenRGB instances. They can contend for the same hardware even on different network ports.
 3. Run the installer and approve Windows' administrator request. Choose the installation directory, shortcuts and tray startup options.
 4. Keep the default network ports or choose available ones. See [network ports](#network-ports).
@@ -141,7 +141,7 @@ Echo model/firmware affects compatibility. Some units may perform a command yet 
 - **Prepare diagnostics** shows the exact report and lets you remove categories before downloading. No report is uploaded automatically.
 - Updates preserve settings and create `before-update-*.json` backups. Automatic backups are not deleted on a schedule; manage their disk usage.
 
-To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-0.1.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.44/NexusRGB-Uninstall-0.1.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
+To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-1.0.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v1.0.0/NexusRGB-Uninstall-1.0.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
 
 See [backup, diagnosis and updates](docs/en/BACKUP-AND-DIAGNOSTICS.md).
 
@@ -183,7 +183,7 @@ Report vulnerabilities through [Security Advisories](https://github.com/JonJonGf
 
 Read [the English development guide](docs/en/DEVELOPMENT.md), [AGENTS.md](AGENTS.md) and the dated [continuity record](docs/CONTEXTO-DESENVOLVIMENTO.md) before changing code. User-facing English guides are indexed [here](docs/en/README.md); historical technical evidence remains in its original language unless a translated counterpart is explicitly linked.
 
-The optional experimental fan module has **Silent, Balanced, Performance, Aggressive and TURBO** presets, editable linear/smooth curves, three custom profiles and an off switch. It is included in alpha builds, isolated from RGB and initially disabled. Once successfully activated, its applied settings resume on startup after hardware and temperature checks; turning it off cancels resumption. See [cooling and measurement limits](docs/en/COOLING.md).
+The optional experimental fan module has **Silent, Balanced, Performance, Aggressive and TURBO** presets, editable linear/smooth curves, three custom profiles and an off switch. It is included in the official installer, isolated from RGB and initially disabled. Hardware-specific fan control remains experimental. Once successfully activated, its applied settings resume on startup after hardware and temperature checks; turning it off cancels resumption. See [cooling and measurement limits](docs/en/COOLING.md).
 
 The portable GPU collector is a separate development tool. It reviews models, drivers, service state, requested GPU controls and selected error signatures without RGB writes or automatic upload. See [how to build/use the collector](docs/en/GPU-DIAGNOSTIC.md).
 

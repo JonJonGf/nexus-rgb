@@ -45,6 +45,12 @@ Locate exact tests using `rg --files tests`. Commands: [development guide](DESEN
 - `NexusPreviewStream.create({enabled,refresh,onFrame})` owns one EventSource, retry timer and generation. `start/stop` invalidate old asynchronous work; refresh/frame rendering still belong to the Studio UI. No polling while closed is introduced.
 - `device-capabilities.js` interprets mode descriptors without I/O. Native power-off fallback requires a declared zero-brightness range without automatic-save; it does not claim physical validation or enable new USB protocols.
 
+## Controller recovery and worker startup
+
+`controller-recovery.js` owns the sustained-hang window and bounded IPC request. The existing server heartbeat calls `check`; it adds no polling process or SDK query. Installed/supervised eligibility is checked before enabling it. `close` aborts pending IPC. Health exposes a small status snapshot. The hardware service authenticates the installed Node PID and independently enforces cooldown/retry limits before refreshing its own OpenRGB Job child. Resume and stop share the same refresh exclusion. The named pipe retains its historical Cooling name and accepts a fixed recovery action alongside helper launch.
+
+Effect workers send `booted` after trusted native-library initialization. Studio then sends imported effect source, with separate bootstrap and effect-validation deadlines. Normal frame watchdogs remain separate. Last-working promotion starts after ready. HTTP import with a delayed real worker and a never-ready process cover startup behavior.
+
 ## Small future changes
 
 1. Read the responsible row and callers before expanding scope.

@@ -25,8 +25,8 @@ O instalador informa os serviços, o acesso ao hardware/driver e as regras locai
 Baixe os executáveis pela [página oficial de versões](https://github.com/JonJonGf/nexus-rgb/releases) e compare seu SHA256 com o arquivo `SHA256SUMS.txt` da mesma versão:
 
 ```powershell
-Get-FileHash .\NexusRGB-Setup-0.1.0.exe -Algorithm SHA256
-Get-AuthenticodeSignature .\NexusRGB-Setup-0.1.0.exe
+Get-FileHash .\NexusRGB-Setup-1.0.0.exe -Algorithm SHA256
+Get-AuthenticodeSignature .\NexusRGB-Setup-1.0.0.exe
 ```
 
 Nesta prévia, a assinatura do instalador Nexus retorna `NotSigned`. Os hashes permitem conferir se o download corresponde ao arquivo publicado; não substituem uma assinatura digital. Mesmo depois de assinado, um binário novo pode receber avisos de reputação do [SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation). Mantenha as proteções do Windows ativas.

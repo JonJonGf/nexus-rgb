@@ -18,7 +18,7 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 
 [assembly:System.Reflection.AssemblyTitle("Nexus RGB GPU diagnostics (development)")]
-[assembly:System.Reflection.AssemblyVersion("0.1.0.0")]
+[assembly:System.Reflection.AssemblyVersion("1.0.0.0")]
 [assembly:System.Reflection.AssemblyCopyright("Copyright JonJonGf. MIT license.")]
 
 internal static class Diagnostic {

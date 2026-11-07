@@ -27,10 +27,11 @@ jobs:
           $env:PSModulePath=Join-Path $PSHOME 'Modules'
           $unsignedRoot=Join-Path $PWD 'dist\signing-input'
           New-Item -ItemType Directory -Path $unsignedRoot -Force | Out-Null
-          $ownFiles=@('dist\app\NexusRGB.exe','dist\NexusRGB-Uninstall-0.1.0.exe','dist\NexusRGB-Setup-0.1.0.exe')
+          $version=(Get-Content package.json -Raw | ConvertFrom-Json).version
+          $ownFiles=@('dist\app\NexusRGB.exe',('dist\NexusRGB-Uninstall-'+$version+'.exe'),('dist\NexusRGB-Setup-'+$version+'.exe'))
           $records=@(foreach($ownFile in $ownFiles) {
             $item=Get-Item -LiteralPath $ownFile
-            if($item.VersionInfo.ProductName.Trim() -ne 'Nexus RGB' -or $item.VersionInfo.ProductVersion.Trim() -ne '0.1.0.0'){throw "Metadados divergentes: $ownFile"}
+            if($item.VersionInfo.ProductName.Trim() -ne 'Nexus RGB' -or $item.VersionInfo.ProductVersion.Trim() -ne ($version+'.0')){throw "Metadados divergentes: $ownFile"}
             if((Get-AuthenticodeSignature -LiteralPath $ownFile).Status -ne 'NotSigned'){throw "Assinatura inesperada no build sem certificado: $ownFile"}
             $digest=(Get-FileHash -LiteralPath $ownFile -Algorithm SHA256).Hash.ToLowerInvariant()
             Copy-Item -LiteralPath $ownFile -Destination $unsignedRoot

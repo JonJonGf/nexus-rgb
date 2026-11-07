@@ -1,8 +1,8 @@
 # Critérios para distribuição pública
 
-O Nexus RGB é gratuito, com código original público sob [MIT](../LICENSE.md). Este documento reúne os requisitos de qualidade e distribuição que ainda precisam ser validados antes de uma versão estável.
+O Nexus RGB é gratuito, com código original público sob [MIT](../LICENSE.md). Este documento reúne os critérios de qualidade e a matriz de validação para ampliar a distribuição.
 
-Esta é uma versão de validação. Os testes automatizados validam comportamentos do software; não certificam todo hardware, instalador, driver, firmware Echo ou rede.
+Revisão de 07/11/2026: a versão oficial 1.0.0 reúne os contratos de software e os ciclos automatizados documentados no [relatório](validation/2026-11-07-stable-1.0.md). A ventilação por hardware permanece opcional e experimental. Assinatura digital, matriz ampliada Windows 10/11, boot físico e ensaios com novos modelos continuam como critérios pendentes abaixo.
 
 A [revisão de 14/10/2026](VALIDACAO.md) inclui testes adicionais de segurança, recuperação do supervisor e instalação/atualização/desinstalação/reinstalação reais numa VM descartável Windows Server 2025. O ciclo da VM passou em 45 verificações. Ainda é necessário completar a matriz Windows 10/11 e hardware físico descrita abaixo.
 

@@ -13,9 +13,16 @@ jobs:
           - { panel: 5050, sdk: 6743, alexa: 80, customDirectory: false }
           - { panel: 5151, sdk: 6754, alexa: 8081, customDirectory: true }
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Ler versão do pacote
+        id: package
+        shell: powershell
+        run: |
+          $version=(Get-Content package.json -Raw | ConvertFrom-Json).version
+          if($version -cnotmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'){throw 'Invalid package version'}
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT,('version='+$version+[Environment]::NewLine),[Text.UTF8Encoding]::new($false))
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.20.0'
@@ -56,15 +63,28 @@ jobs:
           Add-Content -LiteralPath dist/SHA256SUMS.txt -Value ($digest+'  NexusRGB-GPU-Diagnostic-dev.zip') -Encoding ASCII
       - run: npm run test:installer
       - run: node scripts/test-installer-tray.js
+      - name: Preparar atualização da alpha.44 na VM padrão
+        if: matrix.ports.panel == 5050
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item -ItemType Directory -Path dist/previous -Force | Out-Null
+          $target=Join-Path $PWD 'dist/previous/NexusRGB-Setup-alpha.44.exe'
+          Invoke-WebRequest -Uri 'https://github.com/JonJonGf/nexus-rgb/releases/download/v0.1.0-alpha.44/NexusRGB-Setup-0.1.0.exe' -OutFile $target
+          if((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -cne '095972f706d8a6e037a7064a7d61b0686026d79e03c459a871e4da1a2759a731'){throw 'Previous installer integrity mismatch'}
       - name: Instalar, atualizar, recuperar, remover e reinstalar
         shell: powershell
-        run: ./scripts/test-installed-package.ps1 -Installer ./dist/NexusRGB-Setup-0.1.0.exe -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }} -CustomDirectory:$${{ matrix.ports.customDirectory }}
+        run: |
+          $version=(Get-Content package.json -Raw | ConvertFrom-Json).version
+          $previous=if(${{ matrix.ports.panel }} -eq 5050){'./dist/previous/NexusRGB-Setup-alpha.44.exe'}else{''}
+          ./scripts/test-installed-package.ps1 -Installer ('./dist/NexusRGB-Setup-'+$version+'.exe') -PanelPort ${{ matrix.ports.panel }} -SDKPort ${{ matrix.ports.sdk }} -AlexaPort ${{ matrix.ports.alexa }} -CustomDirectory:$${{ matrix.ports.customDirectory }} -PreviousInstaller $previous
       - name: Registrar origem do pacote
         if: github.ref_type == 'tag' && matrix.ports.panel == 5050
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          $records=@(foreach($file in @('dist\NexusRGB-Setup-0.1.0.exe','dist\NexusRGB-Uninstall-0.1.0.exe','dist\NexusRGB-GPU-Diagnostic-dev.zip')){
+          $version=(Get-Content package.json -Raw | ConvertFrom-Json).version
+          $records=@(foreach($file in @(('dist\NexusRGB-Setup-'+$version+'.exe'),('dist\NexusRGB-Uninstall-'+$version+'.exe'),'dist\NexusRGB-GPU-Diagnostic-dev.zip')){
             $item=Get-Item -LiteralPath $file
             [pscustomobject]@{name=$item.Name;sha256=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant();size=$item.Length}
           })
@@ -75,8 +95,8 @@ jobs:
         with:
           name: nexus-windows-release
           path: |
-            dist/NexusRGB-Setup-0.1.0.exe
-            dist/NexusRGB-Uninstall-0.1.0.exe
+            dist/NexusRGB-Setup-${{ steps.package.outputs.version }}.exe
+            dist/NexusRGB-Uninstall-${{ steps.package.outputs.version }}.exe
             dist/SHA256SUMS.txt
             dist/BUILD-INFO.json
             dist/NexusRGB-GPU-Diagnostic-dev.zip

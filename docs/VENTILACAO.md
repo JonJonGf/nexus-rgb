@@ -2,13 +2,13 @@
 
 [English](en/COOLING.md) · [README](../README-pt.md)
 
-A alpha.44 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
+A versão 1.0.0 inclui ventilação opcional com LibreHardwareMonitor 0.9.6 fixado por hash/commit e auxiliar nativo separado, iniciado sob demanda. RGB e energia dos LEDs continuam independentes da rotação. Macros de mouse ficam fora do escopo.
 
 ## Instalação e ativação
 
-Atualize pelo instalador oficial da alpha.44, sem desinstalar a versão anterior. Novas instalações começam desligadas. Depois de ativar/aplicar o controle com sucesso, o Nexus guarda os canais, sensores, RPM, curva e escolha de ativação e retoma essa configuração ao iniciar o PC. Nas instalações anteriores, ative/aplique uma vez na nova versão para registrar a intenção de retomada; ela não é inferida de um arquivo antigo. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
+Atualize pelo instalador oficial da versão 1.0.0, sem desinstalar a versão anterior. Novas instalações começam desligadas. Depois de ativar/aplicar o controle com sucesso, o Nexus guarda os canais, sensores, RPM, curva e escolha de ativação e retoma essa configuração ao iniciar o PC. Nas instalações anteriores, ative/aplique uma vez na nova versão para registrar a intenção de retomada; ela não é inferida de um arquivo antigo. **Detectar sensores** inicia monitoramento; mudar rotações exige associar explicitamente canal e sensor e ativar o controle. Uma leitura zero não prova canal vazio, e canais paralelos compartilham a saída física do conector. O auxiliar independente solicita retorno ao automático se perder o serviço pai. Compatibilidade e resposta mecânica precisam ser conferidas no equipamento; os testes automatizados usam canais simulados.
 
-Os pacotes alpha e de desenvolvimento incluem o backend somente com marcador do mesmo commit. Versões estáveis não habilitam automaticamente este recurso experimental. Para preparar uma candidata privada, `scripts/build.ps1 -CoolingDevelopment` continua disponível; isso não instala nem inicia sensores no PC.
+Os pacotes estáveis a partir da 1.0.0, alpha e de desenvolvimento incluem o backend somente com marcador do mesmo commit. Na estável, versão e tag também precisam corresponder. O controle de hardware permanece experimental e opcional. Para preparar uma candidata privada, `scripts/build.ps1 -CoolingDevelopment` continua disponível; isso não instala nem inicia sensores no PC.
 
 
 ## Curva compartilhada e CPU + GPU

@@ -24,6 +24,8 @@ foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-P
 & node scripts/build-info.cjs $buildRoot
 if($LASTEXITCODE -ne 0){throw 'Falha ao identificar a versão do pacote.'}
 $buildInfo=Get-Content -LiteralPath (Join-Path $buildRoot 'server\build-info.json') -Raw | ConvertFrom-Json
+$baseVersion=$buildInfo.version
+if($baseVersion -cnotmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'){throw 'Invalid build version.'}
 $stableCooling=(-not $buildInfo.development -and $buildInfo.version -cmatch '^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' -and $buildInfo.tag -ceq ('v'+$buildInfo.version))
 $includeCooling=($buildInfo.development -and -not $buildInfo.tag) -or (-not $buildInfo.development -and $buildInfo.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$') -or $stableCooling
 if($CoolingDevelopment -and (-not $buildInfo.development -or $buildInfo.tag)){throw 'Ventilação experimental privada exige um build de desenvolvimento sem tag.'}
@@ -68,14 +70,14 @@ Push-Location -LiteralPath $buildRoot
 try { & npm.cmd ci --omit=dev --ignore-scripts; if($LASTEXITCODE -ne 0){throw 'Falha ao preparar dependências de produção.'}; & npm.cmd audit --omit=dev --audit-level=moderate; if($LASTEXITCODE -ne 0){throw 'Auditoria de dependências falhou.'} }
 finally { Pop-Location }
 & (Join-Path $PSScriptRoot 'build-native.ps1') -OutputDirectory $buildRoot
-$uninstallName='NexusRGB-Uninstall-0.1.0'+$(if($CoolingDevelopment){'-cooling-dev'}else{''})+'.exe'
+$uninstallName='NexusRGB-Uninstall-'+$baseVersion+$(if($CoolingDevelopment){'-cooling-dev'}else{''})+'.exe'
 Copy-Item -LiteralPath (Join-Path $buildRoot 'NexusRGB-Uninstall.exe') -Destination (Join-Path $projectRoot ('dist\'+$uninstallName)) -Force
 $testProcess=Start-Process -FilePath (Join-Path $buildRoot 'NexusRGB.exe') -ArgumentList '--self-test' -WindowStyle Hidden -PassThru -Wait
 if($testProcess.ExitCode -ne 0){throw 'Instalação de teste incompleta.'}
 # Include each third-party license shipped in node_modules, without developer dependencies.
 & node scripts/licenses.js $buildRoot
 if($LASTEXITCODE -ne 0){throw 'Falha ao coletar licenças.'}
-$setupName='NexusRGB-Setup-0.1.0'
+$setupName='NexusRGB-Setup-'+$baseVersion
 $compilerOptions=@('/Qp')
 if($CoolingDevelopment){$setupName+='-cooling-dev';$compilerOptions+='/DCoolingDevelopment'}
 & (Join-Path $projectRoot 'tools\inno\ISCC.exe') @compilerOptions installer/NexusRGB.iss

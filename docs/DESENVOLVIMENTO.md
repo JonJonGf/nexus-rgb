@@ -72,8 +72,8 @@ Com o Inno Setup disponível, execute também `npm run test:installer`. Esse tes
 O resultado fica em:
 
 ```text
-dist\NexusRGB-Setup-0.1.0.exe
-dist\NexusRGB-Uninstall-0.1.0.exe
+dist\NexusRGB-Setup-1.0.0.exe
+dist\NexusRGB-Uninstall-1.0.0.exe
 dist\SHA256SUMS.txt
 ```
 
