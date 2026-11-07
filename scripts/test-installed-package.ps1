@@ -191,6 +191,7 @@ try {
   Check (-not $trayBefore.HasExited) 'Own tray process is open before upgrade'
   $obsoleteQt=Join-Path $root 'openrgb\Qt6NexusUpgradeFixture.dll'
   [IO.File]::WriteAllText($obsoleteQt,'obsolete runtime fixture')
+  $backupsBeforeUpgrade=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json' | Select-Object -ExpandProperty FullName)
   Setup 'upgrade'; VerifyServices
   Check ((Get-FileHash -LiteralPath $accessFile).Hash -eq $accessBefore -and (Invoke-RestMethod ($origin+'/api/access') -WebSession $session).mode -eq 'authorized') 'Upgrade preserves private LAN access policy'
   Check (-not(Test-Path -LiteralPath $obsoleteQt)) 'Upgrade removes obsolete Qt runtime files from the previous distribution'
@@ -203,8 +204,8 @@ try {
   if($coolingExpected){Check ((Get-FileHash -LiteralPath $coolingFile).Hash -eq $coolingHash) 'Upgrade preserves fan configuration byte for byte'}
   Check ((Get-FileHash -LiteralPath $effectFile).Hash -eq $effectHash) 'Upgrade preserves imported effects byte for byte'
   Check (((Invoke-RestMethod ($origin+'/api/studio') -WebSession $session).layout | ConvertTo-Json -Depth 10 -Compress) -eq $persistedMap) 'Upgrade preserves saved map and calibration'
-  $upgradeBackups=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json')
-  Check ($upgradeBackups.Count -ge 1) 'Upgrade creates a complete backup before replacing payload'
+  $upgradeBackups=@(Get-ChildItem -LiteralPath (Join-Path $data 'app\backups') -Filter 'before-update-*.json' | Where-Object {$_.FullName -notin $backupsBeforeUpgrade})
+  Check ($upgradeBackups.Count -eq 1) 'Upgrade creates exactly one new backup before replacing payload'
   $upgradeBackup=[IO.File]::ReadAllText($upgradeBackups[0].FullName) | ConvertFrom-Json
   Check ($upgradeBackup.format -eq 'nexus-backup/1' -and $upgradeBackup.effects[0].id -eq $import.id -and $upgradeBackup.settings.library.transitionMs -eq 300) 'Automatic backup includes effects and library organization'
   Check ([IO.File]::ReadAllText((Join-Path $data 'installation.log')) -ne $firstDiagnostic) 'Upgrade replaces the existing diagnostic'

@@ -2,7 +2,7 @@
 
 [English README](../../README-en.md) · [Português](../../README-pt.md)
 
-These guides describe the official 1.0.0 feature set unless a section identifies another release. Optional hardware fan control remains experimental. Release validation and installed-build information are recorded separately in the project context.
+These guides describe the official 1.0.1 feature set unless a section identifies another release. Optional hardware fan control remains experimental. Release validation and installed-build information are recorded separately in the project context.
 
 | Guide | Contents |
 | --- | --- |

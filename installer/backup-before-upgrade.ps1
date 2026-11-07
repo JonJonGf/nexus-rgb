@@ -26,7 +26,7 @@ function Save-NexusUpgradeBackup([string]$AppData) {
     }
   }
   $encodedEffects=ConvertTo-Json -InputObject @($effects) -Depth 80 -Compress
-  $backup='{"format":"nexus-backup/1","version":"1.0.0","createdAt":"'+[DateTime]::UtcNow.ToString('o')+'","settings":'+$settings+',"effects":'+$encodedEffects+'}'
+  $backup='{"format":"nexus-backup/1","version":"1.0.1","createdAt":"'+[DateTime]::UtcNow.ToString('o')+'","settings":'+$settings+',"effects":'+$encodedEffects+'}'
   if([Text.Encoding]::UTF8.GetByteCount($backup) -gt 16MB){throw 'Backup exceeds 16 MiB.'}
   $folder=Join-Path $rootPath 'backups'
   if(Test-Path -LiteralPath $folder){$item=Get-Item -LiteralPath $folder -Force;if(-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Invalid backup directory.'}}

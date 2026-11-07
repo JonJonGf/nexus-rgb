@@ -1,6 +1,6 @@
 {
   "name": "nexus-rgb",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Controle RGB de PCs Windows, gratuito, aberto e local",
   "license": "MIT",

@@ -2,7 +2,7 @@
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
 
-## Em andamento: versão estável 1.0.0
+## Em andamento: primeira versão estável 1.0.1
 
 - Usuário pediu concluir pendências e publicar a 1.0 oficial. Branch `codex/stable-1-0`, base remota confirmada `373ae87`; nota local de download anterior preservada. Publicação autorizada, instalação/boot/hardware nesta rodada não solicitados. RX 7600, aviso Alexa e Steck/Tuya continuam excluídos.
 - Escopo ativo: mapa/navegação no telefone, inicialização de workers de efeitos, recuperação limitada de OpenRGB travado, migração/empacotamento/guia/versionamento 1.0.0 e validação/release. Protocolos novos dependentes de hardware e assinatura comercial precisam de evidência/credenciais externas, sem promessa de suporte universal.
@@ -19,7 +19,8 @@ Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do códig
 - Novas notas/guias PT/EN, [relatório 1.0.0](validation/2026-11-07-stable-1.0.md). Estabilidade de 300 s aprovada: 712 requisições/dez recuperações abruptas, RSS do processo isolado 52,23→54,11 MiB. Migração real alpha.44 na VM padrão e instalação nova na VM de caminho/portas alternativos ainda pendentes. Pacote antigo fixado por SHA256.
 - Assinatura digital e matriz física ampliada Windows 10/11 permanecem limites explícitos da distribuição. Ventilação por hardware segue experimental/opcional. Nenhum certificado, teste físico ou confirmação de boot real foi inventado.
 - Preparação 1.0.0 enviada à main em **82fdd8c**. Build completo e pacote local passaram; [CI geral](https://github.com/JonJonGf/nexus-rgb/actions/runs/42383233487) e [CodeQL](https://github.com/JonJonGf/nexus-rgb/actions/runs/42383233474) passaram, zero alertas abertos. [Pré-validação Windows](https://github.com/JonJonGf/nexus-rgb/actions/runs/42383485628): VM personalizada passou todo o ciclo; migração alpha.44 preservou perfis/curvas byte a byte e guia, mas teste posterior pediu PNG com energia ainda apagada. Reprodução HTTP isolada confirmou worker dormindo quando apagado e PNG após ligar. Corrigida somente a preparação da VM, mantendo verificação de preservação e acrescentando asserção explícita de energia apagada na migração. Evidências/limites no relatório 1.0.0; nenhuma redução de timeout/proteção.
-- Próximo: conferir commit da fixture, criar tag `v1.0.0` após os checks e acompanhar ciclos finais de VMs/gate; conferir downloads e registrar hashes. Release pública ainda alpha.44; PC no último estado registrado (desenvolvimento c0dcfcd, sem atualização física nesta rodada).
+- Ensaio da tag **v1.0.0** em **6314a70**: CI geral e três CodeQL passaram; VM personalizada passou 100 verificações reais. A VM de migração preservou dados/energia e passou na prévia após a preparação corrigida, mas a fixture leu o primeiro backup histórico em vez do criado na atualização atual. [Workflow bloqueado](https://github.com/JonJonGf/nexus-rgb/actions/runs/42385476986), sem release pública. Tag mantida imutável. Seleção corrigida para exigir exatamente um nome novo após a atualização; teste real de backup cobre duas gravações e preservação da primeira. Cinco contratos locais e 12 Inno passaram. Primeira distribuição pública será **v1.0.1**, sem mudança adicional no comportamento do app, com metadados/guias correspondentes.
+- Próximo: acompanhar pipeline completo de `v1.0.1` até VMs/gate/publicação; conferir downloads e registrar hashes. Release pública ainda alpha.44; PC no último estado registrado (desenvolvimento c0dcfcd, sem atualização física nesta rodada).
 
 ## Invariantes
 

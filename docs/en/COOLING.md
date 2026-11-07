@@ -2,7 +2,7 @@
 
 [Documentation](README.md) · [Português](../VENTILACAO.md)
 
-Version 1.0.0 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
+Version 1.0.1 includes optional fan curves with pinned LibreHardwareMonitor 0.9.6 and an on-demand native helper. RGB power remains independent from fan speed. Nothing reads sensors or starts the helper while the module is off.
 
 ## Shared curve and CPU + GPU
 
@@ -22,9 +22,9 @@ An invalid selected reading requests maximum permitted protective output; it is 
 
 ## Installation and activation
 
-Update with the official version 1.0.0 installer without uninstalling the previous version. Fresh installations start off. A successful activation saves the selected channels, sensors, RPM readings, curve and active choice, then resumes them when the PC starts. Previous installations need one successful activation on the new version; startup intent is not inferred from a legacy file. **Detect sensors** starts monitoring; speed control requires explicit channel/sensor pairing and activation. Zero RPM does not prove an unused channel; parallel fans share the connector's output. The helper requests automatic control when its parent service disappears. Physical compatibility and response require confirmation on each machine; automated tests use simulated channels.
+Update with the official version 1.0.1 installer without uninstalling the previous version. Fresh installations start off. A successful activation saves the selected channels, sensors, RPM readings, curve and active choice, then resumes them when the PC starts. Previous installations need one successful activation on the new version; startup intent is not inferred from a legacy file. **Detect sensors** starts monitoring; speed control requires explicit channel/sensor pairing and activation. Zero RPM does not prove an unused channel; parallel fans share the connector's output. The helper requests automatic control when its parent service disappears. Physical compatibility and response require confirmation on each machine; automated tests use simulated channels.
 
-Stable packages starting at 1.0.0, alpha and development packages require a matching commit marker to enable this backend. Stable version and tag must also match. Hardware fan control remains experimental and optional. `scripts/build.ps1 -CoolingDevelopment` remains available for private candidates and does not install or start sensors.
+Stable packages starting at 1.0.1, alpha and development packages require a matching commit marker to enable this backend. Stable version and tag must also match. Hardware fan control remains experimental and optional. `scripts/build.ps1 -CoolingDevelopment` remains available for private candidates and does not install or start sensors.
 
 
 ## Automatic startup resumption

@@ -10,9 +10,9 @@
 
 Nexus RGB is free and open source. It runs locally on Windows, includes OpenRGB Headless, and has a Portuguese/English interface. No Nexus cloud account or telemetry is required.
 
-**Official release: v1.0.0.** Local RGB control, a spatial setup map, JSON/HTML effects, phone access and Alexa integration. This release fixes phone-map overlap, makes every mobile navigation tab reachable, separates worker startup from effect execution limits and adds bounded recovery of confirmed OpenRGB hangs. Optional fan curves can follow the hottest CPU/GPU source. See [release notes](docs/releases/v1.0.0.md), [cooling](docs/en/COOLING.md) and [validation scope](docs/validation/2026-11-07-stable-1.0.md).
+**Official release: v1.0.1.** Local RGB control, a spatial setup map, JSON/HTML effects, phone access and Alexa integration. This release fixes phone-map overlap, makes every mobile navigation tab reachable, separates worker startup from effect execution limits and adds bounded recovery of confirmed OpenRGB hangs. Optional fan curves can follow the hottest CPU/GPU source. See [release notes](docs/releases/v1.0.1.md), [cooling](docs/en/COOLING.md) and [validation scope](docs/validation/2026-11-07-stable-1.0.md).
 
-**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v1.0.0/NexusRGB-Setup-1.0.0.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v1.0.0)
+**[Download Windows installer](https://github.com/JonJonGf/nexus-rgb/releases/download/v1.0.1/NexusRGB-Setup-1.0.1.exe)** · [Release files and SHA-256 checksums](https://github.com/JonJonGf/nexus-rgb/releases/tag/v1.0.1)
 
 [Install](#installation) · [Effects and profiles](#effects-and-profiles) · [Setup map](#setup-map) · [Phone](#phone-and-local-network) · [Alexa](#alexa) · [Troubleshooting](#troubleshooting) · [Performance](#performance) · [Develop](#development)
 
@@ -36,7 +36,7 @@ OpenRGB handles supported hardware across brands. The separate native USB keyboa
 
 You need Windows 10/11 x64, compatible RGB hardware, and administrator permission for installation. A phone and optional compatible Echo must share the PC's local network.
 
-1. Download **NexusRGB-Setup-1.0.0.exe** from the official release above. No GitHub account is needed to download it.
+1. Download **NexusRGB-Setup-1.0.1.exe** from the official release above. No GitHub account is needed to download it.
 2. Close competing RGB applications, including other OpenRGB instances. They can contend for the same hardware even on different network ports.
 3. Run the installer and approve Windows' administrator request. Choose the installation directory, shortcuts and tray startup options.
 4. Keep the default network ports or choose available ones. See [network ports](#network-ports).
@@ -141,7 +141,7 @@ Echo model/firmware affects compatibility. Some units may perform a command yet 
 - **Prepare diagnostics** shows the exact report and lets you remove categories before downloading. No report is uploaded automatically.
 - Updates preserve settings and create `before-update-*.json` backups. Automatic backups are not deleted on a schedule; manage their disk usage.
 
-To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-1.0.0.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v1.0.0/NexusRGB-Uninstall-1.0.0.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
+To uninstall, use Windows Apps, the Start-menu shortcut, or the official [NexusRGB-Uninstall-1.0.1.exe helper](https://github.com/JonJonGf/nexus-rgb/releases/download/v1.0.1/NexusRGB-Uninstall-1.0.1.exe). The helper finds the registered official installation. Removal deletes Nexus services and its firewall rules, preserving local data by default. Shared PawnIO and Visual C++ dependencies remain installed.
 
 See [backup, diagnosis and updates](docs/en/BACKUP-AND-DIAGNOSTICS.md).
 

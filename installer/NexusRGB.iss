@@ -1,10 +1,10 @@
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define Payload "..\dist\app"
 [Setup]
 AppId={{BEFFBF04-40A0-4E59-87C0-223B51E92B84}
 AppName=Nexus RGB
 #ifdef CoolingDevelopment
-AppVerName=Nexus RGB 1.0.0 - Cooling Development
+AppVerName=Nexus RGB 1.0.1 - Cooling Development
 #endif
 AppVersion={#AppVersion}
 AppPublisher=JonJonGf
@@ -12,9 +12,9 @@ AppPublisherURL=https://github.com/JonJonGf/nexus-rgb
 AppSupportURL=https://github.com/JonJonGf/nexus-rgb/issues
 AppUpdatesURL=https://github.com/JonJonGf/nexus-rgb/releases
 AppCopyright=Copyright (c) 2026 JonJonGf
-VersionInfoVersion=1.0.0.0
+VersionInfoVersion=1.0.1.0
 VersionInfoProductName=Nexus RGB
-VersionInfoProductVersion=1.0.0.0
+VersionInfoProductVersion=1.0.1.0
 DefaultDirName={autopf}\Nexus RGB
 DefaultGroupName=Nexus RGB
 DisableDirPage=no
