@@ -109,6 +109,7 @@ try {
     Check (-not $welcome) 'Alpha-to-stable upgrade does not repeat the welcome guide'
     Check ((Get-FileHash -LiteralPath (Join-Path $data 'app\settings.json')).Hash -eq $legacySettings) 'Alpha-to-stable upgrade preserves lighting and profiles byte for byte'
     Check ((Get-FileHash -LiteralPath (Join-Path $data 'app\cooling.json')).Hash -eq $legacyCooling) 'Alpha-to-stable upgrade preserves shared dual-source fan curves byte for byte'
+    Check ((State).master.power -eq $false) 'Alpha-to-stable upgrade keeps saved lighting off'
   } else {Check $welcome 'First local visit offers the welcome guide'}
   Check ((Invoke-WebRequest ($origin+'/help') -UseBasicParsing).StatusCode -eq 200) 'Offline help is included in the installed payload'
   Check ([IO.File]::ReadAllText((Join-Path $root 'LEIA-ME.txt')).Contains('Configuracoes > Ajuda')) 'Plain-text Notepad guide is included'
@@ -143,6 +144,10 @@ try {
   $import=Invoke-RestMethod ($origin+'/api/studio/import') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{source=$effectSource} | ConvertTo-Json -Compress) -WebSession $session
   Check ($import.id -match '^[a-f0-9]{24}$') 'Installed LocalService loads QuickJS and native Canvas to validate an import'
   $effectFile=Join-Path $data ('app\effects\'+$import.id+'.json'); $effectHash=(Get-FileHash -LiteralPath $effectFile).Hash
+  # Preservation is checked above. Enable only this disposable VM's test state:
+  # a migrated off state correctly leaves the spatial renderer asleep.
+  Invoke-RestMethod ($origin+'/api/control') -Method Post -Headers $headers -ContentType 'application/json' -Body '{"power":true}' -WebSession $session | Out-Null
+  Check ((State).master.power -eq $true) 'Disposable VM explicitly enables lighting for the active-renderer check'
   Invoke-RestMethod ($origin+'/api/studio/play') -Method Post -Headers $headers -ContentType 'application/json' -Body (@{activeId=$import.id;enabled=$true} | ConvertTo-Json -Compress) -WebSession $session | Out-Null
   $previewRequest=[Net.HttpWebRequest]::Create($origin+'/api/studio/preview')
   $previewRequest.CookieContainer=$session.Cookies; $previewRequest.Timeout=15000; $previewResponse=$null

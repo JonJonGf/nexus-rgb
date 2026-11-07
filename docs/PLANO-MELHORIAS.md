@@ -12,8 +12,8 @@ Usuário autorizou concluir pendências e publicar a 1.0.0. [Relatório com evid
 | Timeout de importação durante inicialização do worker | Bootstrap confiável separado da validação do efeito; processo lento válido e processo que nunca inicia exercitados pelo worker real. |
 | Recuperação parcial de OpenRGB travado | Canal autenticado existente e supervisor próprio, observação sustentada, cooldown e orçamento em duas camadas; IPC e processos reais em fixture aprovados. |
 | Ventilação no instalador oficial estável | Política 1+ com versão/tag/marcador/commit conferidos; opcional e experimental por hardware. |
-| Migração alpha.44 para 1.0.0 | Cenário da VM padrão preparado com pacote oficial fixado por hash e curvas de dois sensores; execução ainda pendente. |
-| Publicação 1.0.0 | Candidata passou 331 gerais/79 Edge; estabilidade, build completo e gates remotos em andamento. |
+| Migração alpha.44 para 1.0.0 | Preservação byte a byte aprovada na VM; corrigida preparação posterior que pedia PNG com iluminação apagada. Ciclo final aguardando conclusão. |
+| Publicação 1.0.0 | Candidata passou 331 gerais/79 Edge, estabilidade, build, CI/CodeQL. Instalação nova passou; rodada final de VMs/gate em andamento. |
 
 Certificado de assinatura, matriz física ampliada, novos protocolos e piloto Tailwind são trabalho posterior com dependências próprias. Os detalhes históricos abaixo ficam subordinados a este estado atual.
 
@@ -52,7 +52,7 @@ Cada lote deve ser revisável em commit próprio. Não reescrever tudo de uma ve
 | Ensaios físicos adicionais | Transições em outros controladores, WLED, áudio/contexto em outras sessões e novos dispositivos precisam de observação. Recurso implementado com teste sintético não vira recurso ausente. |
 | Boot real das fans | Candidata de desenvolvimento c0dcfcd instalada a pedido; três associações retomadas após reinício de serviços. Falta observação em boot real. Não reiniciar PC para encerrar esta revisão. |
 
-As duas primeiras entregas estão publicadas na alpha.43; foram mantidas nesta tabela para localizar seus limites. Ensaios físicos e novos protocolos dependentes de dispositivo/empacotamento não podem ser declarados concluídos com simulações. Recuperação autônoma de processo elevado permanece uma ampliação separada; não reduzir validações/privilégios para encaixá-la nesta publicação.
+As duas primeiras entregas estão publicadas na alpha.43; foram mantidas nesta tabela para localizar seus limites. Ensaios físicos e novos protocolos dependentes de dispositivo/empacotamento não podem ser declarados concluídos com simulações. Recuperação elevada limitada está implementada na candidata 1.0.0 pelo canal autenticado; ampliações além desse contrato continuam separadas.
 
 ## Entregue: não refazer como pendência
 
