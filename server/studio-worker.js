@@ -20,3 +20,4 @@ process.on('message', async message => {
   }
 });
 process.on('disconnect', () => { renderer.close(); process.exit(0); });
+process.send({ kind: 'booted' });

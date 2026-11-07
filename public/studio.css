@@ -185,3 +185,9 @@
 @media (min-width:801px) { .studio-workspace { max-height: calc(100dvh - 205px); } }
 @media (max-width:1100px) { .studio-workspace { grid-template-columns: minmax(0,1fr) 250px; gap: 12px; } }
 @media (max-width:800px) { .nav { padding: 3px 4px; font-size: 8px; flex: 1; min-width: 0; } .nav svg { width: 17px; height: 17px; } .studio-workspace { grid-template-columns: 1fr; flex: initial; } .studio-inspector { overflow: visible; } .studio-stage { min-height: 210px; } .studio-stage-column { min-height: 260px; } .studio-toolbar { gap: 7px; } .settings-grid { grid-template-columns: 1fr; } .fps-presets { grid-template-columns: 1fr 1fr; } }
+@media (max-width:800px) {
+  .studio-page.active > * { flex-shrink: 0; }
+  .studio-workspace { flex: none; }
+  .studio-stage-column { justify-content: flex-start; }
+  .studio-stage-column > * { flex-shrink: 0; }
+}

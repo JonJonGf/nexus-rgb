@@ -1,6 +1,14 @@
-# Contexto atual — 02/11/2026
+# Contexto atual — 07/11/2026
 
 Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do código](ARCHITECTURE.md) para abrir os módulos do pedido. [AGENTS.md](../AGENTS.md) continua obrigatório.
+
+## Em andamento: versão estável 1.0.0
+
+- Usuário pediu concluir pendências e publicar a 1.0 oficial. Branch `codex/stable-1-0`, base remota confirmada `373ae87`; nota local de download anterior preservada. Publicação autorizada, instalação/boot/hardware nesta rodada não solicitados. RX 7600, aviso Alexa e Steck/Tuya continuam excluídos.
+- Escopo ativo: mapa/navegação no telefone, inicialização de workers de efeitos, recuperação limitada de OpenRGB travado, migração/empacotamento/guia/versionamento 1.0.0 e validação/release. Protocolos novos dependentes de hardware e assinatura comercial precisam de evidência/credenciais externas, sem promessa de suporte universal.
+- Reproduzido mapa com prévia 39 px acima da própria coluna e chips comprimidos. CSS preserva alturas e rolagem móvel. Detectado Configurações fora da tela: grade de quatro colunas/duas linhas até 480 px, com área reservada. Três testes Edge PT/EN/toque/rotação passaram, com falhas observadas antes da correção. Novos `tests/ui/studio-mobile.spec.js`, `public/style.css`, `public/studio.css`.
+- Reproduzido HTTP importando efeito válido com cold-start sintético de 6,2 s: rejeitava em 6 s. Worker agora anuncia booted, com bootstrap limitado a 15 s e validação do efeito a 6 s a partir do boot; orçamento de frame/QuickJS preservado. Janela de promoção começa após ready. `server/studio.js`, `server/studio-worker.js`, `tests/studio-startup.test.js`, `tests/fixtures/slow-studio-worker.cjs`; 32 testes de efeitos/backup/integridade passaram. Isso prova o cenário, sem afirmar forense da falha antiga do CI.
+- Mudanças ainda locais, sem commit desta rodada; próxima etapa é recuperação do controlador via canal autenticado existente e distribuição da ventilação opcional na estável, seguida de suítes completas/build/VMs e notas. PC/release ainda nos estados históricos abaixo. Evidência privada em `data/cooling-dev/stable-*.log`.
 
 ## Entrega atual: alpha.44 publicada
 
@@ -9,6 +17,8 @@ Leia este resumo e o [plano atual](PLANO-MELHORIAS.md). Use o [índice do códig
 - [Publicação 41539949357](https://github.com/JonJonGf/nexus-rgb/actions/runs/41539949357) **success na tentativa 2**: duas VMs, 323 gerais/76 Edge, supervisor, pacote/ciclo de instalação e gate com três linguagens/zero alertas. CI main tentativa 2, CI da tag e CodeQL main também success. Dados/mapa/LAN/primeiro uso preservados nos ciclos. Build local e contrato off sem auxiliar/polling aprovados; testes não são prova física de RPM/LED.
 - [Release alpha.44](https://github.com/JonJonGf/nexus-rgb/releases/tag/v0.1.0-alpha.44) pública em `2026-11-02T23:15:44Z`, prévia experimental. Cinco assets baixados em `dist/releases/v0.1.0-alpha.44/` e conferidos por digest GitHub/SHA256SUMS/BUILD-INFO exato. Setup oficial **87.460.713 bytes**, SHA256 `095972f706d8a6e037a7064a7d61b0686026d79e03c459a871e4da1a2759a731`. Fechamento documental posterior não muda tag/binário.
 - **PC continua no desenvolvimento c0dcfcd**, instalado na tarefa anterior. Publicação não instalou nada nem abriu UAC/reiniciou serviços/comandou hardware. Próximo: sobreposição no telefone, registrada no plano para outra entrega; manter investigação da causa do timeout de CI como limite documentado, sem alegar correção.
+
+- Pedido posterior **“baixa a nova versão”**: instalador oficial alpha.44 disponibilizado em Downloads, com nome identificando a alpha.44, a partir da cópia oficial já baixada. Conferidos novamente asset público, tamanho 87.460.713 bytes e SHA256 oficial. Sem execução/UAC/instalação; PC permanece c0dcfcd. Nota de download preservada na retomada da tarefa 1.0.0; não mudou código/tag/release da alpha.44.
 
 ## Correção em andamento: cartões de ventilação
 

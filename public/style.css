@@ -347,5 +347,12 @@ select { width: 100%; }
   footer { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+@media (max-width:480px) {
+  .sidebar { height: calc(104px + env(safe-area-inset-bottom)); }
+  .sidebar nav { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); grid-auto-rows: 45px; gap: 3px; }
+  .sidebar .nav { padding: 3px; font-size: 9px; }
+  main { padding-bottom: calc(114px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(114px + env(safe-area-inset-bottom)); }
+}
 
 .reconnect-dialog{width:min(92vw,640px);max-height:90vh;overflow:auto;color:var(--text);background:var(--surface)}.reconnect-dialog select{width:100%;margin:.5rem 0 1rem}.reconnect-summary{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}.reconnect-dialog label{display:block}.reconnect-dialog [hidden]{display:none}

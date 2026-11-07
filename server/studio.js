@@ -4,6 +4,8 @@ const { readJson, writeJson, readEffectJson, preserveJson, validatePatch } = req
 const schema = require('./studio-schema'), spatial = require('../public/spatial');
 const fingerprint = value => crypto.createHash('sha256').update(value).digest('hex');
 const savedFingerprint = value => /^[a-f0-9]{64}$/.test(value) ? value : fingerprint(value);
+const WORKER_BOOT_TIMEOUT_MS = 15000;
+const EFFECT_VALIDATION_TIMEOUT_MS = 6000;
 const builtin = [
   schema.recipe({ format: 'nexus-effect/1', name: 'Aurora espacial', pattern: 'wave', palette: ['#00ff99', '#00c8ff', '#8156ff'], speed: 30, angle: 0, scale: 1 }),
   schema.recipe({ format: 'nexus-effect/1', name: 'Cometa no setup', pattern: 'comet', palette: ['#00f0ff', '#7954ff'], speed: 35, angle: 0, scale: 1 }),
@@ -255,17 +257,35 @@ class Studio {
   }
   probe(effect) {
     return new Promise((resolve, reject) => {
-      const child = this.spawn(); let done = false;
-      const finish = error => { if (done) return; done = true; clearTimeout(timer); this.probes.delete(cancel); child.kill(); if (error) reject(error); else resolve(); };
-      const cancel = () => finish(Error('Importação cancelada ao encerrar o aplicativo.')); this.probes.add(cancel);
-      const timer = setTimeout(() => finish(Error('O efeito excedeu o tempo de validação.')), 6000);
-      child.on('error', error => finish(error)); child.on('exit', () => { if (!done) finish(Error('O motor do efeito encerrou durante a validação.')); });
+      const child = this.spawn();
+      let done = false, phase = 'boot';
+      const finish = error => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        this.probes.delete(cancel);
+        child.kill();
+        if (error) reject(error);
+        else resolve();
+      };
+      const cancel = () => finish(Error('Importação cancelada ao encerrar o aplicativo.'));
+      this.probes.add(cancel);
+      let timer = setTimeout(() => finish(Error('O motor demorou para iniciar.')), WORKER_BOOT_TIMEOUT_MS);
+      child.on('error', finish);
+      child.on('exit', () => finish(Error('O motor do efeito encerrou durante a validação.')));
       child.on('message', message => {
-        if (message.kind === 'ready') child.send({ kind: 'frame', points: [], preview: false });
-        else if (message.kind === 'frame') finish();
+        if (done) return;
+        if (message.kind === 'booted' && phase === 'boot') {
+          phase = 'load';
+          clearTimeout(timer);
+          timer = setTimeout(() => finish(Error('O efeito excedeu o tempo de validação.')), EFFECT_VALIDATION_TIMEOUT_MS);
+          child.send({ kind: 'load', effect, values: {} });
+        } else if (message.kind === 'ready' && phase === 'load') {
+          phase = 'frame';
+          child.send({ kind: 'frame', points: [], preview: false });
+        } else if (message.kind === 'frame' && phase === 'frame') finish();
         else if (message.kind === 'failure') finish(Error(message.error));
       });
-      child.send({ kind: 'load', effect, values: {} });
     });
   }
   spawn() {
@@ -517,18 +537,26 @@ class Studio {
     }
     const layout = this.layout(), layoutSignature = JSON.stringify(layout), signature = JSON.stringify([effect.id, this.config.values]);
     if (signature !== this.signature || !this.worker) {
-      this.stopWorker(); this.signature = signature; this.ready = false; this.healthySince = Date.now(); this.healthyFrames = 0;
+      this.stopWorker(); this.signature = signature; this.ready = false; this.healthySince = 0; this.healthyFrames = 0;
       const child = this.worker = this.spawn();
-      this.deadline = setTimeout(() => { if (this.worker === child) this.handleRuntimeFailure('O motor demorou para iniciar.', 'worker'); }, 6000);
+      let booting = true;
+      this.deadline = setTimeout(() => { if (this.worker === child) this.handleRuntimeFailure('O motor demorou para iniciar.', 'worker'); }, WORKER_BOOT_TIMEOUT_MS);
       child.on('error', () => { if (this.worker === child) this.handleRuntimeFailure('Não foi possível iniciar o motor.', 'worker'); });
       child.on('exit', () => { if (this.worker === child) this.handleRuntimeFailure('O motor encerrou inesperadamente.', 'worker'); });
       child.on('message', async message => {
         try {
         if (this.worker !== child) return;
-        clearTimeout(this.deadline);
-        if (message.kind === 'ready') { this.ready = true; this.busy = false; }
-        else if (message.kind === 'failure') this.handleRuntimeFailure(message.error, 'effect');
+        if (message.kind === 'booted' && booting) {
+          booting = false;
+          clearTimeout(this.deadline);
+          this.deadline = setTimeout(() => { if (this.worker === child) this.handleRuntimeFailure('O efeito excedeu o tempo de validação.', 'effect'); }, EFFECT_VALIDATION_TIMEOUT_MS);
+          child.send({ kind: 'load', effect, values: this.config.values });
+        } else if (message.kind === 'ready' && !booting) {
+          clearTimeout(this.deadline);
+          this.ready = true; this.busy = false; this.healthySince = Date.now();
+        } else if (message.kind === 'failure') this.handleRuntimeFailure(message.error, 'effect');
         else if (message.kind === 'frame') {
+          clearTimeout(this.deadline);
           this.colors.clear();
           this.rendered = true; this.healthyFrames++; this.revision++; this.renderedLayout = this.pendingLayoutSignature; this.frameLayout = this.pendingLayout;
           for (let i = 0; i < this.points.length; i++) {
@@ -554,7 +582,7 @@ class Studio {
         }
         } catch (error) { if (this.worker === child) this.handleRuntimeFailure(error.message, 'effect'); }
       });
-      child.send({ kind: 'load', effect, values: this.config.values }); return;
+      return;
     }
     if (!this.ready) return;
     const now = performance.now();
