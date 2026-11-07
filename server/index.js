@@ -25,6 +25,7 @@ const { Room } = require('./room');
 const { Cooling } = require('./cooling');
 const { installedCooling } = require('./cooling-installation');
 const { DeviceReconnect } = require('./device-reconnect');
+const { ControllerRecovery } = require('./controller-recovery');
 function readBody(req, maximum = 8192) {
   return new Promise((resolve, reject) => {
     if (!(req.headers['content-type'] || '').match(/^application\/json(?:;\s*charset=utf-8)?$/i)) return reject(Object.assign(new Error('Use application/json.'), { status: 415 }));
@@ -73,7 +74,11 @@ async function createApp(options = {}) {
   const studio = new Studio(store, hardware, directory, broadcast, options.studio); hardware.studio = studio;
   const draftPreview = new DraftPreview(studio);
   const backups = new Backups(store,studio,directory);
-  const cooling=new Cooling(directory,options.cooling ?? installedCooling(path.resolve(__dirname,'..')));
+  const installed = installedCooling(path.resolve(__dirname,'..'));
+  const cooling=new Cooling(directory,options.cooling ?? installed);
+  const controllerRecovery = new ControllerRecovery(hardware, {
+    enabled: process.platform === 'win32' && process.env.NEXUS_SUPERVISED === '1' && installed.allowHardware === true && !options.disableHardware
+  });
   const reconnectDevices=new DeviceReconnect(store,hardware,directory);
   const resources = new Resources({additional:()=>cooling.resourceRows()});
   const conflicts = options.conflicts || new Conflicts();
@@ -133,7 +138,7 @@ async function createApp(options = {}) {
     if (!budget.take(ip) || !globalRate.take('all')) return json(res, 429, { error: 'Muitas requisições. Aguarde um minuto.' });
     if (route === '/api/health' && req.method === 'GET' && isLocal) {
       const lan = networkSettings.resolve(lport);
-      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, lanAccess: security.access.config.mode, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}), ...(hardware.controllerHung ? { controllerHung: true } : {}) } });
+      return json(res, 200, { ready: true, application: 'nexus-rgb', version: VERSION, lanUrl: lan.lanUrl, lanAccess: security.access.config.mode, hardware: { connected: hardware.connected, devices: hardware.snapshot().devices.length, ...(typeof hardware.detecting === 'boolean' ? { detecting: hardware.detecting } : {}), ...(hardware.controllerHung ? { controllerHung: true } : {}), ...(controllerRecovery.enabled ? { recovery: controllerRecovery.snapshot() } : {}) } });
     }
     if (req.method === 'OPTIONS') return json(res, 405, { error: 'Método não permitido.' });
     if (!['GET', 'HEAD'].includes(req.method)) {
@@ -299,7 +304,7 @@ async function createApp(options = {}) {
     try { await listen(local, localPort, options.listenHost||'0.0.0.0'); }
     catch (error) { await stop(); if (['EADDRINUSE', 'EACCES'].includes(error.code)) error.message = `Não foi possível abrir a porta ${localPort} do painel (${error.code}). No ícone do Nexus perto do relógio, abra Configurar portas, escolha outra porta e aplique.`; throw error; }
     local.on('error', error => console.error('Servidor:', error.code));
-    heartbeat = setInterval(() => { for (const client of clients) { if (!security.session(client.req)||client.res.destroyed||client.res.writableLength>256*1024) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
+    heartbeat = setInterval(() => { controllerRecovery.check(); for (const client of clients) { if (!security.session(client.req)||client.res.destroyed||client.res.writableLength>256*1024) { client.res.end(); clients.delete(client); } else client.res.write(': keepalive\n\n'); } }, 15000);
     if (!options.disableHardware && process.env.NEXUS_DISABLE_HARDWARE !== '1') hardware.start();
     if (!options.disableAlexa) alexa.start();
     cooling.start();
@@ -307,7 +312,7 @@ async function createApp(options = {}) {
     return { localPort: local.address().port };
   }
   async function stop() {
-    clearInterval(heartbeat);await cooling.close();await room.close(); experiences.close(); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
+    clearInterval(heartbeat);controllerRecovery.close();await cooling.close();await room.close(); experiences.close(); draftPreview.close(); studio.stop(); hardware.stop(); alexa.stop();
     for (const client of clients) client.res.end(); clients.clear();
     local.closeAllConnections(); if (local.listening) await new Promise(resolve => local.close(resolve));
   }

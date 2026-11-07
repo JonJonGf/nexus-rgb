@@ -21,4 +21,4 @@
 .experience-state { font:11px var(--mono); color:var(--accent); }
 .experience-warning { color:#ffd18c; font-size:12px; line-height:1.7; }
 @media(max-width:1100px){.experience-grid {grid-template-columns:minmax(0,1fr);} .scene-step {grid-template-columns:24px 1fr 1fr;} .scene-step > button {grid-column:3;justify-self:end;} }
-@media(max-width:800px){.sidebar nav {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;} .nav {min-width:0;width:100%;padding-left:0;padding-right:0;font-size:8px;letter-spacing:-.25px;} .nav span {max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .experience-head {align-items:start;flex-direction:column;} .experience-tabs {gap:5px;} .experience-tabs button {flex:1;font-size:11px;padding:10px 8px;} .experience-grid {gap:12px;} }
+@media(max-width:800px){.experience-head {align-items:start;flex-direction:column;} .experience-tabs {gap:5px;} .experience-tabs button {flex:1;font-size:11px;padding:10px 8px;} .experience-grid {gap:12px;} }

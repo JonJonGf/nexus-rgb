@@ -8,8 +8,8 @@ using System;using System.Security.Principal;using System.Threading;
 class LaunchFixture {
  static void Main(string[] args){
   if(args.Length==1){Console.WriteLine(CoolingLaunchBroker.PackageEligible(args[0])?"eligible":"disabled");return;}
-  int expected=int.Parse(args[1]);
-  using(var broker=new CoolingLaunchBroker(AppDomain.CurrentDomain.BaseDirectory,args[0],pid=>pid==expected,(pid,name)=>12345,WindowsIdentity.GetCurrent().User)){
+  int expected=int.Parse(args[1]); int recoveries=0;
+  using(var broker=new CoolingLaunchBroker(AppDomain.CurrentDomain.BaseDirectory,args[0],pid=>pid==expected,(pid,name)=>12345,WindowsIdentity.GetCurrent().User,()=>++recoveries==1)){
    broker.Start();Console.WriteLine("ready");Console.In.ReadLine();
   }
  }
@@ -25,8 +25,10 @@ class LaunchFixture {
   const policy=expected=>{const r=spawnSync(exe,[packageRoot],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(r.status,0,r.stderr);assert.equal(r.stdout.trim(),expected);};
   write('build-info.json',build);policy('eligible');
   for(const change of [{tag:'v0.1.0'},{tag:'v0.1.0-beta.1'},{development:true},{tag:null},{commit:'b'.repeat(40)}]){write('build-info.json',{...build,...change});policy('disabled');}
+  write('build-info.json',{version:'1.0.0',commit,tag:'v1.0.0',development:false});policy('eligible');
+  for(const change of [{version:'0.1.0'},{tag:'v1.0.1'},{tag:'v1.0.0-beta.1'},{development:true}]){write('build-info.json',{version:'1.0.0',commit,tag:'v1.0.0',development:false,...change});policy('disabled');}
   write('build-info.json',{commit,tag:null,development:true});policy('eligible');
-  console.log('Native package policy: matching alpha/development only; stable, malformed and mismatched payloads disabled. No hardware launched.');
+  console.log('Native package policy: matching stable 1+, alpha and development; malformed and mismatched payloads disabled. No hardware launched.');
   child=spawn(exe,[pipe,String(process.pid)],{windowsHide:true,stdio:['pipe','pipe','pipe']});
   await new Promise((resolve,reject)=>{child.stdout.once('data',resolve);child.once('error',reject);});
   const request=body=>new Promise((resolve,reject)=>{
@@ -41,6 +43,9 @@ class LaunchFixture {
   const good={parent:process.pid,pipe:'NexusRGB.Cooling.Dev.'+'a'.repeat(32)};
   assert.deepEqual(await request(good),{status:'ok',pid:12345});
   for(const bad of [{...good,parent:process.pid+1},{...good,pipe:'arbitrary --hardware'},{...good,executable:'untrusted.exe'},{pipe:good.pipe},{...good,parent:String(process.pid)},'{invalid}\n'])assert.equal((await request(bad)).status,'error');
+  assert.deepEqual(await request({parent:process.pid,recover:'controller'}),{status:'ok',accepted:true});
+  assert.deepEqual(await request({parent:process.pid,recover:'controller'}),{status:'ok',accepted:false});
+  for(const bad of [{parent:process.pid+1,recover:'controller'},{parent:process.pid,recover:'arbitrary-service'},{parent:process.pid,recover:'controller',executable:'untrusted.exe'}])assert.equal((await request(bad)).status,'error');
   console.log('Native service broker IPC: exact client PID, bounded schema, pipe format, arbitrary executable/arguments and invalid JSON checks passed. Launch adapter simulated; no sensors/services touched.');
  }finally{
   if(child){child.stdin.end('stop\n');await new Promise(r=>child.exitCode!==null?r():child.once('exit',r));}

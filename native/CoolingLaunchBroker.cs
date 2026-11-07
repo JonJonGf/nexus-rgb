@@ -13,11 +13,12 @@ using System.Threading;
 using System.Web.Script.Serialization;
 
 // Lives in the existing SYSTEM hardware supervisor, never in the HTTP service.
-// Only a matching development/alpha payload enables it. No sensor is opened here.
+// Only a matching packaged payload enables it. No sensor is opened here.
 internal sealed class CoolingLaunchBroker : IDisposable {
     private readonly string root, name;
     private readonly Func<int,bool> validate;
     private readonly Func<int,string,int> launch;
+    private readonly Func<bool> recover;
     private readonly SecurityIdentifier clientSid;
     private volatile bool stopping;
     private NamedPipeServerStream current;
@@ -25,11 +26,11 @@ internal sealed class CoolingLaunchBroker : IDisposable {
     private readonly JavaScriptSerializer json=new JavaScriptSerializer { MaxJsonLength=2048 };
     private Process active;
     [DllImport("kernel32.dll",SetLastError=true)] private static extern bool GetNamedPipeClientProcessId(IntPtr pipe,out uint pid);
-    internal static CoolingLaunchBroker StartInstalled(string root) {
+    internal static CoolingLaunchBroker StartInstalled(string root, Func<bool> recover = null) {
         try {
             if(!WindowsIdentity.GetCurrent().IsSystem)return null;
             if(!PackageEligible(root))return null;
-            var broker=new CoolingLaunchBroker(root,"NexusRGB.Cooling.Launch.v1",null,null,new SecurityIdentifier(WellKnownSidType.LocalServiceSid,null));
+            var broker=new CoolingLaunchBroker(root,"NexusRGB.Cooling.Launch.v1",null,null,new SecurityIdentifier(WellKnownSidType.LocalServiceSid,null),recover);
             broker.Start();return broker;
         }catch{return null;}
     }
@@ -40,9 +41,11 @@ internal sealed class CoolingLaunchBroker : IDisposable {
             if(build==null||!build.ContainsKey("development")||!build.ContainsKey("tag"))return false;
             bool development=true.Equals(build["development"])&&build["tag"]==null;
             bool alpha=false.Equals(build["development"])&&build["tag"] is string&&Regex.IsMatch((string)build["tag"],@"^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$");
+            bool stable=false.Equals(build["development"])&&build.ContainsKey("version")&&build["version"] is string&&
+                Regex.IsMatch((string)build["version"],@"^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")&&("v"+(string)build["version"]).Equals(build["tag"]);
             bool legacy=development&&!File.Exists(Path.Combine(root,@"server\cooling-package.json"));
             var marker=serializer.DeserializeObject(File.ReadAllText(Path.Combine(root,legacy?@"server\cooling-development.json":@"server\cooling-package.json"))) as Dictionary<string,object>;
-            if((!development&&!alpha)||marker==null||
+            if((!development&&!alpha&&!stable)||marker==null||
                !build.ContainsKey("commit")||!(build["commit"] is string)||!Regex.IsMatch((string)build["commit"],"^[a-f0-9]{40}$")||
                !marker.ContainsKey("format")||!(legacy?"nexus-cooling-development/1":"nexus-cooling-package/1").Equals(marker["format"])||!marker.ContainsKey("commit")||!build["commit"].Equals(marker["commit"])||
                !File.Exists(Path.Combine(root,@"cooling\nexus-cooling.exe")))return false;
@@ -50,8 +53,8 @@ internal sealed class CoolingLaunchBroker : IDisposable {
         }catch{return false;}
     }
     // Trusted adapters are used by the native IPC fixture, never by request data.
-    internal CoolingLaunchBroker(string root,string name,Func<int,bool> validate,Func<int,string,int> launch,SecurityIdentifier clientSid){
-        this.root=Path.GetFullPath(root);this.name=name;this.validate=validate??ValidateInstalledClient;this.launch=launch??LaunchInstalled;this.clientSid=clientSid;
+    internal CoolingLaunchBroker(string root,string name,Func<int,bool> validate,Func<int,string,int> launch,SecurityIdentifier clientSid,Func<bool> recover=null){
+        this.root=Path.GetFullPath(root);this.name=name;this.validate=validate??ValidateInstalledClient;this.launch=launch??LaunchInstalled;this.clientSid=clientSid;this.recover=recover;
     }
     internal void Start(){new Thread(Serve){IsBackground=true,Name="NexusCoolingLaunch"}.Start();}
     private bool ValidateInstalledClient(int pid){
@@ -103,6 +106,11 @@ internal sealed class CoolingLaunchBroker : IDisposable {
                             var input=System.Threading.Tasks.Task.Run(()=>ReadBounded(reader));
                             if(!input.Wait(3000))throw new InvalidOperationException("Pedido de ventilação expirou.");
                             var body=json.DeserializeObject(input.Result) as Dictionary<string,object>;
+                            if(body!=null&&body.Count==2&&body.ContainsKey("parent")&&body["parent"] is int&&(int)body["parent"]==(int)actual&&
+                               body.ContainsKey("recover")&&"controller".Equals(body["recover"])) {
+                                writer.WriteLine(json.Serialize(new{status="ok",accepted=recover!=null&&recover()}));
+                                continue;
+                            }
                             if(body==null||body.Count!=2||!body.ContainsKey("parent")||!(body["parent"] is int)||!body.ContainsKey("pipe")||!(body["pipe"] is string)||
                                (int)body["parent"]!=(int)actual||!Regex.IsMatch((string)body["pipe"],@"^NexusRGB\.Cooling\.Dev\.[a-f0-9]{32}$"))throw new InvalidOperationException("Pedido de ventilação inválido.");
                             if(stopping)throw new InvalidOperationException("O serviço de hardware está encerrando.");

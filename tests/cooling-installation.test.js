@@ -12,7 +12,7 @@ test('only a matching development package enables installed cooling, without lau
  write('build-info.json',{...build,development:false,tag:'v0.1.0-alpha.40'});assert.deepEqual(installedCooling(root),{});
  write('build-info.json',build);write('cooling-development.json',{format:'nexus-cooling-development/1',commit:'b'.repeat(40)});assert.deepEqual(installedCooling(root),{});
 });
-test('an explicit matching alpha cooling payload is available, while stable and mismatched packages stay disabled',t=>{
+test('an explicit matching alpha cooling payload is available, while pre-1.0 stable and mismatched packages stay disabled',t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-cooling-alpha-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));fs.mkdirSync(path.join(root,'server'));fs.mkdirSync(path.join(root,'cooling'));fs.writeFileSync(path.join(root,'cooling/nexus-cooling.exe'),'fixture-not-executed');
  const write=(name,value)=>fs.writeFileSync(path.join(root,'server',name),JSON.stringify(value));
  const commit='a'.repeat(40),build={version:'0.1.0',tag:'v0.1.0-alpha.41',commit,development:false};
@@ -23,4 +23,15 @@ test('an explicit matching alpha cooling payload is available, while stable and 
  }
  write('build-info.json',build);write('cooling-package.json',{format:'nexus-cooling-package/1',commit:'b'.repeat(40)});assert.deepEqual(installedCooling(root),{});
  write('cooling-package.json',{format:'nexus-cooling-development/1',commit});assert.deepEqual(installedCooling(root),{});
+});
+
+test('version 1 stable packages include optional cooling only with matching version, marker and commit', t => {
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'nexus-cooling-stable-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));fs.mkdirSync(path.join(root,'server'));fs.mkdirSync(path.join(root,'cooling'));fs.writeFileSync(path.join(root,'cooling/nexus-cooling.exe'),'fixture-not-executed');
+ const write=(name,value)=>fs.writeFileSync(path.join(root,'server',name),JSON.stringify(value));
+ const build={version:'1.0.0',tag:'v1.0.0',commit:'a'.repeat(40),development:false};
+ write('build-info.json',build);write('cooling-package.json',{format:'nexus-cooling-package/1',commit:build.commit});
+ assert.equal(installedCooling(root).allowHardware,true);
+ for(const change of [{version:'0.1.0'},{tag:'v1.0.1'},{tag:'v1.0.0-beta.1'},{tag:'v01.0.0'},{development:true},{commit:'b'.repeat(40)}]){
+  write('build-info.json',{...build,...change});assert.deepEqual(installedCooling(root),{});
+ }
 });

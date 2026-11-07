@@ -11,6 +11,7 @@ using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 internal static class Program {
     internal static readonly string Root = AppDomain.CurrentDomain.BaseDirectory;
@@ -361,12 +362,15 @@ internal sealed class Worker : ServiceBase {
     private DateTime lastResumeRequest = DateTime.MinValue;
     private DateTime nextStart = DateTime.MinValue;
     private int failures;
+    private readonly Queue<DateTime> hardwareRecoveries = new Queue<DateTime>();
+    private readonly Func<DateTime> recoveryClock;
+    private DateTime nextHardwareRecovery = DateTime.MinValue;
     private string data;
-    internal Worker(bool hardware) { this.hardware = hardware; ServiceName = hardware ? "NexusRGBHardware" : "NexusRGB"; CanStop = true; CanShutdown = true; CanHandlePowerEvent = hardware; AutoLog = true; }
+    internal Worker(bool hardware, Func<DateTime> recoveryClock = null) { this.hardware = hardware; this.recoveryClock = recoveryClock ?? (() => DateTime.UtcNow); ServiceName = hardware ? "NexusRGBHardware" : "NexusRGB"; CanStop = true; CanShutdown = true; CanHandlePowerEvent = hardware; AutoLog = true; }
     protected override void OnStart(string[] args) {
         data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "NexusRGB", hardware ? "hardware" : "app");
         if (!Directory.Exists(data)) throw new DirectoryNotFoundException(L.T("Use o instalador para criar a pasta do serviço."));
-        if(hardware)coolingBroker=CoolingLaunchBroker.StartInstalled(Program.Root);
+        if(hardware)coolingBroker=CoolingLaunchBroker.StartInstalled(Program.Root,RequestHardwareRecovery);
         job = Job.Create(); timer = new System.Threading.Timer(Tick, null, 0, 1000);
     }
     private void Log(string message) {
@@ -377,7 +381,7 @@ internal sealed class Worker : ServiceBase {
     }
     private void Tick(object unused) {
         lock (gate) {
-            if (stopping || restarting) return;
+            if (stopping || restarting || resumeScheduled) return;
             if (child != null && !child.HasExited) return;
             if (child != null) { Log("Processo encerrou com código " + child.ExitCode); if ((DateTime.UtcNow - child.StartTime.ToUniversalTime()).TotalMinutes > 5) failures = 0; child.Dispose(); child = null; failures++; nextStart = DateTime.UtcNow.AddSeconds(Math.Min(30, Math.Pow(2, Math.Min(failures, 5)))); }
             if (DateTime.UtcNow < nextStart) return;
@@ -414,6 +418,27 @@ internal sealed class Worker : ServiceBase {
             if (stopping || resumeScheduled || (DateTime.UtcNow - lastResumeRequest).TotalSeconds < 5) return true;
             resumeScheduled = true; lastResumeRequest = DateTime.UtcNow;
         }
+        RefreshHardware("Retomada do Windows: renovando o processo de hardware.");
+        return true;
+    }
+    internal bool RequestHardwareRecovery() {
+        lock (gate) {
+            if (!hardware || stopping || restarting || resumeScheduled || child == null || child.HasExited) return false;
+            var now = recoveryClock();
+            if (now < nextHardwareRecovery) return false;
+            while (hardwareRecoveries.Count > 0 && now - hardwareRecoveries.Peek() >= TimeSpan.FromMinutes(30)) hardwareRecoveries.Dequeue();
+            if (hardwareRecoveries.Count >= 3) {
+                Log("Limite de recuperação automática atingido; confira o controlador no painel.");
+                return false;
+            }
+            hardwareRecoveries.Enqueue(now);
+            nextHardwareRecovery = now.AddMinutes(5);
+            resumeScheduled = true;
+        }
+        RefreshHardware("Travamento confirmado: renovando o processo de hardware.");
+        return true;
+    }
+    private void RefreshHardware(string reason) {
         ThreadPool.QueueUserWorkItem(delegate {
             // Let Windows restore the device stack; duplicate resume notifications
             // share this single refresh. The network worker is left running.
@@ -425,11 +450,10 @@ internal sealed class Worker : ServiceBase {
             }
             try { CloseChild(running, currentJob); }
             finally {
-                lock (gate) { restarting = false; resumeScheduled = false; failures = 0; nextStart = DateTime.MinValue; if (!stopping) Log("Retomada do Windows: renovando o processo de hardware."); }
+                lock (gate) { restarting = false; resumeScheduled = false; failures = 0; nextStart = DateTime.MinValue; if (!stopping) Log(reason); }
             }
             Tick(null);
         });
-        return true;
     }
     protected override void OnStop() {
         if(coolingBroker!=null){coolingBroker.Dispose();coolingBroker=null;}

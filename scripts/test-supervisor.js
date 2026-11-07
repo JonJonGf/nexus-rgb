@@ -17,6 +17,19 @@ try {
   const fixture = String.raw`
 internal static class WorkerFixture {
     internal static readonly string DataRoot = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "data");
+    private static int ReadPid(string file) {
+        var until=System.DateTime.UtcNow.AddSeconds(2);
+        do {
+            try {
+                using(var stream=new System.IO.FileStream(file,System.IO.FileMode.Open,System.IO.FileAccess.Read,System.IO.FileShare.ReadWrite|System.IO.FileShare.Delete))
+                using(var reader=new System.IO.StreamReader(stream)) {
+                    int pid;if(int.TryParse(reader.ReadToEnd(),out pid)&&pid>0)return pid;
+                }
+            } catch(System.IO.IOException) {}
+            System.Threading.Thread.Sleep(10);
+        } while(System.DateTime.UtcNow<until);
+        throw new System.Exception("Fixture PID was not published completely.");
+    }
     private static void Main() {
         if (Program.RecoveryInstalled()) throw new System.Exception("Recovery accepted an unregistered executable.");
         if (!Program.RecoveryLink("nexusrgb://restart") || !Program.RecoveryLink("nexusrgb://restart/")) throw new System.Exception("Recovery URL rejected.");
@@ -33,13 +46,13 @@ internal static class WorkerFixture {
             string stable = System.IO.Path.Combine(data, "stable-pid");
             while (!System.IO.File.Exists(stable) && System.DateTime.UtcNow < deadline) System.Threading.Thread.Sleep(100);
             if (!System.IO.File.Exists(stable)) throw new System.Exception("Worker did not restart the failed child.");
-            int childId = int.Parse(System.IO.File.ReadAllText(stable));
+            int childId = ReadPid(stable);
             var child = System.Diagnostics.Process.GetProcessById(childId);
             string log = System.IO.File.ReadAllText(System.IO.Path.Combine(data, "service.log"));
             if (!log.Contains("código 42")) throw new System.Exception("Child failure was not recorded.");
             string hardwareData=System.IO.Path.Combine(DataRoot,"NexusRGB","hardware");
             System.IO.Directory.CreateDirectory(hardwareData);
-            var hardwareWorker=new Worker(true);
+            var recoveryNow=System.DateTime.UtcNow; var hardwareWorker=new Worker(true,()=>recoveryNow);
             bool hardwareStarted=false;
             try {
                 if(!hardwareWorker.CanHandlePowerEvent)throw new System.Exception("Hardware supervisor does not receive Windows power events.");
@@ -48,22 +61,33 @@ internal static class WorkerFixture {
                 deadline=System.DateTime.UtcNow.AddSeconds(20);
                 while(!System.IO.File.Exists(hardwareStable)&&System.DateTime.UtcNow<deadline)System.Threading.Thread.Sleep(100);
                 if(!System.IO.File.Exists(hardwareStable))throw new System.Exception("Hardware fixture did not start.");
-                int beforeResume=int.Parse(System.IO.File.ReadAllText(hardwareStable));
+                int beforeResume=ReadPid(hardwareStable);
                 var resume=typeof(Worker).GetMethod("OnPowerEvent",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance);
                 resume.Invoke(hardwareWorker,new object[]{System.ServiceProcess.PowerBroadcastStatus.ResumeAutomatic});
                 resume.Invoke(hardwareWorker,new object[]{System.ServiceProcess.PowerBroadcastStatus.ResumeSuspend});
                 deadline=System.DateTime.UtcNow.AddSeconds(12);int afterResume=beforeResume;
-                while(afterResume==beforeResume&&System.DateTime.UtcNow<deadline){System.Threading.Thread.Sleep(100);afterResume=int.Parse(System.IO.File.ReadAllText(hardwareStable));}
+                while(afterResume==beforeResume&&System.DateTime.UtcNow<deadline){System.Threading.Thread.Sleep(100);afterResume=ReadPid(hardwareStable);}
                 if(afterResume==beforeResume)throw new System.Exception("Resume did not replace the hardware child.");
                 System.Threading.Thread.Sleep(3000);
-                if(int.Parse(System.IO.File.ReadAllText(hardwareStable))!=afterResume)throw new System.Exception("Duplicate resume events caused repeated hardware restarts.");
+                if(ReadPid(hardwareStable)!=afterResume)throw new System.Exception("Duplicate resume events caused repeated hardware restarts.");
                 if(child.HasExited)throw new System.Exception("Hardware resume stopped the network service child.");
+                for(int attempt=0;attempt<3;attempt++){
+                    if(!hardwareWorker.RequestHardwareRecovery())throw new System.Exception("Confirmed hardware recovery was refused.");
+                    if(hardwareWorker.RequestHardwareRecovery())throw new System.Exception("Duplicate recovery was accepted.");
+                    int previous=afterResume; deadline=System.DateTime.UtcNow.AddSeconds(10);
+                    while(afterResume==previous&&System.DateTime.UtcNow<deadline){System.Threading.Thread.Sleep(100);afterResume=ReadPid(hardwareStable);}
+                    if(afterResume==previous)throw new System.Exception("Confirmed hang did not replace the hardware child.");
+                    if(hardwareWorker.RequestHardwareRecovery())throw new System.Exception("Recovery ignored the cooldown.");
+                    if(child.HasExited)throw new System.Exception("Hardware recovery stopped the network child.");
+                    recoveryNow=recoveryNow.AddMinutes(5);
+                }
+                if(hardwareWorker.RequestHardwareRecovery())throw new System.Exception("Recovery ignored the half-hour retry budget.");
                 var resumedChild=System.Diagnostics.Process.GetProcessById(afterResume);
                 resume.Invoke(hardwareWorker,new object[]{System.ServiceProcess.PowerBroadcastStatus.ResumeAutomatic});
                 stop.Invoke(hardwareWorker,null);hardwareStarted=false;
                 if(!resumedChild.WaitForExit(5000))throw new System.Exception("Stopping during resume left hardware running.");
                 System.Threading.Thread.Sleep(2500);
-                if(int.Parse(System.IO.File.ReadAllText(hardwareStable))!=afterResume)throw new System.Exception("Queued resume restarted hardware after service stop.");
+                if(ReadPid(hardwareStable)!=afterResume)throw new System.Exception("Queued resume restarted hardware after service stop.");
                 resumedChild.Dispose();
             } finally {if(hardwareStarted)stop.Invoke(hardwareWorker,null);hardwareWorker.Dispose();}
             stop.Invoke(worker, null); started = false;
@@ -81,7 +105,7 @@ internal static class WorkerFixture {
                 deadline = System.DateTime.UtcNow.AddSeconds(20);
                 while (!System.IO.File.Exists(stable) && System.DateTime.UtcNow < deadline) System.Threading.Thread.Sleep(100);
                 if (!System.IO.File.Exists(stable)) throw new System.Exception("Second worker did not start child.");
-                int hungId = int.Parse(System.IO.File.ReadAllText(stable));
+                int hungId = ReadPid(stable);
                 var hung = System.Diagnostics.Process.GetProcessById(hungId);
                 stop.Invoke(worker2, null); started = false;
                 if (!hung.WaitForExit(5000)) throw new System.Exception("Job fallback left an unresponsive child running.");
@@ -90,7 +114,7 @@ internal static class WorkerFixture {
                 hung.Dispose();
             } finally { if (started) stop.Invoke(worker2, null); worker2.Dispose(); }
 
-            System.Console.WriteLine("Supervisor recovered failed/hung children, refreshed hardware once on resume without stopping network, and cancelled queued resume after stop.");
+            System.Console.WriteLine("Supervisor recovered failed/hung children, refreshed hardware once on resume, enforced three recoveries and cooldown without stopping network, and cancelled queued resume after stop.");
         } finally { if (started) stop.Invoke(worker, null); worker.Dispose(); }
     }
 }

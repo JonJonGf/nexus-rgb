@@ -22,3 +22,20 @@ test('a valid effect survives slow worker startup and its backup remains restora
   assert.equal(reviewed.status, 200, reviewed.text);
   assert.equal(reviewed.json().summary.imports, 1);
 });
+
+test('a worker that never announces startup is terminated and its effect is not saved', async t => {
+  const { app, request, cookie } = await fixture(t);
+  let child;
+  app.studio.spawn = () => {
+    child = fork(path.join(__dirname, 'fixtures/silent-studio-worker.cjs'), [], {
+      execArgv: ['--max-old-space-size=64'], windowsHide: true,
+      stdio: ['ignore', 'ignore', 'ignore', 'ipc']
+    });
+    return child;
+  };
+  const source = JSON.stringify({ format: 'nexus-effect/1', name: 'Never ready', pattern: 'gradient', palette: ['#123456'], speed: 0, angle: 0, scale: 1 });
+  await assert.rejects(app.studio.import(source), /motor demorou para iniciar/);
+  await new Promise(resolve => child.exitCode !== null || child.signalCode !== null ? resolve() : child.once('exit', resolve));
+  const library = (await request('/api/studio', { cookie })).json();
+  assert.equal(library.effects.some(effect => effect.name === 'Never ready'), false);
+});

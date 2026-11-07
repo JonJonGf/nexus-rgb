@@ -16,9 +16,12 @@ test('every phone navigation button is visible and settings opens by touch', asy
   const navigation = await page.locator('.sidebar .nav').evaluateAll(buttons => buttons.map(button => {
     const box = button.getBoundingClientRect();
     const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    return { page: button.dataset.page, accessible: button.contains(target), height: box.height };
+    return { page: button.dataset.page, accessible: button.contains(target), height: box.height, x: box.x, y: box.y };
   }));
   expect(navigation.every(button => button.accessible && button.height >= 44), JSON.stringify(navigation)).toBe(true);
+  expect(navigation[0].y).toBe(navigation[3].y);
+  expect(navigation[4].y).toBeGreaterThan(navigation[0].y);
+  expect(navigation[4].x).toBe(navigation[0].x);
   await page.locator('.nav[data-page=settings]').tap();
   await expect(page.locator('#settings-language')).toBeVisible();
 });

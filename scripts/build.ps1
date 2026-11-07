@@ -24,7 +24,8 @@ foreach($folder in @('server','public','docs')) { Copy-Item -LiteralPath (Join-P
 & node scripts/build-info.cjs $buildRoot
 if($LASTEXITCODE -ne 0){throw 'Falha ao identificar a versão do pacote.'}
 $buildInfo=Get-Content -LiteralPath (Join-Path $buildRoot 'server\build-info.json') -Raw | ConvertFrom-Json
-$includeCooling=($buildInfo.development -and -not $buildInfo.tag) -or (-not $buildInfo.development -and $buildInfo.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$')
+$stableCooling=(-not $buildInfo.development -and $buildInfo.version -cmatch '^[1-9]\d*\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' -and $buildInfo.tag -ceq ('v'+$buildInfo.version))
+$includeCooling=($buildInfo.development -and -not $buildInfo.tag) -or (-not $buildInfo.development -and $buildInfo.tag -cmatch '^v\d+\.\d+\.\d+-alpha\.[1-9]\d*$') -or $stableCooling
 if($CoolingDevelopment -and (-not $buildInfo.development -or $buildInfo.tag)){throw 'Ventilação experimental privada exige um build de desenvolvimento sem tag.'}
 if($includeCooling){
   & (Join-Path $PSScriptRoot 'build-cooling.ps1') -OutputDirectory (Join-Path $buildRoot 'cooling')
